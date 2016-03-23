@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
-class Store {
+class ReadingsBuffer {
 
     private static final String TIME_PREFIX = "R";
     private static final String RTC = "RTC ";
@@ -52,7 +52,7 @@ class Store {
         }
     }
 
-    String getPublishingData() {
+    String getFormattedData() {
         final StringBuilder data = new StringBuilder();
         data.append(RTC).append(System.currentTimeMillis() / 1000).append(MESSAGE_END);
         data.append(MESSAGE_START);

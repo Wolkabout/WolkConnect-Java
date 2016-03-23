@@ -6,7 +6,7 @@ import java.util.TimerTask;
 public class Wolk {
 
     private final PublishingService publishingService;
-    private final Store store;
+    private final ReadingsBuffer readingsBuffer = new ReadingsBuffer();
     private final Timer timer = new Timer();
     private final TimerTask publishTask = new TimerTask() {
         @Override
@@ -19,7 +19,6 @@ public class Wolk {
 
     public Wolk(final Device device) {
         publishingService = new PublishingService(device);
-        store = new Store();
     }
 
     /**
@@ -37,7 +36,7 @@ public class Wolk {
      * @param delta Time interval in seconds.
      */
     public void setTimeDelta(final int delta) {
-        store.setDelta(delta);
+        readingsBuffer.setDelta(delta);
     }
 
     /**
@@ -61,7 +60,7 @@ public class Wolk {
      * @param value Value of the reading.
      */
     public void addReading(final ReadingType type, final String value) {
-        store.addReading(type, value);
+        readingsBuffer.addReading(type, value);
     }
 
     /**
@@ -71,22 +70,21 @@ public class Wolk {
      * @param value Value of the reading.
      */
     public void addReading(final long time, final ReadingType type, final String value) {
-        store.addReading(time, type, value);
+        readingsBuffer.addReading(time, type, value);
     }
 
     /**
      * Publishes all the data and clears the reading list if publishing was successful.
      */
     public void publish() {
-        if (store.isEmpty()) {
+        if (readingsBuffer.isEmpty()) {
             logger.info("No new readings. Not publishing.");
             return;
         }
 
-        final String data = store.getPublishingData();
         try {
-            publishingService.publish(data);
-            store.clear();
+            publishingService.publish(readingsBuffer.getFormattedData());
+            readingsBuffer.clear();
             logger.info("Publish successful. Readings list cleared");
         } catch (Exception e) {
             logger.error("Publishing data failed.", e);
