@@ -28,6 +28,7 @@ class ReadingsBuffer {
         for (final long publishedTime : publishedTimes) {
             readings.remove(publishedTime);
         }
+        readings.clear();
     }
 
     void setDelta(final int delta) {

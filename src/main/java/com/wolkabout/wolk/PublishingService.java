@@ -46,11 +46,8 @@ class PublishingService {
 
     private Certificate getCertificate() throws Exception {
         final CertificateFactory certificateFactory = CertificateFactory.getInstance(FACTORY_TYPE);
-        final InputStream certificateString = getClass().getClassLoader().getResourceAsStream(CERTIFICATE_NAME);
-        try {
+        try (InputStream certificateString = getClass().getClassLoader().getResourceAsStream(CERTIFICATE_NAME)) {
             return certificateFactory.generateCertificate(certificateString);
-        } finally {
-            certificateString.close();
         }
     }
 
