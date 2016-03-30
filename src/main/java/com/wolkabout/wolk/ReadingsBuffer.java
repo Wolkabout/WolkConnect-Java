@@ -24,11 +24,11 @@ class ReadingsBuffer {
         return readings.isEmpty();
     }
 
-    void trim() {
+    void removePublishedReadings() {
         for (final long publishedTime : publishedTimes) {
             readings.remove(publishedTime);
         }
-        readings.clear();
+        publishedTimes.clear();
     }
 
     void setDelta(final int delta) {

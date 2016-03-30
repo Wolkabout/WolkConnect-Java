@@ -2,6 +2,7 @@ package com.wolkabout.wolk;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class Wolk {
@@ -10,6 +11,7 @@ public class Wolk {
     private final ReadingsBuffer readingsBuffer = new ReadingsBuffer();
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
+    private ScheduledFuture<?> publishTask;
     private Logger logger = new Logger() {};
 
     public Wolk(final Device device) {
@@ -39,12 +41,12 @@ public class Wolk {
      * @param interval Time interval in seconds to elapse between two publish attempts.
      */
     public void startAutoPublishing(final int interval) {
-        executorService.schedule(new Runnable() {
+        publishTask = executorService.schedule(new Runnable() {
             @Override
             public void run() {
                 publish();
-                if (!executorService.isShutdown()) {
-                    executorService.schedule(this, interval, TimeUnit.SECONDS);
+                if (!publishTask.isCancelled()) {
+                    publishTask = executorService.schedule(this, interval, TimeUnit.SECONDS);
                 }
             }
         }, interval, TimeUnit.SECONDS);
@@ -54,7 +56,7 @@ public class Wolk {
      * Cancels a started automatic publishing task.
      */
     public void stopAutoPublishing() {
-        executorService.shutdown();
+        publishTask.cancel(true);
     }
 
     /**
@@ -87,7 +89,7 @@ public class Wolk {
 
         try {
             publishingService.publish(readingsBuffer.getFormattedData());
-            readingsBuffer.trim();
+            readingsBuffer.removePublishedReadings();
             logger.info("Publish successful. Readings list trimmed.");
         } catch (Exception e) {
             logger.error("Publishing data failed.", e);
