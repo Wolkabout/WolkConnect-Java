@@ -16,6 +16,7 @@ class ReadingsBuffer {
     private static final String MESSAGE_END = ";";
 
     private final NavigableMap<Long, List<Reading>> readings= new TreeMap<>();
+    private final List<Long> publishedTimes = new ArrayList<>();
 
     private int delta = 0;
 
@@ -23,8 +24,10 @@ class ReadingsBuffer {
         return readings.isEmpty();
     }
 
-    void clear() {
-        readings.clear();
+    void trim() {
+        for (final long publishedTime : publishedTimes) {
+            readings.remove(publishedTime);
+        }
     }
 
     void setDelta(final int delta) {
@@ -57,6 +60,7 @@ class ReadingsBuffer {
         data.append(RTC).append(System.currentTimeMillis() / 1000).append(MESSAGE_END);
         data.append(MESSAGE_START);
         for (final long time :  readings.keySet()) {
+            publishedTimes.add(time);
             data.append(TIME_PREFIX).append(PREFIX_DELIMITER).append(time).append(READING_DELIMITER);
 
             appendReadings(data, time);
