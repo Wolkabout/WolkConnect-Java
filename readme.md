@@ -1,5 +1,8 @@
 # WolkConnect
 
+First version of the connector library written in Java for WolkAbout Smart IoT Cloud.
+This version publishes data via MQTT protocol to [WolkSense.com](https://wolksense.com/) WolkSense.com cloud instance.
+
 Gradle
 ------
 
