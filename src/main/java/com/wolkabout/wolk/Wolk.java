@@ -1,20 +1,17 @@
 package com.wolkabout.wolk;
 
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class Wolk {
 
     private final PublishingService publishingService;
     private final ReadingsBuffer readingsBuffer = new ReadingsBuffer();
-    private final Timer timer = new Timer();
-    private final TimerTask publishTask = new TimerTask() {
-        @Override
-        public void run() {
-            publish();
-        }
-    };
 
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
+    private ScheduledFuture<?> publishTask;
     private Logger logger = new Logger() {};
 
     public Wolk(final Device device) {
@@ -41,17 +38,25 @@ public class Wolk {
 
     /**
      * Starts publishing readings on a given interval.
-     * @param interval Time interval in milliseconds to elapse between two publish attempts.
+     * @param interval Time interval in seconds to elapse between two publish attempts.
      */
-    public void startAutoPublishing(int interval) {
-        timer.scheduleAtFixedRate(publishTask, interval, interval);
+    public void startAutoPublishing(final int interval) {
+        publishTask = executorService.schedule(new Runnable() {
+            @Override
+            public void run() {
+                publish();
+                if (!publishTask.isCancelled()) {
+                    publishTask = executorService.schedule(this, interval, TimeUnit.SECONDS);
+                }
+            }
+        }, interval, TimeUnit.SECONDS);
     }
 
     /**
      * Cancels a started automatic publishing task.
      */
     public void stopAutoPublishing() {
-        publishTask.cancel();
+        publishTask.cancel(true);
     }
 
     /**
@@ -84,8 +89,8 @@ public class Wolk {
 
         try {
             publishingService.publish(readingsBuffer.getFormattedData());
-            readingsBuffer.clear();
-            logger.info("Publish successful. Readings list cleared");
+            readingsBuffer.removePublishedReadings();
+            logger.info("Publish successful. Readings list trimmed.");
         } catch (Exception e) {
             logger.error("Publishing data failed.", e);
         }

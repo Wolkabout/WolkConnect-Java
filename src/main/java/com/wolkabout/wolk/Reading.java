@@ -5,16 +5,16 @@ class Reading {
     private final ReadingType type;
     private final String value;
 
-    public Reading(final ReadingType type, final String value) {
+    Reading(final ReadingType type, final String value) {
         this.type = type;
         this.value = value;
     }
 
-    public ReadingType getType() {
+    ReadingType getType() {
         return type;
     }
 
-    public String getValue() {
+    String getValue() {
         return value;
     }
 

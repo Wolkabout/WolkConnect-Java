@@ -14,7 +14,8 @@ public enum ReadingType {
     PRESSURE("P"),
     BATTERY("B"),
     HEARTRATE("BPM"),
-    STEPS("STP");
+    STEPS("STP"),
+    CALORIES("KCAL");
 
     private final String prefix;
 
