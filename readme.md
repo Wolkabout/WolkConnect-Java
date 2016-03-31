@@ -1,6 +1,9 @@
+# WolkConnect
+
 Gradle
 ------
 
+```sh
 repositories {
     maven {
         url  "http://dl.bintray.com/wolkabout/WolkConnector"
@@ -10,10 +13,10 @@ repositories {
 dependencies {
     compile 'com.wolkabout:wolk:1.0'
 }
-
+```
 Maven
 -----
-
+```sh
 <repository>
     <id>bintray-wolkabout-WolkConnector</id>
     <name>bintray</name>
@@ -26,3 +29,4 @@ Maven
   <version>1.0</version>
   <type>pom</type>
 </dependency>
+```
