@@ -2,6 +2,7 @@ group 'com.wolkabout'
 version '1.0'
 
 apply plugin: 'java'
+apply plugin: 'maven-publish'
 
 repositories {
     mavenCentral()
@@ -15,8 +16,20 @@ targetCompatibility = '1.7'
 sourceCompatibility = '1.7'
 
 task fatJar(type: Jar) {
-    version = null
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     from sourceSets.main.allJava
     with jar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact fatJar
+        }
+    }
+    repositories {
+        maven {
+            url "$buildDir/repo"
+        }
+    }
 }
