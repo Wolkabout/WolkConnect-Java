@@ -30,16 +30,20 @@ import javax.net.ssl.TrustManagerFactory;
 class PublishingService {
 
     private static final String TOPIC = "sensors/";
-    private static final String HOST = "ssl://wolksense.com:8883";
     private static final MQTT mqtt = new MQTT();
     private static final String FACTORY_TYPE = "X.509";
     private static final String CERTIFICATE_NAME = "ca.crt";
 
+    private String HOST = "ssl://wolksense.com:8883";
     private final Device device;
 
     PublishingService(Device device) {
         this.device = device;
         initMqtt();
+    }
+
+    public void setHOST(String HOST) {
+        this.HOST = HOST;
     }
 
     private void initMqtt() {
