@@ -71,7 +71,9 @@ public class Wolk {
      * Cancels a started automatic publishing task.
      */
     public void stopAutoPublishing() {
-        publishTask.cancel(true);
+        if (publishTask != null) {
+            publishTask.cancel(true);
+        }
     }
 
     /**
