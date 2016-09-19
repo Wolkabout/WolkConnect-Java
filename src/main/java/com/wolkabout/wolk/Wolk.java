@@ -111,5 +111,12 @@ public class Wolk {
         }
     }
 
+    /**
+     * Set a new host address.
+     * @param host A new host address.
+     */
+    public void setHost(String host) {
+        publishingService.setHOST(host);
+    }
 
 }
