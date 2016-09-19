@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:1.0'
+    compile 'com.wolkabout:wolk:1.0.1'
 }
 ```
 Maven
@@ -31,7 +31,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>1.0</version>
+  <version>1.0.1</version>
   <type>pom</type>
 </dependency>
 ```
