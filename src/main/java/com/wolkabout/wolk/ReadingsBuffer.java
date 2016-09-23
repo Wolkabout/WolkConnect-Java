@@ -17,8 +17,8 @@ package com.wolkabout.wolk;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NavigableMap;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 
 class ReadingsBuffer {
 
@@ -30,7 +30,7 @@ class ReadingsBuffer {
     private static final String TIME_DELIMITER = "|";
     private static final String MESSAGE_END = ";";
 
-    private final NavigableMap<Long, List<Reading>> readings= new TreeMap<>();
+    private final ConcurrentNavigableMap<Long, List<Reading>> readings = new ConcurrentSkipListMap<>();
     private final List<Long> publishedTimes = new ArrayList<>();
 
     private int delta = 0;
