@@ -17,8 +17,8 @@ package com.wolkabout.wolk;
 
 public abstract class Logger {
 
-    public void info(String message) {}
+    public void info(final String message) {}
 
-    public void error(String message, Throwable e) {}
+    public void error(final String message, final Throwable e) {}
 
 }

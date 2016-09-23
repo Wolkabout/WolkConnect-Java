@@ -37,7 +37,7 @@ public class Wolk {
      * Sets the logging mechanism for the library.
      * @param logger Platform specific implementation of the logging mechanism.
      */
-    public void setLogger(final Logger logger) {
+    public final void setLogger(final Logger logger) {
         this.logger = logger;
     }
 
@@ -47,7 +47,7 @@ public class Wolk {
      * Default is 0.
      * @param delta Time interval in seconds.
      */
-    public void setTimeDelta(final int delta) {
+    public final void setTimeDelta(final int delta) {
         readingsBuffer.setDelta(delta);
     }
 
@@ -55,7 +55,7 @@ public class Wolk {
      * Starts publishing readings on a given interval.
      * @param interval Time interval in seconds to elapse between two publish attempts.
      */
-    public void startAutoPublishing(final int interval) {
+    public final void startAutoPublishing(final int interval) {
         publishTask = executorService.schedule(new Runnable() {
             @Override
             public void run() {
@@ -70,7 +70,7 @@ public class Wolk {
     /**
      * Cancels a started automatic publishing task.
      */
-    public void stopAutoPublishing() {
+    public final void stopAutoPublishing() {
         if (publishTask != null) {
             publishTask.cancel(true);
         }
@@ -81,7 +81,7 @@ public class Wolk {
      * @param type Type of the reading.
      * @param value Value of the reading.
      */
-    public void addReading(final ReadingType type, final String value) {
+    public final void addReading(final ReadingType type, final String value) {
         readingsBuffer.addReading(type, value);
     }
 
@@ -91,14 +91,14 @@ public class Wolk {
      * @param type Type of the reading.
      * @param value Value of the reading.
      */
-    public void addReading(final long time, final ReadingType type, final String value) {
+    public final void addReading(final long time, final ReadingType type, final String value) {
         readingsBuffer.addReading(time, type, value);
     }
 
     /**
      * Publishes all the data and clears the reading list if publishing was successful.
      */
-    public void publish() {
+    public final void publish() {
         if (readingsBuffer.isEmpty()) {
             logger.info("No new readings. Not publishing.");
             return;
@@ -117,7 +117,7 @@ public class Wolk {
      * Set a new host address.
      * @param host A new host address.
      */
-    public void setHost(String host) {
+    public final void setHost(final String host) {
         publishingService.setHOST(host);
     }
 

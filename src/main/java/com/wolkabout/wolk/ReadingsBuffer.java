@@ -31,6 +31,7 @@ class ReadingsBuffer {
     private static final String MESSAGE_END = ";";
 
     private final NavigableMap<Long, List<Reading>> readings= new TreeMap<>();
+
     private final List<Long> publishedTimes = new ArrayList<>();
 
     private int delta = 0;
@@ -89,9 +90,9 @@ class ReadingsBuffer {
         return data.toString();
     }
 
-    private void appendReadings(StringBuilder data, long time) {
+    private void appendReadings(final StringBuilder data, final long time) {
         boolean isFirstReading = true;
-        for (Reading reading : readings.get(time)) {
+        for (final Reading reading : readings.get(time)) {
             if (!isFirstReading) {
                 data.append(READING_DELIMITER);
             }

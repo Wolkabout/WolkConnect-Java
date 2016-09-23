@@ -84,7 +84,7 @@ class PublishingService {
         return trustManagerFactory;
     }
 
-    void publish(String message) throws Exception {
+    void publish(final String message) throws Exception {
         final BlockingConnection connection = mqtt.blockingConnection();
         connection.connect();
         try {
