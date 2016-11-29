@@ -1,6 +1,6 @@
 # WolkConnect
 
-Connector library written in Java for WolkAbout Smart IoT Cloud.
+Connector library written in Java for WolkSense Sensor Data Cloud.
 This version publishes data via MQTT protocol to [WolkSense.com](https://wolksense.com/) cloud instance.
 
 You can import it in your project using gradle or maven configurations below.
