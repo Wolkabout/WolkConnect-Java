@@ -33,18 +33,20 @@ class PublishingService {
     private static final MQTT mqtt = new MQTT();
     private static final String FACTORY_TYPE = "X.509";
     private static final String CERTIFICATE_NAME = "ca.crt";
+    private static final String DEFAULT_HOST = "ssl://wolksense.com:8883";
 
-    private String HOST = "ssl://wolksense.com:8883";
+    private final String host;
     private final Device device;
 
     PublishingService(Device device) {
         this.device = device;
+        this.host = DEFAULT_HOST;
         initMqtt();
     }
 
     PublishingService(Device device, String host) {
         this.device = device;
-        HOST = host;
+        this.host = host;
         initMqtt();
     }
 
@@ -57,7 +59,7 @@ class PublishingService {
 
             mqtt.setSslContext(sslContext);
             mqtt.setConnectAttemptsMax(2);
-            mqtt.setHost(HOST);
+            mqtt.setHost(host);
             mqtt.setUserName(device.getSerialId());
             mqtt.setPassword(device.getPassword());
         } catch (Exception e) {
