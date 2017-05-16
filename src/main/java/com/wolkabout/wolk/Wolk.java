@@ -33,6 +33,10 @@ public class Wolk {
         publishingService = new PublishingService(device);
     }
 
+    public Wolk(final Device device, final String host) {
+        publishingService = new PublishingService(device, host);
+    }
+
     /**
      * Sets the logging mechanism for the library.
      * @param logger Platform specific implementation of the logging mechanism.
@@ -111,14 +115,6 @@ public class Wolk {
         } catch (Exception e) {
             logger.error("Publishing data failed.", e);
         }
-    }
-
-    /**
-     * Set a new host address.
-     * @param host A new host address.
-     */
-    public void setHost(String host) {
-        publishingService.setHOST(host);
     }
 
 }
