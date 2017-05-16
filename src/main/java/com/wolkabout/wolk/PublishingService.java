@@ -42,8 +42,10 @@ class PublishingService {
         initMqtt();
     }
 
-    public void setHOST(String HOST) {
-        this.HOST = HOST;
+    PublishingService(Device device, String host) {
+        this.device = device;
+        HOST = host;
+        initMqtt();
     }
 
     private void initMqtt() {
