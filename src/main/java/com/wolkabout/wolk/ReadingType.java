@@ -42,4 +42,13 @@ public enum ReadingType {
     String getPrefix() {
         return prefix;
     }
+
+    public static ReadingType fromPrefix(String prefix) {
+        for (ReadingType rt : ReadingType.values()) {
+            if (rt.getPrefix().equals(prefix)) {
+                return rt;
+            }
+        }
+        return GENERAL;
+    }
 }

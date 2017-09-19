@@ -15,18 +15,38 @@
  */
 package com.wolkabout.wolk;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+
+import java.lang.reflect.Type;
+
 class Reading {
 
-    private final ReadingType type;
+    private final String ref;
     private final String value;
+    private long utc;
 
     Reading(final ReadingType type, final String value) {
-        this.type = type;
+        this.ref = type.getPrefix();
         this.value = value;
+        this.utc = System.currentTimeMillis() / 1000;
+    }
+
+    public long getUtc() {
+        return utc;
     }
 
     ReadingType getType() {
-        return type;
+
+        return ReadingType.fromPrefix(ref);
+    }
+
+    Reading(final String ref, final String value) {
+        this.ref = ref;
+        this.value = value;
+        this.utc = System.currentTimeMillis() / 1000;
     }
 
     String getValue() {
@@ -36,8 +56,19 @@ class Reading {
     @Override
     public String toString() {
         return "Reading{" +
-                "type=" + type +
+                "ref=" + ref +
                 ", value=" + value +
                 '}';
+    }
+
+    public static class ReadingSerializer implements JsonSerializer<Reading> {
+
+        @Override
+        public JsonElement serialize(Reading reading, Type typeOfSrc, JsonSerializationContext context) {
+            final JsonObject jsonObject = new JsonObject();
+            jsonObject.addProperty("utc", reading.getUtc());
+            jsonObject.addProperty("data", reading.getValue());
+            return jsonObject;
+        }
     }
 }

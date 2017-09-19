@@ -15,8 +15,13 @@
  */
 package com.wolkabout.wolk;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -30,20 +35,24 @@ class ReadingsBuffer {
     private static final String TIME_DELIMITER = "|";
     private static final String MESSAGE_END = ";";
 
-    private final ConcurrentNavigableMap<Long, List<Reading>> readings = new ConcurrentSkipListMap<>();
+    private final ConcurrentNavigableMap<Long, List<Reading>> readingsByTime = new ConcurrentSkipListMap<>();
+
+    private final ConcurrentHashMap<String, List<Reading>> readingsBySensor = new ConcurrentHashMap<>();
+
     private final List<Long> publishedTimes = new ArrayList<>();
 
     private int delta = 0;
 
     boolean isEmpty() {
-        return readings.isEmpty();
+        return readingsByTime.isEmpty() && readingsBySensor.isEmpty();
     }
 
     void removePublishedReadings() {
         for (final long publishedTime : publishedTimes) {
-            readings.remove(publishedTime);
+            readingsByTime.remove(publishedTime);
         }
         publishedTimes.clear();
+        readingsBySensor.clear();
     }
 
     void setDelta(final int delta) {
@@ -55,33 +64,53 @@ class ReadingsBuffer {
         addReading(seconds, type, value);
     }
 
+    void addReading(final String ref, final String value) {
+        List<Reading> readings = readingsBySensor.get(ref);
+        if (readings == null) {
+            readings = new ArrayList<>();
+            readingsBySensor.put(ref, readings);
+        }
+        readings.add(new Reading(ref, value));
+    }
+
     void addReading(final long time, final ReadingType type, final String value) {
         final List<Reading> readingsList = getReadingsList(time);
         readingsList.add(new Reading(type, value));
     }
 
+    public List<String> getReferences() {
+        return Collections.list(readingsBySensor.keys());
+    }
+
     private List<Reading> getReadingsList(final long time) {
-        final Long key = readings.floorKey(time);
+        final Long key = readingsByTime.floorKey(time);
         if (key == null || time > key + delta) {
             final List<Reading> readingsList = new ArrayList<>();
-            readings.put(time, readingsList);
+            readingsByTime.put(time, readingsList);
             return readingsList;
         } else {
-            return readings.get(key);
+            return readingsByTime.get(key);
         }
+    }
+
+    String getJsonFormattedData(String ref) {
+        GsonBuilder builder = new GsonBuilder();
+        builder.registerTypeAdapter(Reading.class, new Reading.ReadingSerializer());
+        Gson gson = builder.create();
+        return gson.toJson(readingsBySensor.get(ref));
     }
 
     String getFormattedData() {
         final StringBuilder data = new StringBuilder();
         data.append(RTC).append(System.currentTimeMillis() / 1000).append(MESSAGE_END);
         data.append(MESSAGE_START);
-        for (final long time :  readings.keySet()) {
+        for (final long time : readingsByTime.keySet()) {
             publishedTimes.add(time);
             data.append(TIME_PREFIX).append(PREFIX_DELIMITER).append(time).append(READING_DELIMITER);
 
             appendReadings(data, time);
 
-            if (time != readings.lastKey()) {
+            if (time != readingsByTime.lastKey()) {
                 data.append(TIME_DELIMITER);
             }
         }
@@ -91,7 +120,7 @@ class ReadingsBuffer {
 
     private void appendReadings(StringBuilder data, long time) {
         boolean isFirstReading = true;
-        for (Reading reading : readings.get(time)) {
+        for (Reading reading : readingsByTime.get(time)) {
             if (!isFirstReading) {
                 data.append(READING_DELIMITER);
             }

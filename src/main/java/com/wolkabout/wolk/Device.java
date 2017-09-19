@@ -31,6 +31,27 @@ public class Device {
      */
     protected String password;
 
+    private String[] actuators;
+
+    private String[] config;
+
+
+    public String[] getConfig() {
+        return config;
+    }
+
+    public void setConfig(String[] config) {
+        this.config = config;
+    }
+
+    public String[] getActuators() {
+        return actuators;
+    }
+
+    public void setActuators(String[] actuators) {
+        this.actuators = actuators;
+    }
+
     public String getSerialId() {
         return serialId;
     }
