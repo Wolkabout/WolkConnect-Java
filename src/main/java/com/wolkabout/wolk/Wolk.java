@@ -1,23 +1,27 @@
 /*
- * Copyright 2016 WolkAbout Technology s.r.o.
+ * Copyright (c) 2017 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package com.wolkabout.wolk;
 
 import com.google.gson.Gson;
 import org.fusesource.mqtt.client.*;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.security.cert.Certificate;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -27,29 +31,64 @@ public class Wolk {
 
     private static final MQTT mqtt = new MQTT();
     public static final String ACTUATORS_COMMANDS = "actuators/commands/";
-    public static final String ACTUATORS_STATUS = "actuators/commands/";
+    public static final String ACTUATORS_STATUS = "actuators/status/";
 
     private final PublishingService publishingService;
     private final ReadingsBuffer readingsBuffer = new ReadingsBuffer();
-    private ActuationHandler actuationHandler;
 
-    public void setActuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
-        this.actuatorStatusProvider = actuatorStatusProvider;
-    }
+    private ActuationHandler actuationHandler;
 
     private ActuatorStatusProvider actuatorStatusProvider;
 
-    private final Device device;
+    private Device device;
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(20);
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
     private ScheduledFuture<?> publishTask;
 
     private FutureConnection futureConnection;
     private Logger logger = new Logger() {
     };
 
+    private Gson gson = new Gson();
+
     public interface ActuatorStatusProvider {
         ActuatorStatus getActuatorStatus(String ref);
+    }
+
+    public static WolkBuilder connectDevice(Device device) {
+        return new WolkBuilder(device);
+    }
+
+    public static class WolkBuilder {
+
+
+        private Wolk instance;
+
+        public WolkBuilder(Device device) {
+            instance = new Wolk(device);
+        }
+
+        public WolkBuilder device(Device device) {
+            instance.device = device;
+            return this;
+        }
+
+        public WolkBuilder actuationHandler(ActuationHandler actuationHandler) {
+            instance.actuationHandler = actuationHandler;
+            return this;
+        }
+
+        public WolkBuilder actuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
+            instance.actuatorStatusProvider = actuatorStatusProvider;
+            return this;
+        }
+
+        public Wolk connect() throws Exception {
+            instance.connect();
+            return instance;
+        }
+
+
     }
 
     public Wolk(final Device device) {
@@ -60,6 +99,14 @@ public class Wolk {
     public Wolk(final Device device, final String host) {
         publishingService = new PublishingService(device, host);
         this.device = device;
+    }
+
+    public void setActuationHandler(ActuationHandler actuationHandler) {
+        this.actuationHandler = actuationHandler;
+    }
+
+    public void setActuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
+        this.actuatorStatusProvider = actuatorStatusProvider;
     }
 
     /**
@@ -137,27 +184,25 @@ public class Wolk {
         readingsBuffer.addReading(ref, value);
     }
 
-
     /**
      * Publishes all the data and clears the reading list if publishing was successful.
      */
     public void publish() {
-        final ActuationHandler actuationHandler = (reference, value) -> {
-            logger.info("Actuation on " + reference + " value " + value);
-        };
         if (readingsBuffer.isEmpty()) {
             logger.info("No new readings. Not publishing.");
             return;
         }
 
+        System.out.println("Publishing");
         try {
-            futureConnection.publish("sensors/" + device.getSerialId(), readingsBuffer.getFormattedData().getBytes(), QoS.AT_LEAST_ONCE, false);
+            futureConnection.publish("sensors/" + device.getSerialId(), readingsBuffer.getFormattedData().getBytes(), QoS.EXACTLY_ONCE, false);
             for (String ref : readingsBuffer.getReferences()) {
-                futureConnection.publish("readings/" + device.getSerialId() + "/" + ref, readingsBuffer.getJsonFormattedData(ref).getBytes(), QoS.AT_LEAST_ONCE, false);
+                futureConnection.publish("readings/" + device.getSerialId() + "/" + ref, readingsBuffer.getJsonFormattedData(ref).getBytes(), QoS.EXACTLY_ONCE, false);
             }
             readingsBuffer.removePublishedReadings();
             logger.info("Publish successful. Readings list trimmed.");
         } catch (Exception e) {
+            System.out.println("Nope!");
             logger.error("Publishing data failed.", e);
         }
     }
@@ -165,12 +210,10 @@ public class Wolk {
     /*
         Connect to the
      */
-    public void connect(ActuationHandler actuationHandler) throws Exception {
+    public void connect() throws Exception {
         initMqtt();
-        this.actuationHandler = actuationHandler;
         futureConnection = mqtt.futureConnection();
         futureConnection.connect();
-
 
         for (String ref : device.getActuators()) {
             futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getSerialId() + "/" + ref, QoS.EXACTLY_ONCE)});
@@ -196,21 +239,20 @@ public class Wolk {
         final Future<Message> receive = futureConnection.receive();
         final Message message = receive.await();
         final String payload = new String(message.getPayload());
+        final String topic = message.getTopic();
         if (payload.startsWith("SET")) {
-            String actual = payload.substring(4, payload.length() - 2);
+            final String actual = payload.substring(4, payload.length() - 2);
             final String[] actuation = actual.split(":");
             actuationHandler.handleActuation(actuation[0], actuation[1]);
         } else {
-            Gson gson = new Gson();
             final ActuatorCommand command = gson.fromJson(new String(message.getPayload()), ActuatorCommand.class);
-
+            final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
             switch (command.getCommand()) {
                 case SET:
-                    this.actuationHandler.handleActuation(message.getTopic(), command.getValue());
-                    break;
+                    System.out.println(command);
+                    this.actuationHandler.handleActuation(actuatorReference, command.getValue());
                 case STATUS:
-                    String topic = message.getTopic().replace("commands", "status");
-                    futureConnection.publish(topic, gson.toJson(actuatorStatusProvider.getActuatorStatus(topic)).getBytes(), QoS.AT_LEAST_ONCE, false);
+                    publishActuatorStatus(actuatorReference);
                     break;
                 default:
                     System.out.println("Unknown command");
@@ -219,20 +261,25 @@ public class Wolk {
         message.ack();
     }
 
+    public Future<Void> publishActuatorStatus(String actuatorReference) {
+        String topic = ACTUATORS_STATUS + device.getSerialId() + "/" + actuatorReference;
+        return futureConnection.publish(topic, gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference)).getBytes(), QoS.EXACTLY_ONCE, false);
+    }
+
     private void initMqtt() {
         try {
-//            final Certificate certificate = getCertificate();
-//            final TrustManagerFactory trustManagerFactory = getTrustManagerFactory(certificate);
-//            final SSLContext sslContext = SSLContext.getInstance("TLS");
-//            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+            final Certificate certificate = publishingService.getCertificate();
+            final TrustManagerFactory trustManagerFactory = publishingService.getTrustManagerFactory(certificate);
+            final SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
 
-//            mqtt.setSslContext(sslContext);
+            mqtt.setSslContext(sslContext);
             mqtt.setConnectAttemptsMax(2);
-            mqtt.setHost("localhost", 1883);
+            mqtt.setHost("ssl://platform.wolksense.com:8883");
             mqtt.setCleanSession(false);
-            mqtt.setClientId("WolkiKoki");
-//            mqtt.setUserName(device.getSerialId());
-//            mqtt.setPassword(device.getPassword());
+            mqtt.setClientId("Roki1234");
+            mqtt.setUserName(device.getSerialId());
+            mqtt.setPassword(device.getPassword());
         } catch (Exception e) {
             System.out.print("Unable to instantiate MQTT.");
         }
