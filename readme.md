@@ -1,7 +1,6 @@
 # WolkConnect
 
-Connector library written in Java for WolkSense Sensor Data Cloud.
-This version publishes data via MQTT protocol to [WolkSense.com](https://wolksense.com/) cloud instance.
+Connector library written in Java for WolkAbout platform.
 
 You can import it in your project using gradle or maven configurations below.
 
@@ -16,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:1.0.2'
+    compile 'com.wolkabout:wolk:2.0.0'
 }
 ```
 Maven
@@ -31,7 +30,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>1.0.2</version>
+  <version>2.0.0</version>
   <type>pom</type>
 </dependency>
 ```
