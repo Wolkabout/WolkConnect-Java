@@ -23,17 +23,17 @@ import org.slf4j.LoggerFactory;
 public class ActuatorCommand {
     private Logger logger = LoggerFactory.getLogger(Wolk.class);
 
-    public enum Command {SET, STATUS, UNKOWN}
+    public enum Command {SET, STATUS, UNKNOWN}
 
     private String command;
     private String value;
 
     public Command getCommand() {
         try {
-            return Command.valueOf(this.command);
+            return Command.valueOf(command);
         } catch (IllegalArgumentException e) {
             logger.warn("Unkonwn command: " + command);
-            return Command.UNKOWN;
+            return Command.UNKNOWN;
         }
     }
 

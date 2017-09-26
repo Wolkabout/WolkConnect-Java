@@ -70,9 +70,11 @@ public class MqttFactory {
         if (mqtt.getHost() == null) {
             throw new IllegalStateException("No host configured.");
         }
+
         if (mqtt.getUserName() == null) {
             throw new IllegalStateException("No device key provided.");
         }
+
         return mqtt;
     }
 
@@ -80,6 +82,7 @@ public class MqttFactory {
         if (mqtt.getHost() == null) {
             throw new IllegalStateException("No host configured.");
         }
+
         if (mqtt.getUserName() == null) {
             throw new IllegalStateException("No device key provided.");
         }

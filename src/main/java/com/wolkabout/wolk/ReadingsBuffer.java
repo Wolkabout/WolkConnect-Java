@@ -46,7 +46,7 @@ class ReadingsBuffer {
 
     private Protocol protocol;
 
-    public ReadingsBuffer(Protocol protocol) {
+    ReadingsBuffer(Protocol protocol) {
         this.protocol = protocol;
     }
 
@@ -67,7 +67,7 @@ class ReadingsBuffer {
     }
 
     void addReading(final String ref, final String value) {
-        if (protocol == Protocol.WolkSense) {
+        if (protocol == Protocol.WOLK_SENSE) {
             final long seconds = System.currentTimeMillis() / 1000;
             final List<Reading> readingsList = getReadingsList(seconds);
             readingsList.add(new Reading(ReadingType.fromPrefix(ref), value));
@@ -81,7 +81,7 @@ class ReadingsBuffer {
         }
     }
 
-    public List<String> getReferences() {
+    List<String> getReferences() {
         return Collections.list(readingsBySensor.keys());
     }
 
@@ -97,9 +97,9 @@ class ReadingsBuffer {
     }
 
     String getJsonFormattedData(String ref) {
-        GsonBuilder builder = new GsonBuilder();
+        final GsonBuilder builder = new GsonBuilder();
         builder.registerTypeAdapter(Reading.class, new Reading.ReadingSerializer());
-        Gson gson = builder.create();
+        final Gson gson = builder.create();
         final List<Reading> src = readingsBySensor.get(ref);
         if (src.size() == 1) {
             return gson.toJson(src.get(0));

@@ -35,7 +35,7 @@ class Reading {
         this.utc = System.currentTimeMillis() / 1000;
     }
 
-    public long getUtc() {
+    long getUtc() {
         return utc;
     }
 
@@ -63,7 +63,6 @@ class Reading {
     }
 
     public static class ReadingSerializer implements JsonSerializer<Reading> {
-
         @Override
         public JsonElement serialize(Reading reading, Type typeOfSrc, JsonSerializationContext context) {
             final JsonObject jsonObject = new JsonObject();

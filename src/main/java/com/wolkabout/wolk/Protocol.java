@@ -18,7 +18,10 @@
 package com.wolkabout.wolk;
 
 public enum Protocol {
-    WolkSense("sensors/"), JsonSingle("readings/"), JsonBulk("readings/");
+
+    WOLK_SENSE("sensors/"),
+    JSON_SINGLE("readings/"),
+    JSON_BULK("readings/");
 
     private String readingsTopic;
 

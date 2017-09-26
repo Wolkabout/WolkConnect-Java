@@ -36,7 +36,7 @@ public class Device {
 
     private String[] config;
 
-    private Protocol protocol = Protocol.JsonSingle;
+    private Protocol protocol = Protocol.JSON_SINGLE;
 
     public Device(String deviceKey) {
         this.deviceKey = deviceKey;

@@ -134,7 +134,7 @@ public class Wolk {
         try {
             final Protocol protocol = device.getProtocol();
             final String rootTopic = protocol.getReadingsTopic();
-            if (protocol == Protocol.WolkSense) {
+            if (protocol == Protocol.WOLK_SENSE) {
                 LOG.debug("Publishing ==> " + rootTopic + device.getDeviceKey() + " : " + readingsBuffer.getFormattedData());
                 futureConnection.publish(rootTopic + device.getDeviceKey(), readingsBuffer.getFormattedData().getBytes(), QoS.EXACTLY_ONCE, false).await();
             } else {
@@ -209,7 +209,7 @@ public class Wolk {
         final String payload = new String(message.getPayload());
         final String topic = message.getTopic();
 
-        if (device.getProtocol() == Protocol.WolkSense) {
+        if (device.getProtocol() == Protocol.WOLK_SENSE) {
             final String actual = payload.substring(4, payload.length() - 2);
             final String[] actuation = actual.split(":");
             actuationHandler.handleActuation(actuation[0], actuation[1]);
