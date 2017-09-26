@@ -9,9 +9,8 @@ Gradle
 
 ```sh
 repositories {
-    maven {
-        url  "http://dl.bintray.com/wolkabout/WolkConnector"
-    }
+    mavenCentral()
+    jcenter()
 }
 
 dependencies {
@@ -22,9 +21,8 @@ Maven
 -----
 ```sh
 <repository>
-    <id>bintray-wolkabout-WolkConnector</id>
-    <name>bintray</name>
-    <url>http://dl.bintray.com/wolkabout/WolkConnector</url>
+  <id>jcenter</id>
+  <url>https://jcenter.bintray.com/</url>
 </repository>
 
 <dependency>
