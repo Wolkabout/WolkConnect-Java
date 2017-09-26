@@ -18,24 +18,37 @@
 package com.wolkabout.wolk;
 
 /**
- * Device for which the publishing is done.
+ * Device for which the connection is established.
  */
 public class Device {
 
     /**
      * Serial number obtained for the device registration.
      */
-    protected String serialId;
+    private final String deviceKey;
 
     /**
      * Password obtained after the device has been registered.
      */
-    protected String password;
+    private String password;
 
     private String[] actuators;
 
     private String[] config;
 
+    private Protocol protocol = Protocol.JsonSingle;
+
+    public Device(String deviceKey) {
+        this.deviceKey = deviceKey;
+    }
+
+    public Protocol getProtocol() {
+        return protocol;
+    }
+
+    public void setProtocol(Protocol protocol) {
+        this.protocol = protocol;
+    }
 
     public String[] getConfig() {
         return config;
@@ -49,16 +62,17 @@ public class Device {
         return actuators;
     }
 
-    public void setActuators(String[] actuators) {
+    /**
+     * Provide list of references to actuators on the destination machine.
+     *
+     * @param actuators references to actuators on device.
+     */
+    public void setActuators(String... actuators) {
         this.actuators = actuators;
     }
 
-    public String getSerialId() {
-        return serialId;
-    }
-
-    public void setSerialId(final String serialId) {
-        this.serialId = serialId;
+    public String getDeviceKey() {
+        return deviceKey;
     }
 
     public String getPassword() {

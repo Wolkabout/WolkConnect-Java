@@ -17,7 +17,11 @@
 
 package com.wolkabout.wolk;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ActuatorCommand {
+    private Logger logger = LoggerFactory.getLogger(Wolk.class);
 
     public enum Command {SET, STATUS, UNKOWN}
 
@@ -28,6 +32,7 @@ public class ActuatorCommand {
         try {
             return Command.valueOf(this.command);
         } catch (IllegalArgumentException e) {
+            logger.warn("Unkonwn command: " + command);
             return Command.UNKOWN;
         }
     }
@@ -38,10 +43,8 @@ public class ActuatorCommand {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("ActuatorCommand{");
-        sb.append("command='").append(command).append('\'');
-        sb.append(", value='").append(value).append('\'');
-        sb.append('}');
-        return sb.toString();
+        return "ActuatorCommand{" + "command='" + command + '\'' +
+                ", value='" + value + '\'' +
+                '}';
     }
 }

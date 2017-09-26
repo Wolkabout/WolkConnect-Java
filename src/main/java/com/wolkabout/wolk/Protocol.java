@@ -15,5 +15,18 @@
  *
  */
 
-rootProject.name = 'wolk'
+package com.wolkabout.wolk;
 
+public enum Protocol {
+    WolkSense("sensors/"), JsonSingle("readings/"), JsonBulk("readings/");
+
+    private String readingsTopic;
+
+    Protocol(String readingsTopic) {
+        this.readingsTopic = readingsTopic;
+    }
+
+    public String getReadingsTopic() {
+        return readingsTopic;
+    }
+}

@@ -44,6 +44,12 @@ class ReadingsBuffer {
 
     private int delta = 0;
 
+    private Protocol protocol;
+
+    public ReadingsBuffer(Protocol protocol) {
+        this.protocol = protocol;
+    }
+
     boolean isEmpty() {
         return readingsByTime.isEmpty() && readingsBySensor.isEmpty();
     }
@@ -60,23 +66,19 @@ class ReadingsBuffer {
         this.delta = delta;
     }
 
-    void addReading(final ReadingType type, final String value) {
-        final long seconds = System.currentTimeMillis() / 1000;
-        addReading(seconds, type, value);
-    }
-
     void addReading(final String ref, final String value) {
-        List<Reading> readings = readingsBySensor.get(ref);
-        if (readings == null) {
-            readings = new ArrayList<>();
-            readingsBySensor.put(ref, readings);
+        if (protocol == Protocol.WolkSense) {
+            final long seconds = System.currentTimeMillis() / 1000;
+            final List<Reading> readingsList = getReadingsList(seconds);
+            readingsList.add(new Reading(ReadingType.fromPrefix(ref), value));
+        } else {
+            List<Reading> readings = readingsBySensor.get(ref);
+            if (readings == null) {
+                readings = new ArrayList<>();
+                readingsBySensor.put(ref, readings);
+            }
+            readings.add(new Reading(ref, value));
         }
-        readings.add(new Reading(ref, value));
-    }
-
-    void addReading(final long time, final ReadingType type, final String value) {
-        final List<Reading> readingsList = getReadingsList(time);
-        readingsList.add(new Reading(type, value));
     }
 
     public List<String> getReferences() {

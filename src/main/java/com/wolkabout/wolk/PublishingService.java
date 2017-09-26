@@ -60,7 +60,7 @@ class PublishingService {
             mqtt.setSslContext(sslContext);
             mqtt.setConnectAttemptsMax(2);
             mqtt.setHost(host);
-            mqtt.setUserName(device.getSerialId());
+            mqtt.setUserName(device.getDeviceKey());
             mqtt.setPassword(device.getPassword());
         } catch (Exception e) {
             System.out.print("Unable to instantiate MQTT.");
@@ -92,7 +92,7 @@ class PublishingService {
         final BlockingConnection connection = mqtt.blockingConnection();
         connection.connect();
         try {
-            connection.publish(TOPIC + device.getSerialId(), message.getBytes(), QoS.AT_LEAST_ONCE, false);
+            connection.publish(TOPIC + device.getDeviceKey(), message.getBytes(), QoS.AT_LEAST_ONCE, false);
         } finally {
             connection.disconnect();
         }

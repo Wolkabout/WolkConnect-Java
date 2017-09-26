@@ -17,24 +17,23 @@
 
 package com.wolkabout.wolk;
 
+/**
+ * Contains the status of the Actuator.
+ */
+
 public class ActuatorStatus {
 
     private String status;
     private String value;
 
-    public ActuatorStatus(String status, String value) {
-        this.status = status;
+    public enum Status {READY, BUSY, ERROR}
+
+    public ActuatorStatus(Status status, String value) {
+        this.status = status.name();
         this.value = value;
     }
 
     public ActuatorStatus() {
     }
 
-    public String getStatus() {
-        return status;
-    }
-
-    public String getValue() {
-        return value;
-    }
 }
