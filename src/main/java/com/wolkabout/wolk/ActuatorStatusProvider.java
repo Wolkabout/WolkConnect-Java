@@ -15,5 +15,17 @@
  *
  */
 
-rootProject.name = 'wolk'
+package com.wolkabout.wolk;
 
+/*
+ *  ActuatorStatusProvider reads status of your device's actuators. This information is passed on to the platform.
+ */
+public interface ActuatorStatusProvider {
+    /**
+     * Reads the status of actuator from device and returns it as ActuatorStatus object.
+     *
+     * @param ref of the actuator.
+     * @return ActuatorStatus object.
+     */
+    ActuatorStatus getActuatorStatus(String ref);
+}

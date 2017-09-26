@@ -15,5 +15,25 @@
  *
  */
 
-rootProject.name = 'wolk'
+package com.wolkabout.wolk;
 
+/**
+ * Contains the status of the Actuator.
+ */
+
+public class ActuatorStatus {
+
+    private String status;
+    private String value;
+
+    public enum Status {READY, BUSY, ERROR}
+
+    public ActuatorStatus(Status status, String value) {
+        this.status = status.name();
+        this.value = value;
+    }
+
+    public ActuatorStatus() {
+    }
+
+}
