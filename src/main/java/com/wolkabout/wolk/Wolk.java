@@ -198,7 +198,7 @@ public class Wolk {
                     LOG.error("Error while trying to receive data", e);
                 }
             }
-        }), 0, 50, TimeUnit.SECONDS);
+        }), 0, 50, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -225,11 +225,12 @@ public class Wolk {
     }
 
     private void receive(FutureConnection futureConnection) throws Exception {
+        LOG.debug("Listening...");
         final Future<Message> receive = futureConnection.receive();
         final Message message = receive.await();
         final String payload = new String(message.getPayload());
+        LOG.debug("Received " + payload);
         final String topic = message.getTopic();
-
         if (device.getProtocol() == Protocol.WOLK_SENSE) {
             final String actual = payload.substring(4, payload.length() - 2);
             final String[] actuation = actual.split(":");
