@@ -32,11 +32,10 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
-public class MqttFactory {
+class MqttFactory {
 
     private static final String TOPIC = "sensors/";
     private static final String FACTORY_TYPE = "X.509";
-    private static final String CERTIFICATE_NAME = "ca.crt";
 
     private MQTT mqtt;
 
@@ -78,7 +77,7 @@ public class MqttFactory {
         return mqtt;
     }
 
-    public MQTT sslClient() throws Exception {
+    public MQTT sslClient(String... ca) throws Exception {
         if (mqtt.getHost() == null) {
             throw new IllegalStateException("No host configured.");
         }
@@ -87,24 +86,26 @@ public class MqttFactory {
             throw new IllegalStateException("No device key provided.");
         }
 
-        final Certificate certificate = getCertificate();
-        final TrustManagerFactory trustManagerFactory = getTrustManagerFactory(certificate);
-        final SSLContext sslContext = SSLContext.getInstance("TLS");
-        sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        if (ca != null && ca.length == 1 && ca[0] != null) {
+            final Certificate certificate = getCertificate(ca[0]);
+            final TrustManagerFactory trustManagerFactory = getTrustManagerFactory(certificate, ca[0]);
+            final SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+            mqtt.setSslContext(sslContext);
+        }
 
-        mqtt.setSslContext(sslContext);
         mqtt.setConnectAttemptsMax(2);
         return mqtt;
     }
 
-    private Certificate getCertificate() throws GeneralSecurityException, IOException {
+    private Certificate getCertificate(String certName) throws GeneralSecurityException, IOException {
         final CertificateFactory certificateFactory = CertificateFactory.getInstance(FACTORY_TYPE);
-        try (InputStream certificateString = getClass().getClassLoader().getResourceAsStream(CERTIFICATE_NAME)) {
+        try (InputStream certificateString = getClass().getClassLoader().getResourceAsStream(certName)) {
             return certificateFactory.generateCertificate(certificateString);
         }
     }
 
-    private TrustManagerFactory getTrustManagerFactory(final Certificate certificate) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+    private TrustManagerFactory getTrustManagerFactory(final Certificate certificate, final String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         // creating a KeyStore containing our trusted CAs
         final String keyStoreType = KeyStore.getDefaultType();
         final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
