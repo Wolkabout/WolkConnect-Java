@@ -44,6 +44,7 @@ device.setProtocol(Protocol.JSON_SINGLE);
 
 final Wolk wolk = Wolk.connectDevice(device)
         .toHost(Wolk.WOLK_DEMO_URL)
+        .certificateAuthority(Wolk.WOLK_DEMO_CA)
         .actuationHandler((reference, value) -> {
             // TODO Invoke your code which activates your actuator. 
             System.out.println("Ref: " + reference + " value: " + value);
@@ -69,7 +70,7 @@ wolk.addReading("H", "40.7");
 wolk.publish();
 ```
 
-If there is an update in actuator status you can publish it like this:
+To update actuator status you can publish it like this:
 ```sh
 wolk.publishActuatorStatus("A1");
 ```

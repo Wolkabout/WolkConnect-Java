@@ -31,9 +31,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class Wolk {
 
+    public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
+    public static final String WOLK_DEMO_CA = "ca.crt";
+
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
     private static final String ACTUATORS_STATUS = "actuators/status/";
-    public static final String WOLK_DEMO_URL = "ssl://platform.wolksense.com:8883";
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
     private ReadingsBuffer readingsBuffer;
@@ -43,6 +45,8 @@ public class Wolk {
     private ScheduledFuture<?> publishTask;
     private String host = "";
     private FutureConnection futureConnection;
+    private String caName;
+
     private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
     private final Gson gson = new Gson();
@@ -104,7 +108,8 @@ public class Wolk {
 
     /**
      * Add a single reading to buffer.
-     * @param ref of the sensor.
+     *
+     * @param ref   of the sensor.
      * @param value of the measurement.
      */
     public void addReading(final String ref, final String value) {
@@ -114,8 +119,8 @@ public class Wolk {
     /**
      * Add single reading to buffer.
      *
-     * @param time timestamp.
-     * @param ref of the sensor
+     * @param time  timestamp.
+     * @param ref   of the sensor
      * @param value of the measurement.
      */
     public void addReading(final long time, final String ref, final String value) {
@@ -152,17 +157,30 @@ public class Wolk {
 
     /**
      * Establish the MQTT connection with the platform.
+     *
      * @throws Exception if the connection was not setup propely.
      */
     public void connect() throws Exception {
-        futureConnection = new MqttFactory()
+        connect(host.startsWith("ssl"));
+    }
+
+    /**
+     * Establish the MQTT connection with the platform.
+     *
+     * @param sslEnabled true if you want ssl connection.
+     * @throws Exception if the connection was not setup propely.
+     */
+    public void connect(boolean sslEnabled) throws Exception {
+
+        final MqttFactory mqttFactory = new MqttFactory()
                 .deviceKey(device.getDeviceKey())
                 .password(device.getPassword())
-                .host(host)
-                .sslClient()
-                .futureConnection();
-        futureConnection.connect().await();
+                .host(this.host);
+        futureConnection = (sslEnabled ? mqttFactory.sslClient(caName) : mqttFactory.noSslClient()).futureConnection();
 
+        LOG.debug("Connecting to " + this.host);
+        futureConnection.connect().await();
+        LOG.info("Connected to " + this.host);
         for (String ref : device.getActuators()) {
             final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
             LOG.info("Subscribed to : " + ref + " QoS: " + QoS.values()[qos.await()[0]]);
@@ -189,6 +207,7 @@ public class Wolk {
     public void disconnect() {
         executorService.shutdownNow();
         futureConnection.disconnect();
+        LOG.info("Disconnected from " + host);
     }
 
     /**
@@ -199,8 +218,10 @@ public class Wolk {
      * @throws Exception if there was an error while publishing.
      */
     public void publishActuatorStatus(String actuatorReference) throws Exception {
-        String topic = ACTUATORS_STATUS + device.getDeviceKey() + "/" + actuatorReference;
-        futureConnection.publish(topic, gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference)).getBytes(), QoS.EXACTLY_ONCE, false).await();
+        final String topic = ACTUATORS_STATUS + device.getDeviceKey() + "/" + actuatorReference;
+        final String payload = gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference));
+        LOG.debug("Publishing status ==> " + topic + " : " + payload);
+        futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await();
     }
 
     private void receive(FutureConnection futureConnection) throws Exception {
@@ -272,6 +293,11 @@ public class Wolk {
          */
         public WolkBuilder actuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
             instance.actuatorStatusProvider = actuatorStatusProvider;
+            return this;
+        }
+
+        public WolkBuilder certificateAuthority(String ca) {
+            instance.caName = ca;
             return this;
         }
 
