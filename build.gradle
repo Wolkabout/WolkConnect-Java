@@ -16,7 +16,7 @@
  */
 
 group 'com.wolkabout'
-version '2.0.1'
+version '2.0.2'
 
 apply plugin: 'java'
 apply plugin: 'maven-publish'
