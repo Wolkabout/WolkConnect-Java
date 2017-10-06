@@ -184,6 +184,7 @@ public class Wolk {
         for (String ref : device.getActuators()) {
             final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
             LOG.info("Subscribed to : " + ref + " QoS: " + QoS.values()[qos.await()[0]]);
+            publishActuatorStatus(ref);
         }
 
         executorService.scheduleAtFixedRate((new Runnable() {
