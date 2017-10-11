@@ -94,6 +94,9 @@ class MqttFactory {
             mqtt.setSslContext(sslContext);
         }
 
+        mqtt.setWillTopic("lastwill/" + mqtt.getUserName());
+        mqtt.setWillMessage("Gone offline");
+
         mqtt.setConnectAttemptsMax(2);
         return mqtt;
     }
