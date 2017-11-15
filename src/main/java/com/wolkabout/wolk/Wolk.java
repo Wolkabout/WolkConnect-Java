@@ -18,41 +18,58 @@ package com.wolkabout.wolk;
 
 import com.google.gson.Gson;
 import org.fusesource.mqtt.client.*;
+import org.fusesource.mqtt.client.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.*;
 
 /**
- * Handles the MQTT connection to the Wolkabout IoT Platform.
+ * Handles the connection to the Wolkabout IoT Platform.
  */
 public class Wolk {
-
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
     private static final String ACTUATORS_STATUS = "actuators/status/";
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(2);
-    private ReadingsBuffer readingsBuffer;
+    private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
+
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
+    private ScheduledFuture<?> connectionTask;
+    private ScheduledFuture<?> commandReceiveTask;
+    private ScheduledFuture<?> autoPublishTask;
+
+    private final Queue<Reading> inMemoryReadings = new LinkedList<>();
+
+    private final CommandBuffer commandBuffer = new CommandBuffer();
+
+    private final Device device;
+
+    private final ReadingSerializer.Factory readingSerializerFactory;
+
+    private PersistService persistService;
+    private int persistedItemsPublishBatchSize;
+
     private ActuationHandler actuationHandler;
     private ActuatorStatusProvider actuatorStatusProvider;
-    private Device device;
-    private ScheduledFuture<?> publishTask;
-    private String host = "";
-    private FutureConnection futureConnection;
-    private String caName;
 
-    private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
+    private String host;
+    private String caName;
+    private FutureConnection futureConnection;
 
     private final Gson gson = new Gson();
 
     private Wolk(final Device device) {
         this.device = device;
+        this.readingSerializerFactory = new ReadingSerializer.Factory(this.device);
     }
 
     /**
@@ -69,169 +86,112 @@ public class Wolk {
         return new WolkBuilder(device);
     }
 
-    /**
-     * Sets a time delta to be used when comparing reading times.
-     * If two intervals are within the delta range, the lower time will be set for both readings.
-     * Default is 0.
-     *
-     * @param delta Time interval in seconds.
-     */
-    public void setTimeDelta(final int delta) {
-        readingsBuffer.setDelta(delta);
+    private void addToCommandBuffer(final CommandBuffer.Command command) {
+        commandBuffer.add(command);
     }
 
-    /**
-     * Starts publishing readings on a given interval.
-     *
-     * @param interval Time interval in seconds to elapse between two publish attempts.
-     */
-    public void startAutoPublishing(final int interval) {
-        publishTask = executorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                publish();
-                if (!publishTask.isCancelled()) {
-                    publishTask = executorService.schedule(this, interval, TimeUnit.SECONDS);
-                }
-            }
-        }, interval, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Cancels a started automatic publishing task.
-     */
-    public void stopAutoPublishing() {
-        if (publishTask != null) {
-            publishTask.cancel(true);
-        }
-    }
-
-    /**
-     * Add a single reading to buffer.
-     *
-     * @param ref   of the sensor.
-     * @param value of the measurement.
-     */
-    public void addReading(final String ref, final String value) {
-        readingsBuffer.addReading(ref, value);
-    }
-
-    /**
-     * Add single reading to buffer.
-     *
-     * @param time  timestamp.
-     * @param ref   of the sensor
-     * @param value of the measurement.
-     */
-    public void addReading(final long time, final String ref, final String value) {
-        readingsBuffer.addReading(ref, value);
-    }
-
-    /**
-     * Publishes all the data and clears the reading list if publishing was successful.
-     */
-    public void publish() {
-        if (readingsBuffer.isEmpty()) {
-            LOG.info("No new readings. Not publishing.");
-            return;
-        }
-
+    private void connect(boolean sslEnabled) {
         try {
-            final Protocol protocol = device.getProtocol();
-            final String rootTopic = protocol.getReadingsTopic();
-            if (protocol == Protocol.WOLK_SENSE) {
-                LOG.debug("Publishing ==> " + rootTopic + device.getDeviceKey() + " : " + readingsBuffer.getFormattedData());
-                futureConnection.publish(rootTopic + device.getDeviceKey(), readingsBuffer.getFormattedData().getBytes(), QoS.EXACTLY_ONCE, false).await();
-            } else {
-                for (String ref : readingsBuffer.getReferences()) {
-                    LOG.debug("Publishing ==> " + rootTopic + device.getDeviceKey() + "/" + ref + " : " + readingsBuffer.getJsonFormattedData(ref));
-                    futureConnection.publish(rootTopic + device.getDeviceKey() + "/" + ref, readingsBuffer.getJsonFormattedData(ref).getBytes(), QoS.EXACTLY_ONCE, false).await();
-                }
+            final MqttFactory mqttFactory = new MqttFactory()
+                    .deviceKey(device.getDeviceKey())
+                    .password(device.getPassword())
+                    .host(host);
+
+            futureConnection = (sslEnabled ? mqttFactory.sslClient(caName) : mqttFactory.noSslClient()).futureConnection();
+
+            LOG.debug("Connecting to " + host);
+            futureConnection.connect().await(5, TimeUnit.SECONDS);
+            LOG.info("Connected to " + host);
+
+            for (String ref : device.getActuators()) {
+                final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
+                LOG.info("Subscribed to: " + ref + ". QoS: " + QoS.values()[qos.await()[0]]);
+                publishActuatorStatus(ref);
             }
-            readingsBuffer.removePublishedReadings();
-            LOG.info("Publish successful. Readings buffer cleared.");
+
+            publish();
+
+            if (commandReceiveTask == null || commandReceiveTask.isDone()) {
+                commandReceiveTask = executorService.scheduleAtFixedRate((new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            receive(futureConnection);
+                        } catch (InterruptedException interrupted) {
+                            // Task was interrupted from disconnect directive.
+                            LOG.info("Received disconnect signal");
+                        } catch (Exception e) {
+                            LOG.error("Error while trying to receive data", e);
+                        }
+                    }
+                }), 0, 5, TimeUnit.MILLISECONDS);
+            }
+        } catch (URISyntaxException e) {
+            LOG.error("Invalid MQTT broker URI: " + host);
+        } catch (TimeoutException e) {
+            LOG.error("MQTT broker connect timeout");
         } catch (Exception e) {
-            LOG.error("Publishing data failed.", e);
+            // Await exception
         }
     }
 
-    /**
-     * Establish the MQTT connection with the platform.
-     *
-     * @throws Exception if the connection was not setup propely.
-     */
-    public void connect() throws Exception {
-        connect(host.startsWith("ssl"));
+    private boolean publish(final String topic, final String payload) {
+        try {
+            LOG.debug("Publishing ==> " + topic + " : " + payload);
+            futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(2, TimeUnit.SECONDS);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    /**
-     * Establish the MQTT connection with the platform.
-     *
-     * @param sslEnabled true if you want ssl connection.
-     * @throws Exception if the connection was not setup propely.
-     */
-    public void connect(boolean sslEnabled) throws Exception {
+    private void flushPersistedData() {
+        if (persistService != null && !persistService.isEmpty()) {
+            final List<Reading> readings = persistService.peekReadings(persistedItemsPublishBatchSize);
+            final ReadingSerializer rs = readingSerializerFactory.newReadingSerializer(readings);
 
-        final MqttFactory mqttFactory = new MqttFactory()
-                .deviceKey(device.getDeviceKey())
-                .password(device.getPassword())
-                .host(this.host);
-        futureConnection = (sslEnabled ? mqttFactory.sslClient(caName) : mqttFactory.noSslClient()).futureConnection();
-
-        LOG.debug("Connecting to " + this.host);
-        futureConnection.connect().await();
-        LOG.info("Connected to " + this.host);
-        for (String ref : device.getActuators()) {
-            final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
-            LOG.info("Subscribed to : " + ref + " QoS: " + QoS.values()[qos.await()[0]]);
-            publishActuatorStatus(ref);
-        }
-
-        executorService.scheduleAtFixedRate((new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    receive(futureConnection);
-                } catch (InterruptedException interrupted) {
-                    // Task was interrupted from disconnect directive.
-                    LOG.info("Received disconnect signal.");
-                } catch (Exception e) {
-                    LOG.error("Error while trying to receive data", e);
-                }
+            LOG.info("Flushing " + rs.getNumberOfSerializedReadings() + " persisted reading(s)");
+            if (publish(rs.getTopic(), rs.getPayload())) {
+                persistService.pollReadings(rs.getNumberOfSerializedReadings());
+            } else {
+                LOG.warn("Flush failed");
             }
-        }), 0, 50, TimeUnit.MILLISECONDS);
-    }
+        }
 
-    /**
-     * Disconnect from the platform.
-     */
-    public void disconnect() {
-        executorService.shutdownNow();
-        futureConnection.disconnect();
-        LOG.info("Disconnected from " + host);
-    }
+        if (!inMemoryReadings.isEmpty()) {
+            final List<Reading> readings = new ArrayList<>(inMemoryReadings);
+            final ReadingSerializer rs = readingSerializerFactory.newReadingSerializer(readings);
 
-    /**
-     * Send the status of the actuator specified by its reference. ActuatorStatusProvider is used to
-     * retrieve the status of the actuator.
-     *
-     * @param actuatorReference reference of the actuator.
-     * @throws Exception if there was an error while publishing.
-     */
-    public void publishActuatorStatus(String actuatorReference) throws Exception {
-        final String topic = ACTUATORS_STATUS + device.getDeviceKey() + "/" + actuatorReference;
-        final String payload = gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference));
-        LOG.debug("Publishing status ==> " + topic + " : " + payload);
-        futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await();
+            LOG.info("Flushing " + rs.getNumberOfSerializedReadings() + " in-memory reading(s)");
+            if (publish(rs.getTopic(), rs.getPayload())) {
+                for (long i = 0; i < rs.getNumberOfSerializedReadings(); ++i) {
+                    inMemoryReadings.poll();
+                }
+            } else {
+                LOG.warn("Flush failed");
+            }
+        }
+
+        if (!inMemoryReadings.isEmpty() || (persistService != null && !persistService.isEmpty())) {
+            LOG.info("Scheduling sending of next persisted data batch");
+
+            addToCommandBuffer(new CommandBuffer.Command() {
+                @Override
+                public void execute() {
+                    flushPersistedData();
+                }
+            });
+        }
     }
 
     private void receive(FutureConnection futureConnection) throws Exception {
-        LOG.debug("Listening...");
         final Future<Message> receive = futureConnection.receive();
         final Message message = receive.await();
+
         final String payload = new String(message.getPayload());
-        LOG.debug("Received " + payload);
         final String topic = message.getTopic();
+
+        LOG.debug("Received command: " + payload);
         if (device.getProtocol() == Protocol.WOLK_SENSE) {
             final String actual = payload.substring(4, payload.length() - 2);
             final String[] actuation = actual.split(":");
@@ -239,6 +199,7 @@ public class Wolk {
         } else {
             final ActuatorCommand command = gson.fromJson(new String(message.getPayload()), ActuatorCommand.class);
             final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
+
             switch (command.getCommand()) {
                 case SET:
                     this.actuationHandler.handleActuation(actuatorReference, command.getValue());
@@ -252,13 +213,172 @@ public class Wolk {
         message.ack();
     }
 
-    public static class WolkBuilder {
+    /**
+     * Establish the MQTT connection with the platform.
+     */
+    public void connect() {
+        if (connectionTask != null && !connectionTask.isDone()) {
+            return;
+        }
 
-        private Wolk instance;
+        connectionTask = executorService.scheduleAtFixedRate((new Runnable() {
+            @Override
+            public void run() {
+                if (futureConnection == null || !futureConnection.isConnected()) {
+                    connect(host.startsWith("ssl"));
+                }
+            }
+        }), 0, 1, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Disconnect from the platform.
+     */
+    public void disconnect() {
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                executorService.shutdownNow();
+                futureConnection.disconnect();
+                LOG.info("Disconnected from " + host);
+            }
+        });
+    }
+
+    /**
+     * Starts publishing readings on a given interval.
+     *
+     * @param interval Time interval in seconds to elapse between two publish attempts
+     */
+    public void startAutoPublishing(final int interval) {
+        startAutoPublishing(interval, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Starts publishing readings on a given interval.
+     *
+     * @param interval Time interval in seconds to elapse between two publish attempts
+     * @param unit     the time unit of the delay parameter
+     */
+    public void startAutoPublishing(final long interval, final TimeUnit unit) {
+        autoPublishTask = executorService.schedule(new Runnable() {
+            @Override
+            public void run() {
+                addToCommandBuffer(new CommandBuffer.Command() {
+                    @Override
+                    public void execute() {
+                        publish();
+                    }
+                });
+
+                if (!autoPublishTask.isCancelled()) {
+                    autoPublishTask = executorService.schedule(this, interval, unit);
+                }
+            }
+        }, interval, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Cancels a started automatic publishing task
+     */
+    public void stopAutoPublishing() {
+        if (autoPublishTask != null) {
+            autoPublishTask.cancel(true);
+        }
+    }
+
+    /**
+     * Add a single reading to buffer.
+     * Can be called from multiple thread simultaneously.
+     *
+     * @param ref   of the sensor
+     * @param value of the measurement
+     */
+    public void addReading(final String ref, final String value) {
+        addReading(ref, value, 0);
+    }
+
+    /**
+     * Add single reading to buffer.
+     * Can be called from multiple thread simultaneously.
+     *
+     * @param ref   of the sensor
+     * @param value of the measurement
+     * @param time  timestamp
+     */
+    public void addReading(final String ref, final String value, final long time) {
+        final long ttime = time == 0 ? System.currentTimeMillis() / 1000L : time;
+
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                final Reading reading = new Reading(ref, value, ttime);
+
+                if (persistService != null) {
+                    LOG.info("Persisting " + reading + " to persistent storage");
+                    if (persistService.offer(reading)) {
+                        return;
+                    } else {
+                        LOG.error("Could not persist " + reading + " to persistent store");
+                    }
+                }
+
+                LOG.info("Persisting " + reading + " in-memory");
+                inMemoryReadings.add(reading);
+            }
+        });
+    }
+
+    /**
+     * Publishes all the data and clears persisted data if publishing was successful.
+     * Can be called from multiple thread simultaneously.
+     */
+    public void publish() {
+        if (futureConnection == null || !futureConnection.isConnected()) {
+            LOG.info("Skipping publish, Reason: Not connected to WolkAbout IoT Platform");
+            return;
+        }
+
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                flushPersistedData();
+            }
+        });
+    }
+
+    /**
+     * Send the status of the actuator specified by its reference. ActuatorStatusProvider is used to
+     * retrieve the status of the actuator.
+     * <p>
+     * Can be called from multiple thread simultaneously.
+     *
+     * @param actuatorReference reference of the actuator
+     */
+    public void publishActuatorStatus(final String actuatorReference) {
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                final String topic = ACTUATORS_STATUS + device.getDeviceKey() + "/" + actuatorReference;
+                final String payload = gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference));
+
+                try {
+                    LOG.debug("Publishing status ==> " + topic + " : " + payload);
+                    futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(1, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    LOG.error("Could not publish actuator status with reference " + actuatorReference);
+                }
+            }
+        });
+    }
+
+    public static class WolkBuilder {
+        private final Wolk instance;
 
         private WolkBuilder(Device device) {
             instance = new Wolk(device);
-            instance.readingsBuffer = new ReadingsBuffer(device.getProtocol());
+            instance.host = Wolk.WOLK_DEMO_URL;
+            instance.caName = Wolk.WOLK_DEMO_CA;
         }
 
         /**
@@ -277,10 +397,25 @@ public class Wolk {
         }
 
         /**
+         * Setup host url.
+         *
+         * @param host url
+         *             <ul>
+         *             <li>For SSL version use format "ssl://address:port". </li>
+         *             <li>Otherwise use format "tcp://address:port". </li>
+         *             </ul>
+         * @return WolkBuilder
+         */
+        public WolkBuilder toHost(URI host) {
+            instance.host = host.toString();
+            return this;
+        }
+
+        /**
          * Setup actuation handler.
          *
          * @param actuationHandler see  {@link ActuationHandler}
-         * @return WolkBuilder.
+         * @return WolkBuilder
          */
         public WolkBuilder actuationHandler(ActuationHandler actuationHandler) {
             instance.actuationHandler = actuationHandler;
@@ -291,29 +426,48 @@ public class Wolk {
          * Setup status provider for actuators.
          *
          * @param actuatorStatusProvider see {@link ActuatorStatus}
-         * @return WolkBuilderk
+         * @return WolkBuilder
          */
         public WolkBuilder actuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
             instance.actuatorStatusProvider = actuatorStatusProvider;
             return this;
         }
 
+        /**
+         * Setup Certificate Authority.
+         *
+         * @param ca Path to CA file
+         * @return WolkBuilder
+         */
         public WolkBuilder certificateAuthority(String ca) {
             instance.caName = ca;
             return this;
         }
 
         /**
-         * Establish mqtt connection to the platform.
+         * Setup with persistence (aka Offline buffering).
          *
-         * @return Wolk.
-         * @throws Exception when the connection could be established.
+         * @param persistService                 instance of {@link PersistService}
+         * @param persistedItemsPublishBatchSize number of persisted items to publish at once, if number of persisted
+         *                                       items is greater than this, persisted items will be published sequentially in batches of
+         *                                       up to this many items depending on limitations of underlying protocol that is used
+         * @return WolkBuilder
          */
-        public Wolk connect() throws Exception {
+        public WolkBuilder withPersistence(PersistService persistService, int persistedItemsPublishBatchSize) {
+            instance.persistService = persistService;
+            instance.persistedItemsPublishBatchSize = persistedItemsPublishBatchSize;
+            return this;
+        }
+
+        /**
+         * Establish connection to the platform.
+         *
+         * @return Wolk
+         */
+        public Wolk connect() {
             instance.connect();
             return instance;
         }
 
     }
-
 }

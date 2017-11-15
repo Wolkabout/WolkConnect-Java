@@ -14,26 +14,25 @@
  * limitations under the License.
  *
  */
-
 package com.wolkabout.wolk;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ActuatorCommand {
-    private Logger logger = LoggerFactory.getLogger(Wolk.class);
+    private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
-    public enum Command {SET, STATUS, UNKNOWN}
+    public enum CommandType {SET, STATUS, UNKNOWN}
 
     private String command;
     private String value;
 
-    public Command getCommand() {
+    public CommandType getCommand() {
         try {
-            return Command.valueOf(command);
+            return CommandType.valueOf(command);
         } catch (IllegalArgumentException e) {
-            logger.warn("Unkonwn command: " + command);
-            return Command.UNKNOWN;
+            LOG.warn("Unkonwn command: " + command);
+            return CommandType.UNKNOWN;
         }
     }
 
@@ -43,7 +42,7 @@ public class ActuatorCommand {
 
     @Override
     public String toString() {
-        return "ActuatorCommand{" + "command='" + command + '\'' +
+        return "ActuatorCommand {" + "command='" + command + '\'' +
                 ", value='" + value + '\'' +
                 '}';
     }
