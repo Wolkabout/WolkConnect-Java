@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.wolkabout.wolk;
 
 /**
@@ -22,11 +21,10 @@ package com.wolkabout.wolk;
  */
 
 public class ActuatorStatus {
+    public enum Status {READY, BUSY, ERROR}
 
     private String status;
     private String value;
-
-    public enum Status {READY, BUSY, ERROR}
 
     public ActuatorStatus(Status status, String value) {
         this.status = status.name();
@@ -36,4 +34,11 @@ public class ActuatorStatus {
     public ActuatorStatus() {
     }
 
+    @Override
+    public String toString() {
+        return "ActuatorStatus {" +
+                "status='" + status + '\'' +
+                ", value='" + value + '\'' +
+                '}';
+    }
 }

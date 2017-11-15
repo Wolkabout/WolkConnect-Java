@@ -14,7 +14,6 @@
  * limitations under the License.
  *
  */
-
 package com.wolkabout.wolk;
 
 import org.fusesource.mqtt.client.MQTT;
@@ -23,6 +22,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -33,11 +33,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
 class MqttFactory {
-
-    private static final String TOPIC = "sensors/";
     private static final String FACTORY_TYPE = "X.509";
 
-    private MQTT mqtt;
+    private final MQTT mqtt;
 
     public MqttFactory() {
         mqtt = new MQTT();
@@ -45,6 +43,11 @@ class MqttFactory {
     }
 
     public MqttFactory host(String host) throws URISyntaxException {
+        host(new URI(host));
+        return this;
+    }
+
+    public MqttFactory host(URI host) {
         mqtt.setHost(host);
         return this;
     }
@@ -94,7 +97,9 @@ class MqttFactory {
             mqtt.setSslContext(sslContext);
         }
 
-        mqtt.setConnectAttemptsMax(2);
+        mqtt.setConnectAttemptsMax(5);
+        mqtt.setReconnectAttemptsMax(0);
+
         return mqtt;
     }
 
@@ -106,13 +111,13 @@ class MqttFactory {
     }
 
     private TrustManagerFactory getTrustManagerFactory(final Certificate certificate, final String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
-        // creating a KeyStore containing our trusted CAs
+        // Creating a KeyStore containing our trusted CAs
         final String keyStoreType = KeyStore.getDefaultType();
         final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
         keyStore.load(null, null);
-        keyStore.setCertificateEntry("ca", certificate);
+        keyStore.setCertificateEntry(ca, certificate);
 
-        // creating a TrustManager that trusts the CAs in our KeyStore
+        // Creating a TrustManager that trusts the CAs in our KeyStore
         final String defaultAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
         final TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(defaultAlgorithm);
         trustManagerFactory.init(keyStore);

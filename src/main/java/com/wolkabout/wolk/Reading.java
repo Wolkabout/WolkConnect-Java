@@ -16,59 +16,36 @@
  */
 package com.wolkabout.wolk;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-
-import java.lang.reflect.Type;
-
 class Reading {
 
     private final String ref;
     private final String value;
-    private long utc;
+    private final long utc;
 
-    Reading(final ReadingType type, final String value) {
-        this.ref = type.getPrefix();
-        this.value = value;
-        this.utc = System.currentTimeMillis() / 1000;
-    }
-
-    long getUtc() {
-        return utc;
-    }
-
-    ReadingType getType() {
-
-        return ReadingType.fromPrefix(ref);
-    }
-
-    Reading(final String ref, final String value) {
+    Reading(final String ref, final String value, final long utc) {
         this.ref = ref;
         this.value = value;
-        this.utc = System.currentTimeMillis() / 1000;
+        this.utc = utc;
+    }
+
+    String getReference() {
+        return ref;
     }
 
     String getValue() {
         return value;
     }
 
-    @Override
-    public String toString() {
-        return "Reading{" +
-                "ref=" + ref +
-                ", value=" + value +
-                '}';
+    long getUtc() {
+        return utc;
     }
 
-    public static class ReadingSerializer implements JsonSerializer<Reading> {
-        @Override
-        public JsonElement serialize(Reading reading, Type typeOfSrc, JsonSerializationContext context) {
-            final JsonObject jsonObject = new JsonObject();
-            jsonObject.addProperty("utc", reading.getUtc());
-            jsonObject.addProperty("data", reading.getValue());
-            return jsonObject;
-        }
+    @Override
+    public String toString() {
+        return "Reading {" +
+                "ref='" + ref + '\'' +
+                ", value='" + value + '\'' +
+                ", utc=" + utc +
+                '}';
     }
 }
