@@ -40,7 +40,7 @@ public class Wolk {
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
     private static final String ACTUATORS_STATUS = "actuators/status/";
 
-    private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
     private ScheduledFuture<?> connectionTask;
@@ -55,7 +55,7 @@ public class Wolk {
 
     private final ReadingSerializer.Factory readingSerializerFactory;
 
-    private PersistService persistService;
+    private PersistenceService persistenceService;
     private int persistedItemsPublishBatchSize;
 
     private ActuationHandler actuationHandler;
@@ -146,13 +146,13 @@ public class Wolk {
     }
 
     private void flushPersistedData() {
-        if (persistService != null && !persistService.isEmpty()) {
-            final List<Reading> readings = persistService.peekReadings(persistedItemsPublishBatchSize);
+        if (persistenceService != null && !persistenceService.isEmpty()) {
+            final List<Reading> readings = persistenceService.peekReadings(persistedItemsPublishBatchSize);
             final ReadingSerializer rs = readingSerializerFactory.newReadingSerializer(readings);
 
             LOG.info("Flushing " + rs.getNumberOfSerializedReadings() + " persisted reading(s)");
             if (publish(rs.getTopic(), rs.getPayload())) {
-                persistService.pollReadings(rs.getNumberOfSerializedReadings());
+                persistenceService.pollReadings(rs.getNumberOfSerializedReadings());
             } else {
                 LOG.warn("Flush failed");
             }
@@ -172,7 +172,7 @@ public class Wolk {
             }
         }
 
-        if (!inMemoryReadings.isEmpty() || (persistService != null && !persistService.isEmpty())) {
+        if (!inMemoryReadings.isEmpty() || (persistenceService != null && !persistenceService.isEmpty())) {
             LOG.info("Scheduling sending of next persisted data batch");
 
             addToCommandBuffer(new CommandBuffer.Command() {
@@ -314,9 +314,9 @@ public class Wolk {
             public void execute() {
                 final Reading reading = new Reading(ref, value, ttime);
 
-                if (persistService != null) {
+                if (persistenceService != null) {
                     LOG.info("Persisting " + reading + " to persistent storage");
-                    if (persistService.offer(reading)) {
+                    if (persistenceService.offer(reading)) {
                         return;
                     } else {
                         LOG.error("Could not persist " + reading + " to persistent store");
@@ -447,14 +447,14 @@ public class Wolk {
         /**
          * Setup with persistence (aka Offline buffering).
          *
-         * @param persistService                 instance of {@link PersistService}
+         * @param persistenceService             instance of {@link PersistenceService}
          * @param persistedItemsPublishBatchSize number of persisted items to publish at once, if number of persisted
          *                                       items is greater than this, persisted items will be published sequentially in batches of
          *                                       up to this many items depending on limitations of underlying protocol that is used
          * @return WolkBuilder
          */
-        public WolkBuilder withPersistence(PersistService persistService, int persistedItemsPublishBatchSize) {
-            instance.persistService = persistService;
+        public WolkBuilder withPersistence(PersistenceService persistenceService, int persistedItemsPublishBatchSize) {
+            instance.persistenceService = persistenceService;
             instance.persistedItemsPublishBatchSize = persistedItemsPublishBatchSize;
             return this;
         }

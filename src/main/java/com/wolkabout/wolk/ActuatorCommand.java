@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ActuatorCommand {
-    private static Logger LOG = LoggerFactory.getLogger(Wolk.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
     public enum CommandType {SET, STATUS, UNKNOWN}
 

@@ -23,29 +23,28 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.Serializable;
-import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-class KeyComparator implements Comparator<byte[]>, Serializable {
-    public int compare(byte[] first, byte[] second) {
-        return new BigInteger(first).compareTo(new BigInteger(second));
-    }
-}
-
-public class BerkleyDBJavaPersistService implements PersistService {
+public class BerkleyDBJavaPersistenceService implements PersistenceService {
     private static final String readingsDbName = "readings";
 
-    private static Logger LOG = LoggerFactory.getLogger(BerkleyDBJavaPersistService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(BerkleyDBJavaPersistenceService.class);
 
     private final Environment dbEnvironment;
     private final Database readingsDb;
 
     private final Gson gson;
 
-    public BerkleyDBJavaPersistService(final File persistentStorePath) {
+    static private class KeyComparator implements Comparator<byte[]>, Serializable {
+        public int compare(byte[] first, byte[] second) {
+            return new BigInteger(first).compareTo(new BigInteger(second));
+        }
+    }
+
+    public BerkleyDBJavaPersistenceService(final File persistentStorePath) {
         LOG.info("Initializing");
 
         if (!persistentStorePath.exists() && persistentStorePath.mkdir()) {
@@ -55,26 +54,21 @@ public class BerkleyDBJavaPersistService implements PersistService {
         final EnvironmentConfig dbEnvironmentConfig = new EnvironmentConfig();
         dbEnvironmentConfig.setTransactional(false);
         dbEnvironmentConfig.setAllowCreate(true);
-        this.dbEnvironment = new Environment(persistentStorePath,
-                dbEnvironmentConfig);
+        dbEnvironment = new Environment(persistentStorePath, dbEnvironmentConfig);
 
         final DatabaseConfig dbConfig = new DatabaseConfig();
         dbConfig.setTransactional(false);
         dbConfig.setDeferredWrite(true);
         dbConfig.setAllowCreate(true);
         dbConfig.setBtreeComparator(new KeyComparator());
-        this.readingsDb = dbEnvironment.openDatabase(null,
-                readingsDbName,
-                dbConfig);
+        readingsDb = dbEnvironment.openDatabase(null, readingsDbName, dbConfig);
 
-        final GsonBuilder builder = new GsonBuilder();
-        builder.registerTypeAdapter(Reading.class, new ReadingJsonSerializerDeserializer());
-        gson = builder.create();
+        gson = new Gson();
 
         LOG.debug("Readings DB contains " + readingsDb.count() + " persisted items");
     }
 
-    public BerkleyDBJavaPersistService(final String persistentStorePath) {
+    public BerkleyDBJavaPersistenceService(final String persistentStorePath) {
         this(new File(persistentStorePath));
     }
 
@@ -88,24 +82,16 @@ public class BerkleyDBJavaPersistService implements PersistService {
         try (Cursor cursor = readingsDb.openCursor(null, null)) {
             cursor.getLast(key, data, LockMode.RMW);
 
-            BigInteger prevKeyValue;
-            if (key.getData() == null) {
-                prevKeyValue = BigInteger.valueOf(-1);
-            } else {
-                prevKeyValue = new BigInteger(key.getData());
-            }
-            BigInteger newKeyValue = prevKeyValue.add(BigInteger.ONE);
+            final BigInteger prevKeyValue = key.getData() == null ? BigInteger.valueOf(-1) : new BigInteger(key.getData());
+            final BigInteger newKeyValue = prevKeyValue.add(BigInteger.ONE);
 
             try {
-                final DatabaseEntry newKey = new DatabaseEntry(
-                        newKeyValue.toByteArray());
-                final DatabaseEntry newData = new DatabaseEntry(
-                        gson.toJson(reading).getBytes("UTF-8"));
+                final DatabaseEntry newKey = new DatabaseEntry(newKeyValue.toByteArray());
+                final DatabaseEntry newData = new DatabaseEntry(gson.toJson(reading).getBytes("UTF-8"));
 
                 final boolean isSuccessful = readingsDb.put(null, newKey, newData) == OperationStatus.SUCCESS;
                 readingsDb.sync();
                 return isSuccessful;
-
             } catch (Exception e) {
                 LOG.debug("Offer reading failed", e);
                 return false;
@@ -118,11 +104,7 @@ public class BerkleyDBJavaPersistService implements PersistService {
         LOG.debug("Peek reading");
 
         final List<Reading> readings = peekReadings(1);
-        if (readings.size() == 1) {
-            return readings.get(0);
-        } else {
-            return null;
-        }
+        return readings.isEmpty() ? null : readings.get(0);
     }
 
     @Override
@@ -157,11 +139,7 @@ public class BerkleyDBJavaPersistService implements PersistService {
         LOG.debug("Poll reading");
 
         final List<Reading> readings = pollReadings(1);
-        if (readings.size() == 1) {
-            return readings.get(0);
-        } else {
-            return null;
-        }
+        return readings.isEmpty() ? null : readings.get(0);
     }
 
     @Override
@@ -203,29 +181,6 @@ public class BerkleyDBJavaPersistService implements PersistService {
         } catch (Exception e) {
             LOG.error("Unable to check if readings DB has any records", e);
             return true;
-        }
-    }
-
-    private static class ReadingJsonSerializerDeserializer implements JsonSerializer<Reading>, JsonDeserializer<Reading> {
-        @Override
-        public JsonElement serialize(Reading reading, Type typeOfSrc, JsonSerializationContext context) {
-            final JsonObject jsonObject = new JsonObject();
-            jsonObject.addProperty("ref", reading.getReference());
-            jsonObject.addProperty("value", reading.getValue());
-            jsonObject.addProperty("utc", reading.getUtc());
-
-            return jsonObject;
-        }
-
-        @Override
-        public Reading deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-            final JsonObject jsonObject = json.getAsJsonObject();
-
-            final String ref = jsonObject.get("ref").getAsString();
-            final String value = jsonObject.get("value").getAsString();
-            final long utc = jsonObject.get("utc").getAsLong();
-
-            return new Reading(ref, value, utc);
         }
     }
 }
