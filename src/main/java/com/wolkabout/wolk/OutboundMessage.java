@@ -16,8 +16,26 @@
  */
 package com.wolkabout.wolk;
 
-import java.util.List;
+class OutboundMessage {
+    private final String payload;
+    private final String topic;
+    private final int serializedItemsCount;
 
-interface ReadingSerializer {
-    OutboundMessage serialize(List<Reading> readings);
+    public OutboundMessage(final String payload, final String topic, final int serializedItemsCount) {
+        this.payload = payload;
+        this.topic = topic;
+        this.serializedItemsCount = serializedItemsCount;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public int getSerializedItemsCount() {
+        return serializedItemsCount;
+    }
 }

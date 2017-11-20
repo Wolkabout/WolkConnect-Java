@@ -16,8 +16,14 @@
  */
 package com.wolkabout.wolk;
 
-import java.util.List;
+abstract class AbstractReadingSerializer implements ReadingSerializer {
+    private final Device device;
 
-interface ReadingSerializer {
-    OutboundMessage serialize(List<Reading> readings);
+    public AbstractReadingSerializer(final Device device) {
+        this.device = device;
+    }
+
+    public Device getDevice() {
+        return device;
+    }
 }
