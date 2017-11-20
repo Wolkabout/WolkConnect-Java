@@ -49,7 +49,7 @@ class JsonSingleReadingSerializer extends AbstractReadingSerializer {
         }
 
         final String payload = gson.toJson(readings.get(0));
-        final String topic = "readings/" + getDeviceKey() + "/" + readings.get(0).getReference();
+        final String topic = "readings/" + deviceKey + "/" + readings.get(0).getReference();
         return new OutboundMessage(payload, topic, 1);
     }
 }
