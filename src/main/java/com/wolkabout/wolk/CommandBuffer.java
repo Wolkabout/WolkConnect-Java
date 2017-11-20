@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
 
-public class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
+class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
     public interface Command {
         void execute();
     }
@@ -36,13 +36,11 @@ public class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
             public void run() {
                 try {
                     final CommandBuffer.Command command = take();
-                    try {
-                        command.execute();
-                    } catch (Exception e) {
-                        LOG.error("Command execution failed", e);
-                    }
+                    command.execute();
                 } catch (InterruptedException e) {
                     LOG.info("Command execution interrupted", e);
+                } catch (Exception e) {
+                    LOG.error("Command execution failed", e);
                 }
             }
         }), 0, 5, TimeUnit.MILLISECONDS);

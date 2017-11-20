@@ -17,16 +17,5 @@
 package com.wolkabout.wolk;
 
 public enum Protocol {
-    WOLK_SENSE("sensors/"),
-    JSON_SINGLE("readings/");
-
-    private final String readingsTopic;
-
-    Protocol(String readingsTopic) {
-        this.readingsTopic = readingsTopic;
-    }
-
-    public String getReadingsTopic() {
-        return readingsTopic;
-    }
+    JSON_SINGLE
 }

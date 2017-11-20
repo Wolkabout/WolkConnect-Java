@@ -53,7 +53,7 @@ public class Wolk {
 
     private final Device device;
 
-    private final ReadingSerializer.Factory readingSerializerFactory;
+    private final ReadingSerializer readingSerializer;
 
     private PersistenceService persistenceService;
     private int persistedItemsPublishBatchSize;
@@ -69,7 +69,14 @@ public class Wolk {
 
     private Wolk(final Device device) {
         this.device = device;
-        this.readingSerializerFactory = new ReadingSerializer.Factory(this.device);
+
+        switch (device.getProtocol()) {
+            default:
+                LOG.warn("Unsupported protocol " + device.getProtocol() + " defaulting to JSON_SINGLE");
+            case JSON_SINGLE:
+                readingSerializer = new JsonSingleReadingSerializer(device);
+                break;
+        }
     }
 
     /**
@@ -147,28 +154,36 @@ public class Wolk {
 
     private void flushPersistedData() {
         if (persistenceService != null && !persistenceService.isEmpty()) {
-            final List<Reading> readings = persistenceService.peekReadings(persistedItemsPublishBatchSize);
-            final ReadingSerializer rs = readingSerializerFactory.newReadingSerializer(readings);
+            try {
+                final List<Reading> readings = persistenceService.peekReadings(persistedItemsPublishBatchSize);
+                final OutboundMessage message = readingSerializer.serialize(readings);
 
-            LOG.info("Flushing " + rs.getNumberOfSerializedReadings() + " persisted reading(s)");
-            if (publish(rs.getTopic(), rs.getPayload())) {
-                persistenceService.pollReadings(rs.getNumberOfSerializedReadings());
-            } else {
-                LOG.warn("Flush failed");
+                LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
+                if (publish(message.getTopic(), message.getPayload())) {
+                    persistenceService.pollReadings(message.getSerializedItemsCount());
+                } else {
+                    LOG.warn("Flush failed");
+                }
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unable to serialize reading(s)", e);
             }
         }
 
         if (!inMemoryReadings.isEmpty()) {
-            final List<Reading> readings = new ArrayList<>(inMemoryReadings);
-            final ReadingSerializer rs = readingSerializerFactory.newReadingSerializer(readings);
+            try {
+                final List<Reading> readings = new ArrayList<>(inMemoryReadings);
+                final OutboundMessage message = readingSerializer.serialize(readings);
 
-            LOG.info("Flushing " + rs.getNumberOfSerializedReadings() + " in-memory reading(s)");
-            if (publish(rs.getTopic(), rs.getPayload())) {
-                for (long i = 0; i < rs.getNumberOfSerializedReadings(); ++i) {
-                    inMemoryReadings.poll();
+                LOG.info("Flushing " + message.getSerializedItemsCount() + " in-memory reading(s)");
+                if (publish(message.getTopic(), message.getPayload())) {
+                    for (long i = 0; i < message.getSerializedItemsCount(); ++i) {
+                        inMemoryReadings.poll();
+                    }
+                } else {
+                    LOG.warn("Flush failed");
                 }
-            } else {
-                LOG.warn("Flush failed");
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unable to serialize reading(s)", e);
             }
         }
 
@@ -192,23 +207,17 @@ public class Wolk {
         final String topic = message.getTopic();
 
         LOG.debug("Received command: " + payload);
-        if (device.getProtocol() == Protocol.WOLK_SENSE) {
-            final String actual = payload.substring(4, payload.length() - 2);
-            final String[] actuation = actual.split(":");
-            actuationHandler.handleActuation(actuation[0], actuation[1]);
-        } else {
-            final ActuatorCommand command = gson.fromJson(new String(message.getPayload()), ActuatorCommand.class);
-            final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
+        final ActuatorCommand command = gson.fromJson(new String(message.getPayload()), ActuatorCommand.class);
+        final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
 
-            switch (command.getCommand()) {
-                case SET:
-                    this.actuationHandler.handleActuation(actuatorReference, command.getValue());
-                case STATUS:
-                    publishActuatorStatus(actuatorReference);
-                    break;
-                default:
-                    LOG.warn("Unknown command. Ignoring.");
-            }
+        switch (command.getCommand()) {
+            case SET:
+                this.actuationHandler.handleActuation(actuatorReference, command.getValue());
+            case STATUS:
+                publishActuatorStatus(actuatorReference);
+                break;
+            default:
+                LOG.warn("Unknown command. Ignoring.");
         }
         message.ack();
     }
