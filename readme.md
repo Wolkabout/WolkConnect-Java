@@ -83,7 +83,8 @@ wolk.disconnect();
 ```
 
 
-**Data persistence**
+**Data persistence:**
+
 WolkAbout C++ Connector provides mechanism for persisting data in situations where it can not be sent to WolkAbout IoT platform.
 Persisted data is sent to WolkAbout IoT platform automatically once connection is established.
 
