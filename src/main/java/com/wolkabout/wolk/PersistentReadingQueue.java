@@ -19,11 +19,11 @@ package com.wolkabout.wolk;
 import java.util.List;
 
 /**
- * A collection designed for holding elements in persistent store prior to processing.
+ * A collection designed for holding elements in persistent store prior to publishing to WolkAbout IoT Platform.
  *
- * Must be implemented to follow FIFO element storing/retrieving strategy.
+ * Implementation must follow FIFO element storing/retrieving strategy.
  */
-public interface PersistenceService {
+public interface PersistentReadingQueue {
     /**
      * Inserts the {@link Reading} at the tail of queue.
      *

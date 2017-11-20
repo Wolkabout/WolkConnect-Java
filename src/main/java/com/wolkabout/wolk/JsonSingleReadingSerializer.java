@@ -34,8 +34,8 @@ class JsonSingleReadingSerializer extends AbstractReadingSerializer {
 
     private final Gson gson;
 
-    public JsonSingleReadingSerializer(Device device) {
-        super(device);
+    public JsonSingleReadingSerializer(String deviceKey) {
+        super(deviceKey);
 
         final GsonBuilder builder = new GsonBuilder();
         builder.registerTypeAdapter(Reading.class, new ReadingJsonSerializer());
@@ -49,7 +49,7 @@ class JsonSingleReadingSerializer extends AbstractReadingSerializer {
         }
 
         final String payload = gson.toJson(readings.get(0));
-        final String topic = "readings/" + getDevice().getDeviceKey() + "/" + readings.get(0).getReference();
+        final String topic = "readings/" + getDeviceKey() + "/" + readings.get(0).getReference();
         return new OutboundMessage(payload, topic, 1);
     }
 }

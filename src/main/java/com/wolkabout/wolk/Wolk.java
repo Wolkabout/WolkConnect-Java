@@ -55,7 +55,7 @@ public class Wolk {
 
     private final ReadingSerializer readingSerializer;
 
-    private PersistenceService persistenceService;
+    private PersistentReadingQueue persistentReadingQueue;
     private int persistedItemsPublishBatchSize;
 
     private ActuationHandler actuationHandler;
@@ -71,11 +71,12 @@ public class Wolk {
         this.device = device;
 
         switch (device.getProtocol()) {
-            default:
-                LOG.warn("Unsupported protocol " + device.getProtocol() + " defaulting to JSON_SINGLE");
             case JSON_SINGLE:
-                readingSerializer = new JsonSingleReadingSerializer(device);
+                readingSerializer = new JsonSingleReadingSerializer(device.getDeviceKey());
                 break;
+
+            default:
+                throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
         }
     }
 
@@ -153,14 +154,14 @@ public class Wolk {
     }
 
     private void flushPersistedData() {
-        if (persistenceService != null && !persistenceService.isEmpty()) {
+        if (persistentReadingQueue != null && !persistentReadingQueue.isEmpty()) {
             try {
-                final List<Reading> readings = persistenceService.peekReadings(persistedItemsPublishBatchSize);
+                final List<Reading> readings = persistentReadingQueue.peekReadings(persistedItemsPublishBatchSize);
                 final OutboundMessage message = readingSerializer.serialize(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
                 if (publish(message.getTopic(), message.getPayload())) {
-                    persistenceService.pollReadings(message.getSerializedItemsCount());
+                    persistentReadingQueue.pollReadings(message.getSerializedItemsCount());
                 } else {
                     LOG.warn("Flush failed");
                 }
@@ -187,7 +188,7 @@ public class Wolk {
             }
         }
 
-        if (!inMemoryReadings.isEmpty() || (persistenceService != null && !persistenceService.isEmpty())) {
+        if (!inMemoryReadings.isEmpty() || (persistentReadingQueue != null && !persistentReadingQueue.isEmpty())) {
             LOG.info("Scheduling sending of next persisted data batch");
 
             addToCommandBuffer(new CommandBuffer.Command() {
@@ -323,9 +324,9 @@ public class Wolk {
             public void execute() {
                 final Reading reading = new Reading(ref, value, ttime);
 
-                if (persistenceService != null) {
+                if (persistentReadingQueue != null) {
                     LOG.info("Persisting " + reading + " to persistent storage");
-                    if (persistenceService.offer(reading)) {
+                    if (persistentReadingQueue.offer(reading)) {
                         return;
                     } else {
                         LOG.error("Could not persist " + reading + " to persistent store");
@@ -456,14 +457,14 @@ public class Wolk {
         /**
          * Setup with persistence (aka Offline buffering).
          *
-         * @param persistenceService             instance of {@link PersistenceService}
+         * @param persistentReadingQueue         instance of {@link PersistentReadingQueue}
          * @param persistedItemsPublishBatchSize number of persisted items to publish at once, if number of persisted
          *                                       items is greater than this, persisted items will be published sequentially in batches of
          *                                       up to this many items depending on limitations of underlying protocol that is used
          * @return WolkBuilder
          */
-        public WolkBuilder withPersistence(PersistenceService persistenceService, int persistedItemsPublishBatchSize) {
-            instance.persistenceService = persistenceService;
+        public WolkBuilder withPersistence(PersistentReadingQueue persistentReadingQueue, int persistedItemsPublishBatchSize) {
+            instance.persistentReadingQueue = persistentReadingQueue;
             instance.persistedItemsPublishBatchSize = persistedItemsPublishBatchSize;
             return this;
         }
