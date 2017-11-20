@@ -17,13 +17,9 @@
 package com.wolkabout.wolk;
 
 abstract class AbstractReadingSerializer implements ReadingSerializer {
-    private final String deviceKey;
+    protected final String deviceKey;
 
     public AbstractReadingSerializer(final String deviceKey) {
         this.deviceKey = deviceKey;
-    }
-
-    public String getDeviceKey() {
-        return deviceKey;
     }
 }
