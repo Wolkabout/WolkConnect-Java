@@ -23,7 +23,7 @@ import java.util.List;
  *
  * Must be implemented to follow FIFO element storing/retrieving strategy.
  */
-public interface PersistService {
+public interface PersistenceService {
     /**
      * Inserts the {@link Reading} at the tail of queue.
      *

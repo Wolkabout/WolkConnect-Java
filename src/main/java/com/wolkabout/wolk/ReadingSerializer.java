@@ -32,7 +32,7 @@ class ReadingSerializer {
     private static final String TIME_DELIMITER = "|";
     private static final String MESSAGE_END = ";";
 
-    private static Logger LOG = LoggerFactory.getLogger(ReadingSerializer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ReadingSerializer.class);
 
     private String topic;
     private String payload;

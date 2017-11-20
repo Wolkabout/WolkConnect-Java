@@ -26,7 +26,7 @@ public class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
         void execute();
     }
 
-    private static Logger LOG = LoggerFactory.getLogger(CommandBuffer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CommandBuffer.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
@@ -36,9 +36,9 @@ public class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
             public void run() {
                 try {
                     final CommandBuffer.Command command = take();
-                    try{
+                    try {
                         command.execute();
-                    } catch (Exception e ) {
+                    } catch (Exception e) {
                         LOG.error("Command execution failed", e);
                     }
                 } catch (InterruptedException e) {
