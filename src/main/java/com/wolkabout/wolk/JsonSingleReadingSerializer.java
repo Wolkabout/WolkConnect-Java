@@ -21,7 +21,7 @@ import com.google.gson.*;
 import java.lang.reflect.Type;
 import java.util.List;
 
-class JsonSingleReadingSerializer extends AbstractReadingSerializer {
+class JsonSingleReadingSerializer implements ReadingSerializer {
     private class ReadingJsonSerializer implements JsonSerializer<Reading> {
         @Override
         public JsonElement serialize(Reading reading, Type typeOfSrc, JsonSerializationContext context) {
@@ -32,10 +32,11 @@ class JsonSingleReadingSerializer extends AbstractReadingSerializer {
         }
     }
 
+    private String deviceKey;
     private final Gson gson;
 
     public JsonSingleReadingSerializer(String deviceKey) {
-        super(deviceKey);
+        this.deviceKey = deviceKey;
 
         final GsonBuilder builder = new GsonBuilder();
         builder.registerTypeAdapter(Reading.class, new ReadingJsonSerializer());
