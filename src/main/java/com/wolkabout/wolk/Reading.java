@@ -16,7 +16,7 @@
  */
 package com.wolkabout.wolk;
 
-class Reading {
+public class Reading {
 
     private final String ref;
     private final String value;
