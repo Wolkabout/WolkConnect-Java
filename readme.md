@@ -88,7 +88,7 @@ wolk.disconnect();
 WolkAbout C++ Connector provides mechanism for persisting data in situations where it can not be sent to WolkAbout IoT platform.
 Persisted data is sent to WolkAbout IoT platform automatically once connection is established.
 
-By default in-memory data persistence is used, in cases when this is suboptimal one can implement PersistenceService interface, and pass
+By default in-memory data persistence is used, in cases when this is suboptimal one can implement PersistentReadingQueue interface, and pass
 it to Wolk via WolkBuilder in following manner:
 
 ```java
