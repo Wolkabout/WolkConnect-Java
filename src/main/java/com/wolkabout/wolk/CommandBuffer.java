@@ -19,7 +19,10 @@ package com.wolkabout.wolk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
     public interface Command {
@@ -35,8 +38,7 @@ class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
             @Override
             public void run() {
                 try {
-                    final CommandBuffer.Command command = take();
-                    command.execute();
+                    take().execute();
                 } catch (InterruptedException e) {
                     LOG.info("Command execution interrupted", e);
                 } catch (Exception e) {

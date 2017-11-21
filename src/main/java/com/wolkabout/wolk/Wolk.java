@@ -18,7 +18,6 @@ package com.wolkabout.wolk;
 
 import com.google.gson.Gson;
 import org.fusesource.mqtt.client.*;
-import org.fusesource.mqtt.client.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +27,10 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Handles the connection to the Wolkabout IoT Platform.
@@ -43,9 +45,6 @@ public class Wolk {
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
-    private ScheduledFuture<?> connectionTask;
-    private ScheduledFuture<?> commandReceiveTask;
-    private ScheduledFuture<?> autoPublishTask;
 
     private final Queue<Reading> inMemoryReadings = new LinkedList<>();
 
@@ -74,7 +73,6 @@ public class Wolk {
             case JSON_SINGLE:
                 readingSerializer = new JsonSingleReadingSerializer(device.getDeviceKey());
                 break;
-
             default:
                 throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
         }
@@ -98,49 +96,45 @@ public class Wolk {
         commandBuffer.add(command);
     }
 
-    private void connect(boolean sslEnabled) {
+    public void connect() {
         try {
-            final MqttFactory mqttFactory = new MqttFactory()
-                    .deviceKey(device.getDeviceKey())
-                    .password(device.getPassword())
-                    .host(host);
-
-            futureConnection = (sslEnabled ? mqttFactory.sslClient(caName) : mqttFactory.noSslClient()).futureConnection();
-
+            // 1. Establish connection
             LOG.debug("Connecting to " + host);
             futureConnection.connect().await(5, TimeUnit.SECONDS);
             LOG.info("Connected to " + host);
-
-            for (String ref : device.getActuators()) {
-                final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
-                LOG.info("Subscribed to: " + ref + ". QoS: " + QoS.values()[qos.await()[0]]);
-                publishActuatorStatus(ref);
-            }
-
+            // 2. Subscribe to actuator channels and start receiving
+            subscribeAndReceive();
+            // 3. Publish persisted readings...
             publish();
-
-            if (commandReceiveTask == null || commandReceiveTask.isDone()) {
-                commandReceiveTask = executorService.scheduleAtFixedRate((new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            receive(futureConnection);
-                        } catch (InterruptedException interrupted) {
-                            // Task was interrupted from disconnect directive.
-                            LOG.info("Received disconnect signal");
-                        } catch (Exception e) {
-                            LOG.error("Error while trying to receive data", e);
-                        }
-                    }
-                }), 0, 5, TimeUnit.MILLISECONDS);
-            }
         } catch (URISyntaxException e) {
             LOG.error("Invalid MQTT broker URI: " + host);
         } catch (TimeoutException e) {
             LOG.error("MQTT broker connect timeout");
         } catch (Exception e) {
-            // Await exception
+            LOG.error("Exception ocurred while trying to connect.", e);
         }
+    }
+
+    private void subscribeAndReceive() throws Exception {
+        for (String ref : device.getActuators()) {
+            final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
+            LOG.info("Subscribed to: " + ref + ". QoS: " + QoS.values()[qos.await()[0]]);
+            publishActuatorStatus(ref);
+        }
+
+        executorService.scheduleAtFixedRate((new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    receive(futureConnection);
+                } catch (InterruptedException interrupted) {
+                    // Task was interrupted from disconnect directive.
+                    LOG.info("Received disconnect signal");
+                } catch (Exception e) {
+                    LOG.error("Error while trying to receive data", e);
+                }
+            }
+        }), 0, 5, TimeUnit.MILLISECONDS);
     }
 
     private boolean publish(final String topic, final String payload) {
@@ -223,78 +217,14 @@ public class Wolk {
         message.ack();
     }
 
-    /**
-     * Establish the MQTT connection with the platform.
-     */
-    public void connect() {
-        if (connectionTask != null && !connectionTask.isDone()) {
-            return;
-        }
-
-        connectionTask = executorService.scheduleAtFixedRate((new Runnable() {
-            @Override
-            public void run() {
-                if (futureConnection == null || !futureConnection.isConnected()) {
-                    connect(host.startsWith("ssl"));
-                }
-            }
-        }), 0, 1, TimeUnit.SECONDS);
-    }
 
     /**
      * Disconnect from the platform.
      */
     public void disconnect() {
-        addToCommandBuffer(new CommandBuffer.Command() {
-            @Override
-            public void execute() {
-                executorService.shutdownNow();
-                futureConnection.disconnect();
-                LOG.info("Disconnected from " + host);
-            }
-        });
-    }
-
-    /**
-     * Starts publishing readings on a given interval.
-     *
-     * @param interval Time interval in seconds to elapse between two publish attempts
-     */
-    public void startAutoPublishing(final int interval) {
-        startAutoPublishing(interval, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Starts publishing readings on a given interval.
-     *
-     * @param interval Time interval in seconds to elapse between two publish attempts
-     * @param unit     the time unit of the delay parameter
-     */
-    public void startAutoPublishing(final long interval, final TimeUnit unit) {
-        autoPublishTask = executorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                addToCommandBuffer(new CommandBuffer.Command() {
-                    @Override
-                    public void execute() {
-                        publish();
-                    }
-                });
-
-                if (!autoPublishTask.isCancelled()) {
-                    autoPublishTask = executorService.schedule(this, interval, unit);
-                }
-            }
-        }, interval, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Cancels a started automatic publishing task
-     */
-    public void stopAutoPublishing() {
-        if (autoPublishTask != null) {
-            autoPublishTask.cancel(true);
-        }
+        executorService.shutdownNow();
+        futureConnection.disconnect();
+        LOG.info("Disconnected from " + host);
     }
 
     /**
@@ -305,7 +235,7 @@ public class Wolk {
      * @param value of the measurement
      */
     public void addReading(final String ref, final String value) {
-        addReading(ref, value, 0);
+        addReading(ref, value, System.currentTimeMillis() / 1000L);
     }
 
     /**
@@ -317,12 +247,10 @@ public class Wolk {
      * @param time  timestamp
      */
     public void addReading(final String ref, final String value, final long time) {
-        final long ttime = time == 0 ? System.currentTimeMillis() / 1000L : time;
-
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
             public void execute() {
-                final Reading reading = new Reading(ref, value, ttime);
+                final Reading reading = new Reading(ref, value, time);
 
                 if (persistentReadingQueue != null) {
                     LOG.info("Persisting " + reading + " to persistent storage");
@@ -389,6 +317,7 @@ public class Wolk {
             instance = new Wolk(device);
             instance.host = Wolk.WOLK_DEMO_URL;
             instance.caName = Wolk.WOLK_DEMO_CA;
+
         }
 
         /**
@@ -474,7 +403,14 @@ public class Wolk {
          *
          * @return Wolk
          */
-        public Wolk connect() {
+        public Wolk connect() throws Exception {
+            final MqttFactory mqttFactory = new MqttFactory()
+                    .deviceKey(instance.device.getDeviceKey())
+                    .password(instance.device.getPassword())
+                    .host(instance.host);
+
+            final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
+            instance.futureConnection = client.futureConnection();
             instance.connect();
             return instance;
         }
