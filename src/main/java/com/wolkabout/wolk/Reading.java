@@ -16,9 +16,15 @@
  */
 package com.wolkabout.wolk;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Reading {
 
+    @JsonIgnore
     private final String ref;
+
+    @JsonProperty(value = "data")
     private final String value;
     private final long utc;
 

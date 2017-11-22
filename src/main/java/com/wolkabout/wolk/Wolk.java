@@ -16,14 +16,13 @@
  */
 package com.wolkabout.wolk;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.fusesource.mqtt.client.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,7 +47,7 @@ public class Wolk {
 
     private final Device device;
 
-    private final MessageBuilder messageBuilder;
+    private final OutboundMessageFactory outboundMessageFactory;
 
     private Persistence persistence;
 
@@ -59,14 +58,12 @@ public class Wolk {
     private String caName;
     private FutureConnection futureConnection;
 
-    private final Gson gson = new Gson();
-
     private Wolk(final Device device) {
         this.device = device;
 
         switch (device.getProtocol()) {
             case JSON_SINGLE:
-                messageBuilder = new JsonSingleMessageBuilder(device.getDeviceKey());
+                outboundMessageFactory = new JsonSingleOutboundMessageFactory(device.getDeviceKey());
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
@@ -161,7 +158,7 @@ public class Wolk {
         for (final String key : persistence.getActuatorStatusesKeys()) {
             try {
                 final ActuatorStatus actuatorStatus = persistence.getActuatorStatus(key);
-                final OutboundMessage message = messageBuilder.buildFromActuatorStatuses(new ArrayList<>(Arrays.asList(actuatorStatus)));
+                final OutboundMessage message = outboundMessageFactory.makeFromActuatorStatuses(Collections.singletonList(actuatorStatus));
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted actuator status(es)");
                 if (publish(message.getTopic(), message.getPayload())) {
@@ -179,7 +176,7 @@ public class Wolk {
         for (final String key : persistence.getReadingsKeys()) {
             try {
                 final List<Reading> readings = persistence.getReadings(key, 50);
-                final OutboundMessage message = messageBuilder.buildFromReadings(readings);
+                final OutboundMessage message = outboundMessageFactory.makeFromReadings(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
                 if (publish(message.getTopic(), message.getPayload())) {
@@ -218,7 +215,7 @@ public class Wolk {
         final String topic = message.getTopic();
 
         LOG.debug("Received command: " + payload);
-        final ActuatorCommand command = gson.fromJson(new String(message.getPayload()), ActuatorCommand.class);
+        final ActuatorCommand command = new ObjectMapper().readValue(new String(message.getPayload()), ActuatorCommand.class);
         final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
 
         switch (command.getCommand()) {

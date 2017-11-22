@@ -18,8 +18,9 @@ package com.wolkabout.wolk;
 
 import java.util.List;
 
-interface MessageBuilder {
-    OutboundMessage buildFromReadings(List<Reading> readings);
+interface OutboundMessageFactory {
 
-    OutboundMessage buildFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
+    OutboundMessage makeFromReadings(List<Reading> readings);
+
+    OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
 }
