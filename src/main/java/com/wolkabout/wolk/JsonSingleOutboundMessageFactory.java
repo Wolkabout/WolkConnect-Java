@@ -43,9 +43,20 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(actuatorStatuses.get(0));
-            final String topic = "actuators/status/" + deviceKey + "/" + actuatorStatuses.get(0).getRef();
+            final String topic = "actuators/status/" + deviceKey + "/" + actuatorStatuses.get(0).getReference();
             return new OutboundMessage(payload, topic, 1);
         } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    @Override
+    public OutboundMessage makeFromAlarms(List<Alarm> alarms) {
+        try {
+            final String payload = new ObjectMapper().writeValueAsString(alarms);
+            final String topic = "events/" + deviceKey + "/" + alarms.get(0).getReference();
+            return new OutboundMessage(payload, topic, alarms.size());
+        } catch(JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }
     }

@@ -63,6 +63,42 @@ public interface Persistence {
     List<String> getReadingsKeys();
 
     /**
+     * Inserts the {@link Alarm}
+     *
+     * @param key   with which {@link Alarm} should be associated
+     * @param alarm to be inserted
+     * @return {@code true} if successful, or {@code false} if
+     * element can not be inserted
+     */
+    boolean putAlarm(String key, Alarm alarm);
+
+    /**
+     * Retrieves, first {@code count} {@link Alarm}s of this storage, associated with given {@code key}
+     * or returns empty @{code List<Alarm>} if this storage is empty.
+     *
+     * @param key   with which {@link Alarm} should be associated
+     * @param count number of items to peek
+     * @return @{code List<Alarm>} containing {@code count} {@link Alarm}s starting from the head,
+     * or returns less than {@code count} {@link Alarm}s if this storage does not have requested number of elements
+     */
+    List<Alarm> getAlarms(String key, int count);
+
+    /**
+     * Removes first {@code count} {@link Alarm}s of this storage, associated with given {@code key}.
+     *
+     * @param key   of the {@link Alarm}s
+     * @param count number of items to remove
+     */
+    void removeAlarms(String key, int count);
+
+    /**
+     * Returns {@code List<String>} of {@link Alarm} keys contained in this storage
+     *
+     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Alarm}s are present.
+     */
+    List<String> getAlarmsKeys();
+
+    /**
      * Inserts the {@link ActuatorStatus}
      *
      * @param key            with which {@link ActuatorStatus} should be associated.

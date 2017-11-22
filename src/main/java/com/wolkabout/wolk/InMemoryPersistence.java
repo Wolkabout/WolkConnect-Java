@@ -23,6 +23,7 @@ import java.util.List;
 
 public class InMemoryPersistence implements Persistence {
     private final HashMap<String, List<Reading>> readings = new LinkedHashMap<>();
+    private final HashMap<String, List<Alarm>> alarms = new LinkedHashMap<>();
     private final HashMap<String, ActuatorStatus> actuatorStatuses = new LinkedHashMap<>();
 
     private List<Reading> getOrCreateReadingsByKey(String key) {
@@ -31,6 +32,14 @@ public class InMemoryPersistence implements Persistence {
         }
 
         return readings.get(key);
+    }
+
+    private List<Alarm> getOrCreateAlarmsByKey(String key) {
+        if (!alarms.containsKey(key)) {
+            alarms.put(key, new ArrayList<Alarm>());
+        }
+
+        return alarms.get(key);
     }
 
     @Override
@@ -65,6 +74,44 @@ public class InMemoryPersistence implements Persistence {
         List<String> keys = new ArrayList<>();
         for (final String key : readings.keySet()) {
             if (!readings.get(key).isEmpty()) {
+                keys.add(key);
+            }
+        }
+
+        return keys;
+    }
+
+    @Override
+    public boolean putAlarm(String key, Alarm alarm) {
+        getOrCreateAlarmsByKey(key).add(alarm);
+        return true;
+    }
+
+    @Override
+    public List<Alarm> getAlarms(String key, int count) {
+        if (!readings.containsKey(key)) {
+            return new ArrayList<>();
+        }
+
+        final List<Alarm> alarmsByKey = getOrCreateAlarmsByKey(key);
+        return alarmsByKey.subList(0, Math.min(alarmsByKey.size(), count));
+    }
+
+    @Override
+    public void removeAlarms(String key, int count) {
+        if (!alarms.containsKey(key)) {
+            return;
+        }
+
+        final List<Alarm> alarmsByKey = getOrCreateAlarmsByKey(key);
+        alarms.put(key, alarmsByKey.subList(Math.min(alarmsByKey.size(), count), alarmsByKey.size()));
+    }
+
+    @Override
+    public List<String> getAlarmsKeys() {
+        List<String> keys = new ArrayList<>();
+        for (final String key : alarms.keySet()) {
+            if (!alarms.get(key).isEmpty()) {
                 keys.add(key);
             }
         }

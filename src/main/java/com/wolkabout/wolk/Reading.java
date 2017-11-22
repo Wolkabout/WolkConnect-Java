@@ -20,7 +20,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Reading {
-
     @JsonIgnore
     private final String ref;
 

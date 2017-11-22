@@ -23,4 +23,6 @@ interface OutboundMessageFactory {
     OutboundMessage makeFromReadings(List<Reading> readings);
 
     OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
+
+    OutboundMessage makeFromAlarms(List<Alarm> alarms);
 }
