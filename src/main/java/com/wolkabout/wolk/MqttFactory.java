@@ -97,8 +97,11 @@ class MqttFactory {
             mqtt.setSslContext(sslContext);
         }
 
-        mqtt.setConnectAttemptsMax(5);
-        mqtt.setReconnectAttemptsMax(0);
+        mqtt.setConnectAttemptsMax(-1);        // No limit on number of connection attempts
+
+        mqtt.setReconnectDelay(200);           // Delay in milliseconds
+        mqtt.setReconnectAttemptsMax(-1);      // No limit on number of reconnection attempts
+        mqtt.setReconnectBackOffMultiplier(1); // Do not use exponential back off for reconnect
 
         return mqtt;
     }

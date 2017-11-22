@@ -25,10 +25,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
-    public interface Command {
-        void execute();
-    }
-
     private static final Logger LOG = LoggerFactory.getLogger(CommandBuffer.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
@@ -46,5 +42,9 @@ class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
                 }
             }
         }), 0, 5, TimeUnit.MILLISECONDS);
+    }
+
+    public interface Command {
+        void execute();
     }
 }

@@ -22,15 +22,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
  * Handles the connection to the Wolkabout IoT Platform.
@@ -40,22 +38,19 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "ca.crt";
 
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
-    private static final String ACTUATORS_STATUS = "actuators/status/";
 
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
-    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
-
-    private final Queue<Reading> inMemoryReadings = new LinkedList<>();
+    private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
+    private ScheduledFuture<?> receiveTask;
 
     private final CommandBuffer commandBuffer = new CommandBuffer();
 
     private final Device device;
 
-    private final ReadingSerializer readingSerializer;
+    private final MessageBuilder messageBuilder;
 
-    private PersistentReadingQueue persistentReadingQueue;
-    private int persistedItemsPublishBatchSize;
+    private Persistence persistence;
 
     private ActuationHandler actuationHandler;
     private ActuatorStatusProvider actuatorStatusProvider;
@@ -71,7 +66,7 @@ public class Wolk {
 
         switch (device.getProtocol()) {
             case JSON_SINGLE:
-                readingSerializer = new JsonSingleReadingSerializer(device.getDeviceKey());
+                messageBuilder = new JsonSingleMessageBuilder(device.getDeviceKey());
                 break;
             default:
                 throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
@@ -97,93 +92,114 @@ public class Wolk {
     }
 
     public void connect() {
-        try {
-            // 1. Establish connection
-            LOG.debug("Connecting to " + host);
-            futureConnection.connect().await(5, TimeUnit.SECONDS);
-            LOG.info("Connected to " + host);
-            // 2. Subscribe to actuator channels and start receiving
-            subscribeAndReceive();
-            // 3. Publish persisted readings...
-            publish();
-        } catch (URISyntaxException e) {
-            LOG.error("Invalid MQTT broker URI: " + host);
-        } catch (TimeoutException e) {
-            LOG.error("MQTT broker connect timeout");
-        } catch (Exception e) {
-            LOG.error("Exception ocurred while trying to connect.", e);
-        }
+        // 1. Establish connection
+        LOG.debug("Connecting to " + host);
+        futureConnection.connect().then(new Callback<Void>() {
+            @Override
+            public void onSuccess(Void value) {
+                LOG.info("Connected to " + host);
+
+                // 2. Subscribe to actuator channels and start receiving
+                subscribeAndReceive();
+
+                // 3. Publish persisted readings...
+                publish();
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                LOG.error("Future connection failed to connect", throwable);
+            }
+        });
     }
 
-    private void subscribeAndReceive() throws Exception {
+    private void subscribeAndReceive() {
         for (String ref : device.getActuators()) {
-            final Future<byte[]> qos = futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
-            LOG.info("Subscribed to: " + ref + ". QoS: " + QoS.values()[qos.await()[0]]);
+            try {
+                LOG.info("Subscribing to: " + ref);
+                futureConnection.subscribe(new Topic[]{new Topic(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref, QoS.EXACTLY_ONCE)});
+            } catch (Exception e) {
+                LOG.error("Failed to subscribe to: " + ref, e);
+            }
+
             publishActuatorStatus(ref);
         }
 
-        executorService.scheduleAtFixedRate((new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    receive(futureConnection);
-                } catch (InterruptedException interrupted) {
-                    // Task was interrupted from disconnect directive.
-                    LOG.info("Received disconnect signal");
-                } catch (Exception e) {
-                    LOG.error("Error while trying to receive data", e);
+        if (receiveTask == null) {
+            receiveTask = executorService.scheduleAtFixedRate((new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        receive(futureConnection);
+                    } catch (InterruptedException interrupted) {
+                        // Task was interrupted from disconnect directive.
+                        LOG.info("Received disconnect signal");
+                    } catch (Exception e) {
+                        LOG.error("Error while trying to receive data", e);
+                    }
                 }
-            }
-        }), 0, 5, TimeUnit.MILLISECONDS);
+            }), 0, 5, TimeUnit.MILLISECONDS);
+        }
     }
 
     private boolean publish(final String topic, final String payload) {
+        LOG.debug("Publishing ==> " + topic + " : " + payload.substring(0, Math.min(300, payload.length())) + "...");
+
+        if (!futureConnection.isConnected()) {
+            return false;
+        }
+
         try {
-            LOG.debug("Publishing ==> " + topic + " : " + payload);
-            futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(2, TimeUnit.SECONDS);
+            futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(200, TimeUnit.MILLISECONDS);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private void flushPersistedData() {
-        if (persistentReadingQueue != null && !persistentReadingQueue.isEmpty()) {
+    private void flushActuatorStatuses() {
+        for (final String key : persistence.getActuatorStatusesKeys()) {
             try {
-                final List<Reading> readings = persistentReadingQueue.peekReadings(persistedItemsPublishBatchSize);
-                final OutboundMessage message = readingSerializer.serialize(readings);
+                final ActuatorStatus actuatorStatus = persistence.getActuatorStatus(key);
+                final OutboundMessage message = messageBuilder.buildFromActuatorStatuses(new ArrayList<>(Arrays.asList(actuatorStatus)));
+
+                LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted actuator status(es)");
+                if (publish(message.getTopic(), message.getPayload())) {
+                    persistence.removeActuatorStatus(key);
+                } else {
+                    LOG.warn("Flush failed");
+                }
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unable to build OutBound Message from ActuatorStatus(es)", e);
+            }
+        }
+    }
+
+    private void flushReadings() {
+        for (final String key : persistence.getReadingsKeys()) {
+            try {
+                final List<Reading> readings = persistence.getReadings(key, 50);
+                final OutboundMessage message = messageBuilder.buildFromReadings(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
                 if (publish(message.getTopic(), message.getPayload())) {
-                    persistentReadingQueue.pollReadings(message.getSerializedItemsCount());
+                    persistence.removeReadings(key, message.getSerializedItemsCount());
                 } else {
                     LOG.warn("Flush failed");
                 }
             } catch (IllegalArgumentException e) {
-                LOG.error("Unable to serialize reading(s)", e);
+                LOG.error("Unable to build OutboundMessage from Reading(s)", e);
             }
         }
+    }
 
-        if (!inMemoryReadings.isEmpty()) {
-            try {
-                final List<Reading> readings = new ArrayList<>(inMemoryReadings);
-                final OutboundMessage message = readingSerializer.serialize(readings);
+    private void flushPersistedData() {
+        flushActuatorStatuses();
 
-                LOG.info("Flushing " + message.getSerializedItemsCount() + " in-memory reading(s)");
-                if (publish(message.getTopic(), message.getPayload())) {
-                    for (long i = 0; i < message.getSerializedItemsCount(); ++i) {
-                        inMemoryReadings.poll();
-                    }
-                } else {
-                    LOG.warn("Flush failed");
-                }
-            } catch (IllegalArgumentException e) {
-                LOG.error("Unable to serialize reading(s)", e);
-            }
-        }
+        flushReadings();
 
-        if (!inMemoryReadings.isEmpty() || (persistentReadingQueue != null && !persistentReadingQueue.isEmpty())) {
-            LOG.info("Scheduling sending of next persisted data batch");
+        if (!persistence.isEmpty() && futureConnection.isConnected()) {
+            LOG.debug("Scheduling sending of next persisted data batch");
 
             addToCommandBuffer(new CommandBuffer.Command() {
                 @Override
@@ -252,17 +268,10 @@ public class Wolk {
             public void execute() {
                 final Reading reading = new Reading(ref, value, time);
 
-                if (persistentReadingQueue != null) {
-                    LOG.info("Persisting " + reading + " to persistent storage");
-                    if (persistentReadingQueue.offer(reading)) {
-                        return;
-                    } else {
-                        LOG.error("Could not persist " + reading + " to persistent store");
-                    }
+                LOG.info("Persisting " + reading);
+                if (!persistence.putReading(reading.getReference(), reading)) {
+                    LOG.error("Could not persist " + reading);
                 }
-
-                LOG.info("Persisting " + reading + " in-memory");
-                inMemoryReadings.add(reading);
             }
         });
     }
@@ -272,11 +281,6 @@ public class Wolk {
      * Can be called from multiple thread simultaneously.
      */
     public void publish() {
-        if (futureConnection == null || !futureConnection.isConnected()) {
-            LOG.info("Skipping publish, Reason: Not connected to WolkAbout IoT Platform");
-            return;
-        }
-
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
             public void execute() {
@@ -297,15 +301,9 @@ public class Wolk {
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
             public void execute() {
-                final String topic = ACTUATORS_STATUS + device.getDeviceKey() + "/" + actuatorReference;
-                final String payload = gson.toJson(actuatorStatusProvider.getActuatorStatus(actuatorReference));
-
-                try {
-                    LOG.debug("Publishing status ==> " + topic + " : " + payload);
-                    futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(1, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    LOG.error("Could not publish actuator status with reference " + actuatorReference);
-                }
+                final ActuatorStatus actuatorStatus = actuatorStatusProvider.getActuatorStatus(actuatorReference);
+                persistence.putActuatorStatus(actuatorReference, new ActuatorStatus(actuatorStatus.getStatus(), actuatorStatus.getValue(), actuatorReference));
+                flushActuatorStatuses();
             }
         });
     }
@@ -318,6 +316,7 @@ public class Wolk {
             instance.host = Wolk.WOLK_DEMO_URL;
             instance.caName = Wolk.WOLK_DEMO_CA;
 
+            instance.persistence = new InMemoryPersistence();
         }
 
         /**
@@ -386,15 +385,11 @@ public class Wolk {
         /**
          * Setup with persistence (aka Offline buffering).
          *
-         * @param persistentReadingQueue         instance of {@link PersistentReadingQueue}
-         * @param persistedItemsPublishBatchSize number of persisted items to publish at once, if number of persisted
-         *                                       items is greater than this, persisted items will be published sequentially in batches of
-         *                                       up to this many items depending on limitations of underlying protocol that is used
+         * @param persistence instance of {@link Persistence}
          * @return WolkBuilder
          */
-        public WolkBuilder withPersistence(PersistentReadingQueue persistentReadingQueue, int persistedItemsPublishBatchSize) {
-            instance.persistentReadingQueue = persistentReadingQueue;
-            instance.persistedItemsPublishBatchSize = persistedItemsPublishBatchSize;
+        public WolkBuilder withPersistence(Persistence persistence) {
+            instance.persistence = persistence;
             return this;
         }
 
