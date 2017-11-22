@@ -18,6 +18,8 @@ package com.wolkabout.wolk;
 
 import java.util.List;
 
-interface ReadingSerializer {
-    OutboundMessage serialize(List<Reading> readings);
+interface MessageBuilder {
+    OutboundMessage buildFromReadings(List<Reading> readings);
+
+    OutboundMessage buildFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
 }

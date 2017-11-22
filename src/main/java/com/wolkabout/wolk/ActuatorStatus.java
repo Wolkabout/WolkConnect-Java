@@ -19,25 +19,40 @@ package com.wolkabout.wolk;
 /**
  * Contains the status of the Actuator.
  */
-
 public class ActuatorStatus {
     public enum Status {READY, BUSY, ERROR}
 
-    private String status;
+    private String ref;
+    private Status status;
     private String value;
 
     public ActuatorStatus(Status status, String value) {
-        this.status = status.name();
+        this.status = status;
         this.value = value;
     }
 
-    public ActuatorStatus() {
+    ActuatorStatus(Status status, String value, String ref) {
+        this(status, value);
+        this.ref = ref;
+    }
+
+    public String getRef() {
+        return ref;
+    }
+
+    public Status getStatus() {
+        return status;
+    }
+
+    public String getValue() {
+        return value;
     }
 
     @Override
     public String toString() {
         return "ActuatorStatus {" +
-                "status='" + status + '\'' +
+                "ref='" + ref + '\'' +
+                ", status='" + status + '\'' +
                 ", value='" + value + '\'' +
                 '}';
     }

@@ -16,7 +16,7 @@
  */
 package com.wolkabout.wolk;
 
-/*
+/**
  *  ActuatorStatusProvider reads status of your device's actuators. This information is passed on to the platform.
  */
 public interface ActuatorStatusProvider {

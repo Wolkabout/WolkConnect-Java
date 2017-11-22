@@ -85,10 +85,10 @@ wolk.disconnect();
 
 **Data persistence:**
 
-WolkAbout C++ Connector provides mechanism for persisting data in situations where it can not be sent to WolkAbout IoT platform.
+WolkAbout Java Connector provides mechanism for persisting data in situations where it can not be sent to WolkAbout IoT platform.
 Persisted data is sent to WolkAbout IoT platform automatically once connection is established.
 
-By default in-memory data persistence is used, in cases when this is suboptimal one can implement PersistentReadingQueue interface, and pass
+By default in-memory data persistence is used, in cases when this is suboptimal one can implement Persistence interface, and pass
 it to Wolk via WolkBuilder in following manner:
 
 ```java
@@ -107,8 +107,8 @@ final Wolk wolk = Wolk.connectDevice(device)
        .actuatorStatusProvider(ref -> {
             // TODO Invoke code which reads the state of the actuator.
             return new ActuatorStatus(ActuatorStatus.Status.READY, "1");})
-       .withPersistence(new LevelDBPersistentReadingQueue(), 25) // Enable data persistence via custom persist mechanism
+       .withPersistence(new LevelDBPersistence()) // Enable data persistence via custom persist mechanism
        .connect();
 ```
 
-For more info on persistence mechanism see WolkBuilder.withPersistence method, and PersistentReadingQueue interface.
+For more info on persistence mechanism see WolkBuilder.withPersistence method, and Persistence interface.
