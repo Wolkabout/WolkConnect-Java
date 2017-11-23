@@ -22,6 +22,7 @@ import java.util.List;
  * A storage designed for holding elements in persistent store prior to publishing to WolkAbout IoT Platform.
  * <p>
  * Multiple {@link Reading}s can be stored under the same key.
+ * Multiple {@link Alarm}s can be stored under the same key.
  * Single {@link ActuatorStatus} can be stored under one key.
  * Implementation storing/retrieving strategy must be FIFO.
  */
