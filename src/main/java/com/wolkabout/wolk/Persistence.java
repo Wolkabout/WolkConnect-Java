@@ -38,11 +38,11 @@ public interface Persistence {
 
     /**
      * Retrieves, first {@code count} {@link Reading}s of this storage, associated with given {@code key}
-     * or returns empty @{code List<Reading>} if this storage is empty.
+     * or returns empty {@code List<Reading>} if this storage is empty.
      *
      * @param key   with which {@link Reading} should be associated
      * @param count number of items to peek
-     * @return @{code List<Reading>} containing {@code count} {@link Reading}s starting from the head,
+     * @return {@code List<Reading>} containing {@code count} {@link Reading}s starting from the head,
      * or returns less than {@code count} {@link Reading}s if this storage does not have requested number of elements
      */
     List<Reading> getReadings(String key, int count);

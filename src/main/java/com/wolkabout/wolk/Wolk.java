@@ -147,7 +147,7 @@ public class Wolk {
         }
 
         try {
-            futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(200, TimeUnit.MILLISECONDS);
+            futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(30, TimeUnit.SECONDS);
             return true;
         } catch (Exception e) {
             return false;
@@ -394,6 +394,7 @@ public class Wolk {
          * Establish connection to the platform.
          *
          * @return Wolk
+         * @throws Exception if an error occurs while establishing the connection.
          */
         public Wolk connect() throws Exception {
             final MqttFactory mqttFactory = new MqttFactory()
