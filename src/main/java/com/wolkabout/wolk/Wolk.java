@@ -159,7 +159,7 @@ public class Wolk {
                 persistence.removeActuatorStatus(key);
             } catch (IllegalArgumentException e) {
                 LOG.error("Unable to build OutBound Message from ActuatorStatus(es)", e);
-            } catch(TimeoutException e) {
+            } catch (TimeoutException e) {
                 LOG.error("Publish timed out.");
             }
         }
