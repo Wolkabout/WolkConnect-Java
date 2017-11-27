@@ -28,7 +28,7 @@ import java.util.List;
  */
 public interface Persistence {
     /**
-     * Inserts the {@link Reading}
+     * Inserts the {@link Reading}.
      *
      * @param key     with which {@link Reading} should be associated
      * @param reading to be inserted
@@ -57,14 +57,14 @@ public interface Persistence {
     void removeReadings(String key, int count);
 
     /**
-     * Returns {@code List<String>} of {@link Reading} keys contained in this storage
+     * Returns {@code List<String>} of {@link Reading} keys contained in this storage.
      *
      * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Reading}s are present.
      */
     List<String> getReadingsKeys();
 
     /**
-     * Inserts the {@link Alarm}
+     * Inserts the {@link Alarm}.
      *
      * @param key   with which {@link Alarm} should be associated
      * @param alarm to be inserted
@@ -100,7 +100,7 @@ public interface Persistence {
     List<String> getAlarmsKeys();
 
     /**
-     * Inserts the {@link ActuatorStatus}
+     * Inserts the {@link ActuatorStatus}.
      *
      * @param key            with which {@link ActuatorStatus} should be associated.
      * @param actuatorStatus to be inserted
@@ -110,7 +110,7 @@ public interface Persistence {
     boolean putActuatorStatus(String key, ActuatorStatus actuatorStatus);
 
     /**
-     * Retrieves, {@link ActuatorStatus} of this storage, associated with given {@code key}
+     * Retrieves, {@link ActuatorStatus} of this storage, associated with given {@code key}.
      *
      * @param key of the {@link ActuatorStatus}.
      * @return {@link ActuatorStatus}, or {@code null} if this storage does not contain {@link ActuatorStatus} for given {@code key}
@@ -125,16 +125,16 @@ public interface Persistence {
     void removeActuatorStatus(String key);
 
     /**
-     * Returns {@code List<String>} of {@link ActuatorStatus} keys contained in this storage
+     * Returns {@code List<String>} of {@link ActuatorStatus} keys contained in this storage.
      *
      * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link ActuatorStatus}es are present.
      */
     List<String> getActuatorStatusesKeys();
 
     /**
-     * Returns {@code true} if this storage contains no {@link Reading}s and {@link ActuatorStatus}es associated with any key
+     * Returns {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es and {@link Alarm}s associated with any key.
      *
-     * @return {@code true} if this storage contains no {@link Reading}s and {@link ActuatorStatus}es associated with any key
+     * @return {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es and {@link Alarm}s associated with any key
      */
     boolean isEmpty();
 }

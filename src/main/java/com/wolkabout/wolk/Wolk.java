@@ -230,10 +230,6 @@ public class Wolk {
         final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
         switch (command.getCommand()) {
             case SET:
-                if (actuationHandler == null) {
-                    throw new IllegalStateException("No ActuationHandler assigned to Wolk");
-                }
-
                 actuationHandler.handleActuation(actuatorReference, command.getValue());
             case STATUS:
                 publishActuatorStatus(actuatorReference);
@@ -327,11 +323,6 @@ public class Wolk {
      * @param actuatorReference reference of the actuator
      */
     public void publishActuatorStatus(final String actuatorReference) {
-        if (actuatorStatusProvider == null) {
-            LOG.error("Can not publish actuator status for reference " + actuatorReference + ". No ActuatorStatusProvider assigned to Wolk");
-            return;
-        }
-
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
             public void execute() {
@@ -434,6 +425,26 @@ public class Wolk {
          * @throws Exception if an error occurs while establishing the connection.
          */
         public Wolk connect() throws Exception {
+            if (instance.device.getActuators().length != 0) {
+                if (instance.actuatorStatusProvider == null || instance.actuationHandler == null) {
+                    throw new IllegalStateException("Device has actuator references, ActuatorStatusProvider and ActuationHandler must be set.");
+                }
+            } else {
+                // Provide default implementation to avoid ugliness of 'if ( ... != null )'
+                actuationHandler(new ActuationHandler() {
+                    @Override
+                    public void handleActuation(String reference, String value) {
+                    }
+                });
+
+                actuatorStatusProvider(new ActuatorStatusProvider() {
+                    @Override
+                    public ActuatorStatus getActuatorStatus(String ref) {
+                        return new ActuatorStatus(ActuatorStatus.Status.ERROR, "");
+                    }
+                });
+            }
+
             final MqttFactory mqttFactory = new MqttFactory()
                     .deviceKey(instance.device.getDeviceKey())
                     .password(instance.device.getPassword())
