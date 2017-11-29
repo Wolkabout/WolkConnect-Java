@@ -185,7 +185,7 @@ public class Wolk {
     private void flushReadings() {
         for (final String key : persistence.getReadingsKeys()) {
             try {
-                final List<Reading> readings = persistence.getReadings(key, 50);
+                final List<Reading> readings = persistence.getReadings(key, PUBLISH_DATA_ITEMS_COUNT);
                 final OutboundMessage message = outboundMessageFactory.makeFromReadings(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
@@ -275,7 +275,7 @@ public class Wolk {
             public void execute() {
                 final Reading reading = new Reading(ref, value, time);
 
-                LOG.info("Persisting " + reading);
+                LOG.debug("Persisting " + reading);
                 if (!persistence.putReading(reading.getReference(), reading)) {
                     LOG.error("Could not persist " + reading);
                 }
@@ -293,7 +293,7 @@ public class Wolk {
             public void execute() {
                 final Alarm alarm = new Alarm(ref, value, time);
 
-                LOG.info("Persisting " + alarm);
+                LOG.debug("Persisting " + alarm);
                 if (!persistence.putAlarm(alarm.getReference(), alarm)) {
                     LOG.error("Could not persist " + alarm);
                 }
