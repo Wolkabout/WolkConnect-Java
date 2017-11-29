@@ -75,11 +75,11 @@ public interface Persistence {
 
     /**
      * Retrieves, first {@code count} {@link Alarm}s of this storage, associated with given {@code key}
-     * or returns empty @{code List<Alarm>} if this storage is empty.
+     * or returns empty {@code List<Alarm>} if this storage is empty.
      *
      * @param key   with which {@link Alarm} should be associated
      * @param count number of items to peek
-     * @return @{code List<Alarm>} containing {@code count} {@link Alarm}s starting from the head,
+     * @return {@code List<Alarm>} containing {@code count} {@link Alarm}s starting from the head,
      * or returns less than {@code count} {@link Alarm}s if this storage does not have requested number of elements
      */
     List<Alarm> getAlarms(String key, int count);
