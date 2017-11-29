@@ -16,10 +16,7 @@
  */
 package com.wolkabout.wolk;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 
 public class InMemoryPersistence implements Persistence {
     private final HashMap<String, List<Reading>> readings = new LinkedHashMap<>();
@@ -90,7 +87,7 @@ public class InMemoryPersistence implements Persistence {
     @Override
     public List<Alarm> getAlarms(String key, int count) {
         if (!readings.containsKey(key)) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
         final List<Alarm> alarmsByKey = getOrCreateAlarmsByKey(key);
