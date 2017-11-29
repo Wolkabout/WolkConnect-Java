@@ -18,16 +18,14 @@ package com.wolkabout.wolk;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.fusesource.mqtt.client.*;
+import org.fusesource.mqtt.client.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Handles the connection to the Wolkabout IoT Platform.
@@ -37,6 +35,8 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "ca.crt";
 
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
+
+    private static final int PUBLISH_DATA_ITEMS_COUNT = 50;
 
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
@@ -139,18 +139,12 @@ public class Wolk {
         }
     }
 
-    private boolean publish(final String topic, final String payload) {
+    private void publish(final String topic, final String payload) throws TimeoutException {
         LOG.debug("Publishing ==> " + topic + " : " + payload.substring(0, Math.min(300, payload.length())) + "...");
-
-        if (!futureConnection.isConnected()) {
-            return false;
-        }
-
         try {
             futureConnection.publish(topic, payload.getBytes(), QoS.EXACTLY_ONCE, false).await(30, TimeUnit.SECONDS);
-            return true;
         } catch (Exception e) {
-            return false;
+            throw new TimeoutException("Publish timeout.");
         }
     }
 
@@ -161,13 +155,29 @@ public class Wolk {
                 final OutboundMessage message = outboundMessageFactory.makeFromActuatorStatuses(Collections.singletonList(actuatorStatus));
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted actuator status(es)");
-                if (publish(message.getTopic(), message.getPayload())) {
-                    persistence.removeActuatorStatus(key);
-                } else {
-                    LOG.warn("Flush failed");
-                }
+                publish(message.getTopic(), message.getPayload());
+                persistence.removeActuatorStatus(key);
             } catch (IllegalArgumentException e) {
                 LOG.error("Unable to build OutBound Message from ActuatorStatus(es)", e);
+            } catch (TimeoutException e) {
+                LOG.error("Publish timed out.");
+            }
+        }
+    }
+
+    private void flushAlarms() {
+        for (final String key : persistence.getAlarmsKeys()) {
+            try {
+                final List<Alarm> alarms = persistence.getAlarms(key, PUBLISH_DATA_ITEMS_COUNT);
+                final OutboundMessage message = outboundMessageFactory.makeFromAlarms(alarms);
+
+                LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
+                publish(message.getTopic(), message.getPayload());
+                persistence.removeAlarms(key, message.getSerializedItemsCount());
+            } catch (IllegalArgumentException e) {
+                LOG.error("Unable to build OutputMessage from Alarm(s)");
+            } catch (TimeoutException e) {
+                LOG.error("Publish timed out.");
             }
         }
     }
@@ -175,23 +185,24 @@ public class Wolk {
     private void flushReadings() {
         for (final String key : persistence.getReadingsKeys()) {
             try {
-                final List<Reading> readings = persistence.getReadings(key, 50);
+                final List<Reading> readings = persistence.getReadings(key, PUBLISH_DATA_ITEMS_COUNT);
                 final OutboundMessage message = outboundMessageFactory.makeFromReadings(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
-                if (publish(message.getTopic(), message.getPayload())) {
-                    persistence.removeReadings(key, message.getSerializedItemsCount());
-                } else {
-                    LOG.warn("Flush failed");
-                }
+                publish(message.getTopic(), message.getPayload());
+                persistence.removeReadings(key, message.getSerializedItemsCount());
             } catch (IllegalArgumentException e) {
                 LOG.error("Unable to build OutboundMessage from Reading(s)", e);
+            } catch (TimeoutException e) {
+                LOG.error("Publish timed out.");
             }
         }
     }
 
     private void flushPersistedData() {
         flushActuatorStatuses();
+
+        flushAlarms();
 
         flushReadings();
 
@@ -215,12 +226,11 @@ public class Wolk {
         final String topic = message.getTopic();
 
         LOG.debug("Received command: " + payload);
-        final ActuatorCommand command = new ObjectMapper().readValue(new String(message.getPayload()), ActuatorCommand.class);
+        final ActuatorCommand command = new ObjectMapper().readValue(payload, ActuatorCommand.class);
         final String actuatorReference = topic.substring(topic.lastIndexOf("/") + 1);
-
         switch (command.getCommand()) {
             case SET:
-                this.actuationHandler.handleActuation(actuatorReference, command.getValue());
+                actuationHandler.handleActuation(actuatorReference, command.getValue());
             case STATUS:
                 publishActuatorStatus(actuatorReference);
                 break;
@@ -265,9 +275,27 @@ public class Wolk {
             public void execute() {
                 final Reading reading = new Reading(ref, value, time);
 
-                LOG.info("Persisting " + reading);
+                LOG.debug("Persisting " + reading);
                 if (!persistence.putReading(reading.getReference(), reading)) {
                     LOG.error("Could not persist " + reading);
+                }
+            }
+        });
+    }
+
+    public void addAlarm(final String ref, final String value) {
+        addReading(ref, value, System.currentTimeMillis() / 1000);
+    }
+
+    public void addAlarm(final String ref, final String value, final long time) {
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                final Alarm alarm = new Alarm(ref, value, time);
+
+                LOG.debug("Persisting " + alarm);
+                if (!persistence.putAlarm(alarm.getReference(), alarm)) {
+                    LOG.error("Could not persist " + alarm);
                 }
             }
         });
@@ -397,6 +425,26 @@ public class Wolk {
          * @throws Exception if an error occurs while establishing the connection.
          */
         public Wolk connect() throws Exception {
+            if (instance.device.getActuators().length != 0) {
+                if (instance.actuatorStatusProvider == null || instance.actuationHandler == null) {
+                    throw new IllegalStateException("Device has actuator references, ActuatorStatusProvider and ActuationHandler must be set.");
+                }
+            } else {
+                // Provide default implementation to avoid ugliness of 'if ( ... != null )'
+                actuationHandler(new ActuationHandler() {
+                    @Override
+                    public void handleActuation(String reference, String value) {
+                    }
+                });
+
+                actuatorStatusProvider(new ActuatorStatusProvider() {
+                    @Override
+                    public ActuatorStatus getActuatorStatus(String ref) {
+                        return new ActuatorStatus(ActuatorStatus.Status.ERROR, "");
+                    }
+                });
+            }
+
             final MqttFactory mqttFactory = new MqttFactory()
                     .deviceKey(instance.device.getDeviceKey())
                     .password(instance.device.getPassword())

@@ -16,48 +16,35 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+class Alarm {
+    private final String ref;
+    private final String value;
+    private final long utc;
 
-/**
- * Contains the status of the Actuator.
- */
-public class ActuatorStatus {
-    public enum Status {READY, BUSY, ERROR}
-
-    @JsonIgnore
-    private String ref;
-
-    private Status status;
-    private String value;
-
-    public ActuatorStatus(Status status, String value) {
-        this.status = status;
-        this.value = value;
-    }
-
-    ActuatorStatus(Status status, String value, String ref) {
-        this(status, value);
+    public Alarm(String ref, String value, long utc) {
         this.ref = ref;
+        this.value = value;
+        this.utc = utc;
     }
 
     public String getReference() {
         return ref;
     }
 
-    public Status getStatus() {
-        return status;
-    }
-
     public String getValue() {
         return value;
     }
 
+    public long getUtc() {
+        return utc;
+    }
+
     @Override
     public String toString() {
-        return "ActuatorStatus {" +
+        return "Alarm {" +
                 "ref='" + ref + '\'' +
-                ", status='" + status + '\'' +
                 ", value='" + value + '\'' +
+                ", utc=" + utc +
                 '}';
     }
 }

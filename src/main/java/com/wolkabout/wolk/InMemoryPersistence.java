@@ -16,27 +16,21 @@
  */
 package com.wolkabout.wolk;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 
 public class InMemoryPersistence implements Persistence {
     private final HashMap<String, List<Reading>> readings = new LinkedHashMap<>();
+    private final HashMap<String, List<Alarm>> alarms = new LinkedHashMap<>();
     private final HashMap<String, ActuatorStatus> actuatorStatuses = new LinkedHashMap<>();
 
-    private List<Reading> getOrCreateReadingsByKey(String key) {
-        if (!readings.containsKey(key)) {
-            readings.put(key, new ArrayList<Reading>());
-        }
-
-        return readings.get(key);
-    }
 
     @Override
     public boolean putReading(String key, Reading reading) {
-        getOrCreateReadingsByKey(key).add(reading);
-        return true;
+        if (readings.get(key) == null) {
+            readings.put(key, new ArrayList<Reading>());
+        }
+
+        return readings.get(key).add(reading);
     }
 
     @Override
@@ -45,7 +39,7 @@ public class InMemoryPersistence implements Persistence {
             return new ArrayList<>();
         }
 
-        final List<Reading> readingsByKey = getOrCreateReadingsByKey(key);
+        final List<Reading> readingsByKey = readings.get(key);
         return readingsByKey.subList(0, Math.min(readingsByKey.size(), count));
     }
 
@@ -56,26 +50,61 @@ public class InMemoryPersistence implements Persistence {
             return;
         }
 
-        final List<Reading> readingsByKey = getOrCreateReadingsByKey(key);
-        readings.put(key, readingsByKey.subList(Math.min(readingsByKey.size(), count), readingsByKey.size()));
+        final List<Reading> readingsByKey = readings.get(key);
+        if (readingsByKey.size() <= count) {
+            readings.remove(key);
+        } else {
+            readings.put(key, readingsByKey.subList(count, readingsByKey.size()));
+        }
     }
 
     @Override
     public List<String> getReadingsKeys() {
-        List<String> keys = new ArrayList<>();
-        for (final String key : readings.keySet()) {
-            if (!readings.get(key).isEmpty()) {
-                keys.add(key);
-            }
+        return new ArrayList<>(readings.keySet());
+    }
+
+    @Override
+    public boolean putAlarm(String key, Alarm alarm) {
+        if (alarms.get(key) == null) {
+            alarms.put(key, new ArrayList<Alarm>());
         }
 
-        return keys;
+        alarms.get(key).add(alarm);
+        return true;
+    }
+
+    @Override
+    public List<Alarm> getAlarms(String key, int count) {
+        if (!alarms.containsKey(key)) {
+            return Collections.emptyList();
+        }
+
+        final List<Alarm> alarmsByKey = alarms.get(key);
+        return alarmsByKey.subList(0, Math.min(alarmsByKey.size(), count));
+    }
+
+    @Override
+    public void removeAlarms(String key, int count) {
+        if (!alarms.containsKey(key)) {
+            return;
+        }
+
+        final List<Alarm> alarmsByKey = alarms.get(key);
+        if (alarmsByKey.size() <= count) {
+            alarms.remove(key);
+        } else {
+            alarms.put(key, alarmsByKey.subList(count, alarmsByKey.size()));
+        }
+    }
+
+    @Override
+    public List<String> getAlarmsKeys() {
+        return new ArrayList<>(alarms.keySet());
     }
 
     @Override
     public boolean putActuatorStatus(String key, ActuatorStatus actuatorStatus) {
-        actuatorStatuses.put(key, actuatorStatus);
-        return true;
+        return actuatorStatuses.put(key, actuatorStatus) != null;
     }
 
     @Override
@@ -95,12 +124,6 @@ public class InMemoryPersistence implements Persistence {
 
     @Override
     public boolean isEmpty() {
-        for (final String key : getReadingsKeys()) {
-            if (!readings.get(key).isEmpty()) {
-                return false;
-            }
-        }
-
-        return actuatorStatuses.isEmpty();
+        return readings.isEmpty() && actuatorStatuses.isEmpty();
     }
 }
