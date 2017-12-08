@@ -74,8 +74,8 @@ public class Wolk {
      * Use this method to create MQTT connection. Use the subsequent builder methods to set up and establish the
      * connection.
      *
-     * @param device describes the device we are connecting to the platform.
-     * @return builder object.
+     * @param device Describes the device we are connecting to the platform
+     * @return WolkBuilder
      */
     public static WolkBuilder connectDevice(Device device) {
         if (device.getDeviceKey().isEmpty()) {
@@ -251,24 +251,63 @@ public class Wolk {
     }
 
     /**
-     * Add a single reading to buffer.
-     * Can be called from multiple thread simultaneously.
+     * Add a single sensor reading.
+     * Can be called from multiple threads simultaneously.
      *
-     * @param ref   of the sensor
-     * @param value of the measurement
+     * @param ref   Reference of the sensor
+     * @param value Value of the measurement
      */
+    public void addSensorReading(final String ref, final String value) {
+        addSensorReading(ref, value, System.currentTimeMillis() / 1000L);
+    }
+
+    /**
+     * Add single sensor reading.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of the sensor
+     * @param value Value of the measurement
+     * @param time  UTC timestamp
+     */
+    public void addSensorReading(final String ref, final String value, final long time) {
+        addToCommandBuffer(new CommandBuffer.Command() {
+            @Override
+            public void execute() {
+                final Reading reading = new Reading(ref, value, time);
+
+                LOG.debug("Persisting " + reading);
+                if (!persistence.putReading(reading.getReference(), reading)) {
+                    LOG.error("Could not persist " + reading);
+                }
+            }
+        });
+    }
+
+    /**
+     * Add a single sensor reading.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of the sensor
+     * @param value Value of the measurement
+     *
+     * @deprecated Use {@link #addSensorReading(String, String)} instead
+     */
+    @Deprecated
     public void addReading(final String ref, final String value) {
         addReading(ref, value, System.currentTimeMillis() / 1000L);
     }
 
     /**
-     * Add single reading to buffer.
-     * Can be called from multiple thread simultaneously.
+     * Add single sensor reading.
+     * Can be called from multiple threads simultaneously.
      *
-     * @param ref   of the sensor
-     * @param value of the measurement
-     * @param time  timestamp
+     * @param ref   Reference of the sensor
+     * @param value Value of the measurement
+     * @param time  UTC timestamp
+     *
+     * @deprecated Use {@link #addSensorReading(String, String, long)} instead
      */
+    @Deprecated
     public void addReading(final String ref, final String value, final long time) {
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
@@ -283,10 +322,25 @@ public class Wolk {
         });
     }
 
+    /**
+     * Add single alarm.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of he alarm
+     * @param value Value of the measurement
+     */
     public void addAlarm(final String ref, final String value) {
-        addReading(ref, value, System.currentTimeMillis() / 1000);
+        addAlarm(ref, value, System.currentTimeMillis() / 1000);
     }
 
+    /**
+     * Add single alarm.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of he alarm
+     * @param value Value of the measurement
+     * @param time  UTC timestamp
+     */
     public void addAlarm(final String ref, final String value, final long time) {
         addToCommandBuffer(new CommandBuffer.Command() {
             @Override
@@ -320,7 +374,7 @@ public class Wolk {
      * <p>
      * Can be called from multiple thread simultaneously.
      *
-     * @param actuatorReference reference of the actuator
+     * @param actuatorReference Reference of the actuator
      */
     public void publishActuatorStatus(final String actuatorReference) {
         addToCommandBuffer(new CommandBuffer.Command() {

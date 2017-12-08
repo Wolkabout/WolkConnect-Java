@@ -24,11 +24,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class ActuatorStatus {
     public enum Status {READY, BUSY, ERROR}
 
-    @JsonIgnore
     private String ref;
 
-    private Status status;
-    private String value;
+    private final Status status;
+    private final String value;
 
     public ActuatorStatus(Status status, String value) {
         this.status = status;
@@ -40,6 +39,7 @@ public class ActuatorStatus {
         this.ref = ref;
     }
 
+    @JsonIgnore
     public String getReference() {
         return ref;
     }
