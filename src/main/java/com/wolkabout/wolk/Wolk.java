@@ -289,7 +289,6 @@ public class Wolk {
      *
      * @param ref   Reference of the sensor
      * @param value Value of the measurement
-     *
      * @deprecated Use {@link #addSensorReading(String, String)} instead
      */
     @Deprecated
@@ -304,7 +303,6 @@ public class Wolk {
      * @param ref   Reference of the sensor
      * @param value Value of the measurement
      * @param time  UTC timestamp
-     *
      * @deprecated Use {@link #addSensorReading(String, String, long)} instead
      */
     @Deprecated
@@ -399,9 +397,10 @@ public class Wolk {
         }
 
         /**
-         * Setup host url.
+         * Setup host URI.
+         * If port is not provided it will be inferred from URI scheme.
          *
-         * @param host url
+         * @param host URI to WolkAbout IoT platform instance
          *             <ul>
          *             <li>For SSL version use format "ssl://address:port". </li>
          *             <li>Otherwise use format "tcp://address:port". </li>
@@ -409,18 +408,19 @@ public class Wolk {
          * @return WolkBuilder.
          */
         public WolkBuilder toHost(String host) {
+            // When port is not present, splitting by ':' yields array of 2 elements
+            if (host.split(":").length == 2) {
+                host = host + ":" + (host.toLowerCase().startsWith("ssl") ? 8883 : 1883);
+            }
+
             instance.host = host;
             return this;
         }
 
         /**
-         * Setup host url.
+         * Setup host URI.
          *
-         * @param host url
-         *             <ul>
-         *             <li>For SSL version use format "ssl://address:port". </li>
-         *             <li>Otherwise use format "tcp://address:port". </li>
-         *             </ul>
+         * @param host URI to WolkAbout IoT platform instance
          * @return WolkBuilder
          */
         public WolkBuilder toHost(URI host) {
