@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.0.3'
+    compile 'com.wolkabout:wolk:2.1.4'
 }
 ```
 Maven
@@ -28,7 +28,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>2.0.3</version>
+  <version>2.1.4</version>
   <type>pom</type>
 </dependency>
 ```
@@ -62,8 +62,8 @@ This will establish the connection to platform and subscribe to channels
 **Publishing data:**
 ```java
 // add readings to the buffer
-wolk.addReading("T", "25.5");
-wolk.addReading("H", "40.7");
+wolk.addSensorReading("T", "25.5");
+wolk.addSensorReading("H", "40.7");
 
 // publish readings
 wolk.publish();
