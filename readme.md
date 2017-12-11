@@ -62,8 +62,8 @@ This will establish the connection to platform and subscribe to channels
 **Publishing data:**
 ```java
 // add readings to the buffer
-wolk.addReading("T", "25.5");
-wolk.addReading("H", "40.7");
+wolk.addSensorReading("T", "25.5");
+wolk.addSensorReading("H", "40.7");
 
 // publish readings
 wolk.publish();
