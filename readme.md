@@ -4,8 +4,12 @@ Connector library written in Java for WolkAbout platform.
 
 You can import it in your project using gradle or maven configurations below.
 
-Gradle
+Prerequisite
 ------
+
+Include WolkAbout Java connector to project.
+
+Gradle
 
 ```sh
 repositories {
@@ -17,8 +21,9 @@ dependencies {
     compile 'com.wolkabout:wolk:2.1.4'
 }
 ```
+
 Maven
------
+
 ```sh
 <repository>
   <id>jcenter</id>
@@ -37,9 +42,9 @@ Example Usage
 -------------
 **Establishing mqtt connection with the platform:**
 ```java
-Device device = new Device("1017MYJAVA1");
-device.setPassword("3b30742b-5d1c-4bc3-df84-c28fwfdfq59e");
-device.setActuators("A1", "A2");
+Device device = new Device("device_key");
+device.setPassword("some_password");
+device.setActuators("SL", "SW");
 device.setProtocol(Protocol.JSON_SINGLE);
 
 final Wolk wolk = Wolk.connectDevice(device)
@@ -62,8 +67,9 @@ This will establish the connection to platform and subscribe to channels
 **Publishing data:**
 ```java
 // add readings to the buffer
-wolk.addSensorReading("T", "25.5");
-wolk.addSensorReading("H", "40.7");
+wolk.addSensorReading("T", "25.6");
+wolk.addSensorReading("P", "1024");
+wolk.addSensorReading("H", "52");
 
 // publish readings
 wolk.publish();
@@ -71,11 +77,11 @@ wolk.publish();
 
 To update actuator status you can publish it like this:
 ```java
-wolk.publishActuatorStatus("A1");
+wolk.publishActuatorStatus("SW");
+wolk.publishActuatorStatus("SL");
 ```
 This will invoke the ActuationStatusProvider to read the actuator status
  and publish it to the cloud. 
-
 
 **Disconnecting from the platform:**
 ```java
@@ -92,9 +98,9 @@ By default in-memory data persistence is used, in cases when this is suboptimal 
 it to Wolk via WolkBuilder in following manner:
 
 ```java
-Device device = new Device("1017MYJAVA1");
-device.setPassword("3b30742b-5d1c-4bc3-df84-c28fwfdfq59e");
-device.setActuators("A1", "A2");
+Device device = new Device("device_key");
+device.setPassword("some_password");
+device.setActuators("SW", "SL");
 device.setProtocol(Protocol.JSON_SINGLE);
 
 final Wolk wolk = Wolk.connectDevice(device)

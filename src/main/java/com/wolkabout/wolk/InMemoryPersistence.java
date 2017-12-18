@@ -25,7 +25,7 @@ public class InMemoryPersistence implements Persistence {
 
 
     @Override
-    public boolean putReading(String key, Reading reading) {
+    public boolean putSensorReading(String key, Reading reading) {
         if (readings.get(key) == null) {
             readings.put(key, new ArrayList<Reading>());
         }
@@ -34,7 +34,7 @@ public class InMemoryPersistence implements Persistence {
     }
 
     @Override
-    public List<Reading> getReadings(String key, int count) {
+    public List<Reading> getSensorReadings(String key, int count) {
         if (!readings.containsKey(key)) {
             return new ArrayList<>();
         }
@@ -45,7 +45,7 @@ public class InMemoryPersistence implements Persistence {
 
 
     @Override
-    public void removeReadings(String key, int count) {
+    public void removeSensorReadings(String key, int count) {
         if (!readings.containsKey(key)) {
             return;
         }
@@ -59,7 +59,7 @@ public class InMemoryPersistence implements Persistence {
     }
 
     @Override
-    public List<String> getReadingsKeys() {
+    public List<String> getSensorReadingsKeys() {
         return new ArrayList<>(readings.keySet());
     }
 

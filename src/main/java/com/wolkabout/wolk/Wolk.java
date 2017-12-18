@@ -183,14 +183,14 @@ public class Wolk {
     }
 
     private void flushReadings() {
-        for (final String key : persistence.getReadingsKeys()) {
+        for (final String key : persistence.getSensorReadingsKeys()) {
             try {
-                final List<Reading> readings = persistence.getReadings(key, PUBLISH_DATA_ITEMS_COUNT);
+                final List<Reading> readings = persistence.getSensorReadings(key, PUBLISH_DATA_ITEMS_COUNT);
                 final OutboundMessage message = outboundMessageFactory.makeFromReadings(readings);
 
                 LOG.info("Flushing " + message.getSerializedItemsCount() + " persisted reading(s)");
                 publish(message.getTopic(), message.getPayload());
-                persistence.removeReadings(key, message.getSerializedItemsCount());
+                persistence.removeSensorReadings(key, message.getSerializedItemsCount());
             } catch (IllegalArgumentException e) {
                 LOG.error("Unable to build OutboundMessage from Reading(s)", e);
             } catch (TimeoutException e) {
@@ -276,7 +276,7 @@ public class Wolk {
                 final Reading reading = new Reading(ref, value, time);
 
                 LOG.debug("Persisting " + reading);
-                if (!persistence.putReading(reading.getReference(), reading)) {
+                if (!persistence.putSensorReading(reading.getReference(), reading)) {
                     LOG.error("Could not persist " + reading);
                 }
             }
@@ -313,7 +313,7 @@ public class Wolk {
                 final Reading reading = new Reading(ref, value, time);
 
                 LOG.debug("Persisting " + reading);
-                if (!persistence.putReading(reading.getReference(), reading)) {
+                if (!persistence.putSensorReading(reading.getReference(), reading)) {
                     LOG.error("Could not persist " + reading);
                 }
             }
