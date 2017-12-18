@@ -35,7 +35,7 @@ public interface Persistence {
      * @return {@code true} if successful, or {@code false} if
      * element can not be inserted
      */
-    boolean putReading(String key, Reading reading);
+    boolean putSensorReading(String key, Reading reading);
 
     /**
      * Retrieves, first {@code count} {@link Reading}s of this storage, associated with given {@code key}
@@ -46,7 +46,7 @@ public interface Persistence {
      * @return {@code List<Reading>} containing {@code count} {@link Reading}s starting from the head,
      * or returns less than {@code count} {@link Reading}s if this storage does not have requested number of elements
      */
-    List<Reading> getReadings(String key, int count);
+    List<Reading> getSensorReadings(String key, int count);
 
     /**
      * Removes first {@code count} {@link Reading}s of this storage, associated with given {@code key}.
@@ -54,14 +54,14 @@ public interface Persistence {
      * @param key   of the {@link Reading}s
      * @param count number of items to remove
      */
-    void removeReadings(String key, int count);
+    void removeSensorReadings(String key, int count);
 
     /**
      * Returns {@code List<String>} of {@link Reading} keys contained in this storage.
      *
      * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Reading}s are present.
      */
-    List<String> getReadingsKeys();
+    List<String> getSensorReadingsKeys();
 
     /**
      * Inserts the {@link Alarm}.
