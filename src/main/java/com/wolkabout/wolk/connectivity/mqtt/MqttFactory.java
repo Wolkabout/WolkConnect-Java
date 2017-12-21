@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity.mqtt;
 
 import org.fusesource.mqtt.client.MQTT;
 
@@ -32,7 +32,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
-class MqttFactory {
+public class MqttFactory {
     private static final String FACTORY_TYPE = "X.509";
 
     private final MQTT mqtt;
@@ -113,7 +113,7 @@ class MqttFactory {
         }
     }
 
-    private TrustManagerFactory getTrustManagerFactory(final Certificate certificate, final String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+    private TrustManagerFactory getTrustManagerFactory(Certificate certificate, String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         // Creating a KeyStore containing our trusted CAs
         final String keyStoreType = KeyStore.getDefaultType();
         final KeyStore keyStore = KeyStore.getInstance(keyStoreType);

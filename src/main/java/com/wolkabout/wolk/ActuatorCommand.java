@@ -16,22 +16,40 @@
  */
 package com.wolkabout.wolk;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ActuatorCommand {
-    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ActuatorCommand.class);
 
     public enum CommandType {SET, STATUS, UNKNOWN}
 
-    private String command;
+    @JsonProperty(value = "command")
+    private String commandType;
+
+    @JsonProperty(value = "value")
     private String value;
 
-    public CommandType getCommand() {
+    @JsonIgnore
+    private String reference;
+
+    // Required by Jackson
+    private ActuatorCommand() {
+    }
+
+    public ActuatorCommand(CommandType commandType, String value, String reference) {
+        this.commandType = commandType.toString();
+        this.value = value;
+        this.reference = reference;
+    }
+
+    public CommandType getType() {
         try {
-            return CommandType.valueOf(command);
+            return CommandType.valueOf(commandType);
         } catch (IllegalArgumentException e) {
-            LOG.warn("Unkonwn command: " + command);
+            LOG.warn("Unknown command: {}", commandType);
             return CommandType.UNKNOWN;
         }
     }
@@ -40,10 +58,16 @@ public class ActuatorCommand {
         return value;
     }
 
+    public String getReference() {
+        return reference;
+    }
+
     @Override
     public String toString() {
-        return "ActuatorCommand {" + "command='" + command + '\'' +
+        return "ActuatorCommand{" +
+                "type='" + commandType + '\'' +
                 ", value='" + value + '\'' +
+                ", reference='" + reference + '\'' +
                 '}';
     }
 }

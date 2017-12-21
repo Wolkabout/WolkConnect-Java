@@ -14,16 +14,22 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity.model;
 
-class OutboundMessage {
+public class OutboundMessage {
     private final String payload;
-    private final String topic;
+    private final String channel;
     private final int serializedItemsCount;
 
-    public OutboundMessage(final String payload, final String topic, final int serializedItemsCount) {
+    public OutboundMessage(String payload, String channel) {
         this.payload = payload;
-        this.topic = topic;
+        this.channel = channel;
+        this.serializedItemsCount = -1;
+    }
+
+    public OutboundMessage(String payload, String channel, int serializedItemsCount) {
+        this.payload = payload;
+        this.channel = channel;
         this.serializedItemsCount = serializedItemsCount;
     }
 
@@ -31,8 +37,8 @@ class OutboundMessage {
         return payload;
     }
 
-    public String getTopic() {
-        return topic;
+    public String getChannel() {
+        return channel;
     }
 
     public int getSerializedItemsCount() {

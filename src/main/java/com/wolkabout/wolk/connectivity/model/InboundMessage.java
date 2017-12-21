@@ -14,15 +14,28 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity.model;
 
-import java.util.List;
+import java.nio.charset.StandardCharsets;
 
-interface OutboundMessageFactory {
+public class InboundMessage {
+    private final String channel;
+    private final byte[] payload;
 
-    OutboundMessage makeFromReadings(List<Reading> readings);
+    public InboundMessage(String channel, byte[] payload) {
+        this.channel = channel;
+        this.payload = payload.clone();
+    }
 
-    OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
+    public String getPayload() {
+        return new String(payload, StandardCharsets.UTF_8);
+    }
 
-    OutboundMessage makeFromAlarms(List<Alarm> alarms);
+    public byte[] getBinaryPayload() {
+        return payload;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
 }

@@ -24,12 +24,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-class CommandBuffer extends LinkedBlockingQueue<CommandBuffer.Command> {
-    private static final Logger LOG = LoggerFactory.getLogger(CommandBuffer.class);
+class CommandQueue extends LinkedBlockingQueue<CommandQueue.Command> {
+    private static final Logger LOG = LoggerFactory.getLogger(CommandQueue.class);
 
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
-    public CommandBuffer() {
+    public CommandQueue() {
         executorService.scheduleAtFixedRate((new Runnable() {
             @Override
             public void run() {

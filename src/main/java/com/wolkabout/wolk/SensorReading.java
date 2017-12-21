@@ -19,35 +19,37 @@ package com.wolkabout.wolk;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class Reading {
-    @JsonIgnore
+public class SensorReading {
     private final String ref;
 
-    @JsonProperty(value = "data")
     private final String value;
+
     private final long utc;
 
-    Reading(final String ref, final String value, final long utc) {
+    public SensorReading(String ref, String value, long utc) {
         this.ref = ref;
         this.value = value;
         this.utc = utc;
     }
 
+    @JsonIgnore
     String getReference() {
         return ref;
     }
 
+    @JsonProperty(value = "data")
     String getValue() {
         return value;
     }
 
+    @JsonProperty(value = "utc")
     long getUtc() {
         return utc;
     }
 
     @Override
     public String toString() {
-        return "Reading {" +
+        return "SensorReading{" +
                 "ref='" + ref + '\'' +
                 ", value='" + value + '\'' +
                 ", utc=" + utc +

@@ -18,6 +18,10 @@ package com.wolkabout.wolk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.wolkabout.wolk.connectivity.OutboundMessageFactory;
+import com.wolkabout.wolk.connectivity.model.OutboundMessage;
+import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
 
 import java.util.List;
 
@@ -29,11 +33,11 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     }
 
     @Override
-    public OutboundMessage makeFromReadings(List<Reading> readings) throws IllegalArgumentException {
+    public OutboundMessage makeFromReadings(List<SensorReading> readings) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(readings);
-            final String topic = "readings/" + deviceKey + "/" + readings.get(0).getReference();
-            return new OutboundMessage(payload, topic, readings.size());
+            final String channel = "readings/" + deviceKey + "/" + readings.get(0).getReference();
+            return new OutboundMessage(payload, channel, readings.size());
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }
@@ -43,20 +47,42 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(actuatorStatuses.get(0));
-            final String topic = "actuators/status/" + deviceKey + "/" + actuatorStatuses.get(0).getReference();
-            return new OutboundMessage(payload, topic, 1);
+            final String channel = "actuators/status/" + deviceKey + "/" + actuatorStatuses.get(0).getReference();
+            return new OutboundMessage(payload, channel, 1);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
     @Override
-    public OutboundMessage makeFromAlarms(List<Alarm> alarms) {
+    public OutboundMessage makeFromAlarms(List<Alarm> alarms) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(alarms);
-            final String topic = "events/" + deviceKey + "/" + alarms.get(0).getReference();
-            return new OutboundMessage(payload, topic, alarms.size());
-        } catch(JsonProcessingException e) {
+            final String channel = "events/" + deviceKey + "/" + alarms.get(0).getReference();
+            return new OutboundMessage(payload, channel, alarms.size());
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    @Override
+    public OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus status) throws IllegalArgumentException {
+        try {
+        final String payload = new ObjectMapper().writeValueAsString(status);
+        final String channel = "service/status/firmware/" + deviceKey;
+        return new OutboundMessage(payload, channel);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
+
+    @Override
+    public OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException {
+        try {
+            final String payload = new ObjectMapper().writeValueAsString(request);
+            final String channel = "service/status/file/" + deviceKey;
+            return new OutboundMessage(payload, channel);
+        } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }
     }
