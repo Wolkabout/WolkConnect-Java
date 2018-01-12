@@ -22,10 +22,10 @@ import com.wolkabout.wolk.filetransfer.FileAssembler;
 import com.wolkabout.wolk.filetransfer.FileReceiver;
 import com.wolkabout.wolk.filetransfer.FileTransferPacket;
 import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
+import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -207,7 +207,7 @@ public class FirmwareUpdate implements FileReceiver {
                 }
 
                 LOG.info("Firmware update parameters - File name: {}, File size: {}, Base64 SHA-256: {}", fileName, fileSize, fileSha256);
-                if (!fileAssembler.initialize(fileName, fileSize, DatatypeConverter.parseBase64Binary(fileSha256))) {
+                if (!fileAssembler.initialize(fileName, fileSize, Base64.decodeBase64(fileSha256))) {
                     LOG.error("Unable to initialize firmware update procedure. Reason: File system error");
                     state = State.IDLE;
 

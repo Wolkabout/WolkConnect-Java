@@ -28,6 +28,8 @@ repositories {
 dependencies {
     compile files('lib/mqtt-client-1.14-wolk-uber.jar')
 
+    compile group: 'commons-codec', name: 'commons-codec', version: '1.11'
+
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.3'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
 
