@@ -27,6 +27,7 @@ public interface FirmwareUpdateHandler {
      * path to new firmware, it is up to the implementation to install new firmware.
      *
      * <strong>Upon firmware update performed in this method, application should restart in order to finish firmware update procedure</strong>
+     * <strong>WolkConnect Java does not delete ${code firmwareFile}, if desired one should handle this inside this method as well</strong>
      *
      * @param firmwareFile Path to new firmware
      */

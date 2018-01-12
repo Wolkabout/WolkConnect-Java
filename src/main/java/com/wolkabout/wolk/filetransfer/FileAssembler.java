@@ -83,7 +83,7 @@ public class FileAssembler {
             tmpFileOutputStream = new FileOutputStream(tmpFile);
             return true;
         } catch (IOException e) {
-            LOG.error("Unable to create temporary file", e.getMessage());
+            LOG.error("Unable to create temporary file", e);
             return false;
         }
     }
