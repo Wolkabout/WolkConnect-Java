@@ -26,12 +26,9 @@ public interface FirmwareUpdateHandler {
      * When firmware file is received from WolkAbout IoT platform {@link #updateFirmwareWithFile(Path)} will be invoked with
      * path to new firmware, it is up to the implementation to install new firmware.
      *
-     * <strong>Upon returning {@code true} application will be shut down,by firmware update module, with exit code 0.
-     * It is up to the library integrator to provide 'daemon-ized' way of starting application in order to start application after
-     * exit performed by firmware update procedure</strong>
+     * <strong>Upon firmware update performed in this method, application should restart in order to finish firmware update procedure</strong>
      *
-     * @param firmwareFile File which points to new firmware
-     * @return {@code true} if successful, or {@code false} if firmware update failed
+     * @param firmwareFile Path to new firmware
      */
-    boolean updateFirmwareWithFile(Path firmwareFile);
+    void updateFirmwareWithFile(Path firmwareFile);
 }

@@ -86,4 +86,10 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
             throw new IllegalArgumentException(e);
         }
     }
+
+    @Override
+    public OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException {
+        final String channel = "firmware/version/" + deviceKey;
+        return new OutboundMessage(firmwareVersion, channel);
+    }
 }

@@ -39,6 +39,7 @@ public class Device {
 
     public Device(String deviceKey) {
         this.deviceKey = deviceKey;
+        this.actuators = new String[]{};
     }
 
     public Protocol getProtocol() {

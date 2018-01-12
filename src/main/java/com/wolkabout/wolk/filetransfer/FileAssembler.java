@@ -88,14 +88,6 @@ public class FileAssembler {
         }
     }
 
-    public FileTransferPacketRequest packetRequest() {
-        if (allPacketsReceived()) {
-            return null;
-        }
-
-        return new FileTransferPacketRequest(file.getFileName().toString(), currentPacketId, PACKET_SIZE);
-    }
-
     public PacketProcessingError processPacket(FileTransferPacket packet) {
         LOG.trace("Processing packet");
 
@@ -134,6 +126,14 @@ public class FileAssembler {
 
         listenerOnFileCreated(file);
         return PacketProcessingError.NONE;
+    }
+
+    public FileTransferPacketRequest packetRequest() {
+        if (allPacketsReceived()) {
+            return null;
+        }
+
+        return new FileTransferPacketRequest(file.getFileName().toString(), currentPacketId, PACKET_SIZE);
     }
 
     public void abort() {

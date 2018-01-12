@@ -26,10 +26,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.IOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -38,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 public class FirmwareUpdate implements FileReceiver {
     private static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdate.class);
 
+    private static final Path FIRMWARE_VERSION_FILE = Paths.get(".dfu-version");
+
     private enum State {
         IDLE,
         PACKET_FILE_TRANSFER,
@@ -45,6 +50,8 @@ public class FirmwareUpdate implements FileReceiver {
         FILE_OBTAINED,
         INSTALL
     }
+
+    private final String firmwareVersion;
 
     private final FirmwareUpdateHandler firmwareUpdateHandler;
     private final FirmwareDownloadHandler firmwareDownloadHandler;
@@ -64,7 +71,9 @@ public class FirmwareUpdate implements FileReceiver {
 
     private State state;
 
-    public FirmwareUpdate(Path downloadDirectory, long maximumFirmwareSize, FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
+    public FirmwareUpdate(String firmwareVersion, Path downloadDirectory, long maximumFirmwareSize, FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
+        this.firmwareVersion = firmwareVersion;
+
         this.firmwareUpdateHandler = firmwareUpdateHandler;
         this.firmwareDownloadHandler = firmwareDownloadHandler;
 
@@ -76,18 +85,8 @@ public class FirmwareUpdate implements FileReceiver {
         this.state = State.IDLE;
     }
 
-    @Override
-    public void onFileReceived(Path file) {
-        LOG.debug("Firmware file received: {}", file.toAbsolutePath());
-        firmwareFile = file;
-        state = State.FILE_OBTAINED;
-        listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY));
-
-        if (autoInstall) {
-            LOG.debug("Commencing firmware auto install");
-            state = State.INSTALL;
-            startFirmwareUpdate();
-        }
+    public String getFirmwareVersion() {
+        return firmwareVersion;
     }
 
     public void handleCommand(FirmwareUpdateCommand command) {
@@ -129,6 +128,67 @@ public class FirmwareUpdate implements FileReceiver {
         }
     }
 
+    public void handlePacket(FileTransferPacket packet) {
+        switch (state) {
+            case PACKET_FILE_TRANSFER:
+                LOG.debug("Processing file transfer packet");
+                onPacketTimeout.cancel(false);
+
+                final FileAssembler.PacketProcessingError error = fileAssembler.processPacket(packet);
+                switch (error) {
+                    case RETRY_COUNT_EXCEEDED:
+                        state = State.IDLE;
+                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.RETRY_COUNT_EXCEEDED));
+                        break;
+
+                    case UNABLE_TO_FINALIZE_FILE_CREATION:
+                        state = State.IDLE;
+                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
+                        break;
+
+                    case NONE:
+                    case OUT_OF_ORDER:
+                    case INVALID_CHECKSUM:
+                        sendFilePacketRequest(fileAssembler.packetRequest());
+                        break;
+                }
+                break;
+
+            case IDLE:
+                LOG.warn("Ignoring file transfer packet. Reason: Firmware update sequence not initialized");
+                break;
+            case URL_DOWNLOAD:
+                LOG.warn("Ignoring file transfer packet. Reason: Firmware update sequence initiated with firmware download via URL");
+                break;
+            case FILE_OBTAINED:
+            case INSTALL:
+                LOG.warn("Ignoring file transfer packet. Reason: Firmware file transfer completed");
+                break;
+        }
+    }
+
+    public void reportFirmwareUpdateResult() {
+        if (!Files.exists(FIRMWARE_VERSION_FILE)) {
+            return;
+        }
+
+        final String savedFirmwareVersion = getSavedFirmwareVersion();
+
+        if (!firmwareVersion.equals(savedFirmwareVersion)) {
+            LOG.info("Firmware update successful. Updated firmware from version '{}' to '{}'", savedFirmwareVersion, firmwareVersion);
+            listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION_COMPLETED));
+        } else {
+            LOG.error("Firmware update failed. Current firmware version {}", firmwareVersion);
+            listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.INSTALLATION_FAILED));
+        }
+
+        try {
+            Files.delete(FIRMWARE_VERSION_FILE);
+        } catch (IOException e) {
+            LOG.error("Error deleting file containing previous firmware version", e);
+        }
+    }
+
     private void handleFileUpload(String fileName, long fileSize, String fileSha256, boolean shouldAutoInstall) {
         switch (state) {
             case IDLE:
@@ -155,6 +215,7 @@ public class FirmwareUpdate implements FileReceiver {
                     return;
                 }
 
+                LOG.info("Initiating file transfer sequence");
                 autoInstall = shouldAutoInstall;
                 state = State.PACKET_FILE_TRANSFER;
                 listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER));
@@ -211,73 +272,6 @@ public class FirmwareUpdate implements FileReceiver {
         }
     }
 
-    private void startFirmwareUpdate() {
-        LOG.info("Scheduling firmware update 5 seconds from now");
-        executorService = Executors.newScheduledThreadPool(1);
-        executorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION));
-                LOG.debug("Firmware update started");
-
-                boolean isFirmwareInstalled = firmwareUpdateHandler.updateFirmwareWithFile(firmwareFile);
-
-                if (isFirmwareInstalled) {
-                    LOG.info("Firmware update successfully installed");
-                    listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION_COMPLETED));
-
-                    shutDownApplication();
-                } else {
-                    LOG.error("Failed to install firmware update");
-                    state = State.IDLE;
-                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.INSTALLATION_FAILED));
-                }
-            }
-        }, 5, TimeUnit.SECONDS);
-    }
-
-    private void stopFirmwareUpdate() {
-        LOG.info("Stopping firmware update");
-        executorService.shutdownNow();
-    }
-
-    private void startUrlFirmwareDownload(final URL file) {
-        LOG.info("Scheduling firmware file download from URL 5 seconds from now");
-        executorService = Executors.newScheduledThreadPool(1);
-        executorService.schedule(new Runnable() {
-            @Override
-            public void run() {
-                listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER));
-                LOG.debug("Firmware file download started");
-
-                try {
-                    final Path downloadedFile = firmwareDownloadHandler.downloadFile(file);
-                    onFileReceived(downloadedFile);
-                } catch (IOException e) {
-                    LOG.error("Firmware file could not be downloaded", e);
-                    state = State.IDLE;
-                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
-                }
-            }
-        }, 5, TimeUnit.SECONDS);
-    }
-
-    private void stopUrlFirmwareDownload() {
-        LOG.info("Stopping Firmware file download");
-        executorService.shutdownNow();
-    }
-
-    private void shutDownApplication() {
-        LOG.info("Commencing application shutdown in 5 seconds");
-        try {
-            Thread.sleep(5 * 1000);
-        } catch (InterruptedException e) {
-            LOG.error("Shutdown delay interrupted, shutting down NOW", e);
-        }
-
-        System.exit(0);
-    }
-
     private void handleAbort() {
         switch (state) {
             case PACKET_FILE_TRANSFER:
@@ -314,45 +308,6 @@ public class FirmwareUpdate implements FileReceiver {
         }
     }
 
-    public void handlePacket(FileTransferPacket packet) {
-        switch (state) {
-            case PACKET_FILE_TRANSFER:
-                LOG.debug("Processing file transfer packet");
-                onPacketTimeout.cancel(false);
-
-                final FileAssembler.PacketProcessingError error = fileAssembler.processPacket(packet);
-                switch (error) {
-                    case RETRY_COUNT_EXCEEDED:
-                        state = State.IDLE;
-                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.RETRY_COUNT_EXCEEDED));
-                        break;
-
-                    case UNABLE_TO_FINALIZE_FILE_CREATION:
-                        state = State.IDLE;
-                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
-                        break;
-
-                    case NONE:
-                    case OUT_OF_ORDER:
-                    case INVALID_CHECKSUM:
-                        sendFilePacketRequest(fileAssembler.packetRequest());
-                        break;
-                }
-                break;
-
-            case IDLE:
-                LOG.warn("Ignoring file transfer packet. Reason: Firmware update sequence not initialized");
-                break;
-            case URL_DOWNLOAD:
-                LOG.warn("Ignoring file transfer packet. Reason: Firmware update sequence initiated with firmware download via URL");
-                break;
-            case FILE_OBTAINED:
-            case INSTALL:
-                LOG.warn("Ignoring file transfer packet. Reason: Firmware file transfer completed");
-                break;
-        }
-    }
-
     private void sendFilePacketRequest(FileTransferPacketRequest request) {
         if (request == null) {
             return;
@@ -368,6 +323,89 @@ public class FirmwareUpdate implements FileReceiver {
             }
         }, 60, TimeUnit.SECONDS);
         listenerOnFilePacketRequest(request);
+    }
+
+    private void startFirmwareUpdate() {
+        LOG.info("Scheduling firmware update 5 seconds from now");
+        executorService = Executors.newScheduledThreadPool(1);
+        executorService.schedule(new Runnable() {
+            @Override
+            public void run() {
+                listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION));
+                LOG.debug("Firmware update started");
+
+                if (!saveFirmwareVersion()) {
+                    state = State.IDLE;
+                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.INSTALLATION_FAILED));
+                }
+
+                firmwareUpdateHandler.updateFirmwareWithFile(firmwareFile);
+            }
+        }, 5, TimeUnit.SECONDS);
+    }
+
+    private void stopFirmwareUpdate() {
+        LOG.info("Stopping firmware update");
+        executorService.shutdownNow();
+    }
+
+    private void startUrlFirmwareDownload(final URL file) {
+        LOG.info("Scheduling firmware file download from URL 5 seconds from now");
+        executorService = Executors.newScheduledThreadPool(1);
+        executorService.schedule(new Runnable() {
+            @Override
+            public void run() {
+                listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER));
+                LOG.debug("Firmware file download started");
+
+                try {
+                    final Path downloadedFile = firmwareDownloadHandler.downloadFile(file);
+                    onFileReceived(downloadedFile);
+                } catch (IOException e) {
+                    LOG.error("Firmware file could not be downloaded", e);
+                    state = State.IDLE;
+                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
+                }
+            }
+        }, 5, TimeUnit.SECONDS);
+    }
+
+    private void stopUrlFirmwareDownload() {
+        LOG.info("Stopping Firmware file download");
+        executorService.shutdownNow();
+    }
+
+    private boolean saveFirmwareVersion() {
+        try {
+            Files.write(FIRMWARE_VERSION_FILE, firmwareVersion.getBytes(StandardCharsets.UTF_8));
+            return true;
+        } catch (IOException e) {
+            LOG.error("Could not save current firmware version to file");
+            return false;
+        }
+    }
+
+    private String getSavedFirmwareVersion() {
+        try {
+            return new String(Files.readAllBytes(FIRMWARE_VERSION_FILE), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOG.error("Could not read saved firmware version", e);
+            return "";
+        }
+    }
+
+    @Override
+    public void onFileReceived(Path file) {
+        LOG.debug("Firmware file received: {}", file.toAbsolutePath());
+        firmwareFile = file;
+        state = State.FILE_OBTAINED;
+        listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY));
+
+        if (autoInstall) {
+            LOG.debug("Commencing firmware auto install");
+            state = State.INSTALL;
+            startFirmwareUpdate();
+        }
     }
 
     public void setListener(FirmwareUpdate.Listener listener) {

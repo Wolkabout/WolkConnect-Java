@@ -36,4 +36,6 @@ public interface OutboundMessageFactory {
     OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus status) throws IllegalArgumentException;
 
     OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException;
+
+    OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException;
 }

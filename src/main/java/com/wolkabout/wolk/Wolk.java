@@ -98,6 +98,14 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         });
     }
 
+    private void reportFirmwareVersion() {
+        LOG.debug("Publishing firmware version");
+        final OutboundMessage firmwareVersionMessage = outboundMessageFactory.makeFromFirmwareVersion(firmwareUpdate.getFirmwareVersion());
+        if (!connectivityService.publish(firmwareVersionMessage)) {
+            LOG.error("Unable to publish firmware version");
+        }
+    }
+
     private void flushActuatorStatuses() {
         for (final String key : persistence.getActuatorStatusesKeys()) {
             try {
@@ -217,6 +225,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         subscribeToActuatorCommands();
 
         subscribeToFirmwareUpdate();
+
+        reportFirmwareVersion();
+        firmwareUpdate.reportFirmwareUpdateResult();
 
         publishCurrentActuatorStatuses();
 
@@ -439,7 +450,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
             instance.persistence = new InMemoryPersistence();
 
-            instance.firmwareUpdate = new FirmwareUpdate(null, 0, null, null);
+            instance.firmwareUpdate = new FirmwareUpdate("", null, 0, null, null);
             instance.firmwareUpdate.setListener(instance);
         }
 
@@ -522,6 +533,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         /**
          * Setup firmware update (aka OTA) with firmware download via WolkAbout IoT platform.
          *
+         * @param firmwareVersion         current firmware version
          * @param firmwareUpdateHandler   instance of {@link FirmwareUpdateHandler}
          * @param downloadDirectory       directory to which firmware file will be downloaded
          * @param maximumFirmwareSize     maximum size of firmware file, in bytes
@@ -529,13 +541,13 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
          * @return WolkBuilder
          * @throws IllegalArgumentException if {@code downloadDirectory} does not point to directory, or directory does not exist
          */
-        public WolkBuilder withFirmwareUpdate(FirmwareUpdateHandler firmwareUpdateHandler, Path downloadDirectory,
+        public WolkBuilder withFirmwareUpdate(String firmwareVersion, FirmwareUpdateHandler firmwareUpdateHandler, Path downloadDirectory,
                                               long maximumFirmwareSize, FirmwareDownloadHandler firmwareDownloadHandler) throws IllegalArgumentException {
             if (!downloadDirectory.toFile().isDirectory() || !downloadDirectory.toFile().exists()) {
                 throw new IllegalArgumentException("Given path does not point to directory.");
             }
 
-            instance.firmwareUpdate = new FirmwareUpdate(downloadDirectory, maximumFirmwareSize, firmwareUpdateHandler, firmwareDownloadHandler);
+            instance.firmwareUpdate = new FirmwareUpdate(firmwareVersion, downloadDirectory, maximumFirmwareSize, firmwareUpdateHandler, firmwareDownloadHandler);
             instance.firmwareUpdate.setListener(instance);
             return this;
         }
