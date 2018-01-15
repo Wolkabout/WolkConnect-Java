@@ -54,7 +54,7 @@ public class FileAssembler {
     private long currentPacketId;
     private byte[] previousPacketHash;
 
-    private Path file;
+    private File constructedFile;
     private File tmpFile;
     private byte[] fileSha256;
 
@@ -77,7 +77,7 @@ public class FileAssembler {
             tmpFile = File.createTempFile(fileName, null);
             tmpFile.deleteOnExit();
 
-            file = Paths.get(downloadDirectory.toString(), fileName);
+            constructedFile = Paths.get(downloadDirectory.toString(), fileName).toFile();
             this.fileSha256 = fileSha256;
 
             tmpFileOutputStream = new FileOutputStream(tmpFile);
@@ -124,8 +124,13 @@ public class FileAssembler {
             return PacketProcessingError.UNABLE_TO_FINALIZE_FILE_CREATION;
         }
 
-        listenerOnFileCreated(file);
-        return PacketProcessingError.NONE;
+        try {
+            listenerOnFileCreated(constructedFile.getCanonicalFile().toPath());
+            return PacketProcessingError.NONE;
+        } catch (IOException e) {
+            LOG.error("Unable to convert file path to canonical one", e);
+            return PacketProcessingError.UNABLE_TO_FINALIZE_FILE_CREATION;
+        }
     }
 
     public FileTransferPacketRequest packetRequest() {
@@ -133,7 +138,7 @@ public class FileAssembler {
             return null;
         }
 
-        return new FileTransferPacketRequest(file.getFileName().toString(), currentPacketId, PACKET_SIZE);
+        return new FileTransferPacketRequest(constructedFile.getName(), currentPacketId, PACKET_SIZE);
     }
 
     public void abort() {
@@ -163,21 +168,21 @@ public class FileAssembler {
     }
 
     private boolean createAndValidateFile() {
-        LOG.info("Creating and validating file {}", file.toString());
+        LOG.info("Creating and validating file {}", constructedFile.toString());
 
-        if (file.toFile().exists() && !file.toFile().delete()) {
+        if (constructedFile.exists() && !constructedFile.delete()) {
             LOG.error("Unable to remove stale firmware file (Stale firmware file and new firmware file have same name)");
             return false;
         }
 
-        LOG.debug("Moving temporary file {} to {}", tmpFile, file.toAbsolutePath());
-        if (!moveFile(tmpFile.toPath(), file) || !closeFileStream()) {
+        LOG.debug("Moving temporary file {} to {}", tmpFile, constructedFile.toPath().toAbsolutePath());
+        if (!moveFile(tmpFile.toPath(), constructedFile.toPath()) || !closeFileStream()) {
             LOG.error("Unable to move temporary file");
             return false;
         }
 
         LOG.debug("Verifying file integrity via SHA-256 checksum");
-        if (!isFileSha256Valid(file, fileSha256)) {
+        if (!isFileSha256Valid(constructedFile.toPath(), fileSha256)) {
             LOG.error("File integrity violated");
             return false;
         }

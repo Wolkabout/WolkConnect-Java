@@ -54,8 +54,25 @@ public class FirmwareUpdateCommand {
     private FirmwareUpdateCommand() {
     }
 
-    private FirmwareUpdateCommand(final String commandType) {
-        this.type = commandType;
+    private FirmwareUpdateCommand(FirmwareUpdateCommand.Type type, String url) {
+        this.type = type.toString();
+        this.fileName = "";
+        this.fileSize = 0L;
+        this.base64FileSha256 = "";
+        this.autoInstall = false;
+        this.fileUrl = url;
+    }
+
+    public static FirmwareUpdateCommand fileUpload() {
+        return new FirmwareUpdateCommand(Type.FILE_UPLOAD, "");
+    }
+
+    public static FirmwareUpdateCommand urlDownload(String url) {
+        return new FirmwareUpdateCommand(Type.URL_DOWNLOAD, url);
+    }
+
+    public static FirmwareUpdateCommand install() {
+        return new FirmwareUpdateCommand(Type.INSTALL, "");
     }
 
     public FirmwareUpdateCommand.Type getType() {

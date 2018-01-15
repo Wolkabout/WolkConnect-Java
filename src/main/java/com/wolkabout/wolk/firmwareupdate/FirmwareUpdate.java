@@ -30,9 +30,7 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -58,6 +56,9 @@ public class FirmwareUpdate implements FileReceiver {
 
     private final long maximumFirmwareFileSize;
 
+    private long packetTimeoutMilliseconds = 60 * 1000;
+    private long abortTimePeriodMilliseconds = 5 * 1000;
+
     private final FileAssembler fileAssembler;
 
     private Listener listener;
@@ -71,13 +72,14 @@ public class FirmwareUpdate implements FileReceiver {
 
     private State state;
 
-    public FirmwareUpdate(String firmwareVersion, Path downloadDirectory, long maximumFirmwareSize, FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
+    public FirmwareUpdate(String firmwareVersion, Path downloadDirectory, long maximumFirmwareSize,
+                          FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
         this.firmwareVersion = firmwareVersion;
 
         this.firmwareUpdateHandler = firmwareUpdateHandler;
         this.firmwareDownloadHandler = firmwareDownloadHandler;
 
-        maximumFirmwareFileSize = maximumFirmwareSize;
+        this.maximumFirmwareFileSize = maximumFirmwareSize;
 
         this.fileAssembler = new FileAssembler(downloadDirectory, 3);
         this.fileAssembler.setListener(this);
@@ -87,6 +89,14 @@ public class FirmwareUpdate implements FileReceiver {
 
     public String getFirmwareVersion() {
         return firmwareVersion;
+    }
+
+    public void setPacketTimeout(long millis) {
+        packetTimeoutMilliseconds = millis;
+    }
+
+    public void setAbortTimePeriod(long millis) {
+        abortTimePeriodMilliseconds = millis;
     }
 
     public void handleCommand(FirmwareUpdateCommand command) {
@@ -267,7 +277,7 @@ public class FirmwareUpdate implements FileReceiver {
             case PACKET_FILE_TRANSFER:
             case URL_DOWNLOAD:
             case INSTALL:
-                LOG.warn("Ignoring firmware install command. Reason: Firmware file not initiated");
+                LOG.warn("Ignoring firmware install command. Reason: Firmware file not obtained");
                 break;
         }
     }
@@ -321,12 +331,12 @@ public class FirmwareUpdate implements FileReceiver {
                 fileAssembler.abort();
                 state = State.IDLE;
             }
-        }, 60, TimeUnit.SECONDS);
+        }, packetTimeoutMilliseconds, TimeUnit.MILLISECONDS);
         listenerOnFilePacketRequest(request);
     }
 
     private void startFirmwareUpdate() {
-        LOG.info("Scheduling firmware update 5 seconds from now");
+        LOG.info("Scheduling firmware update {} milliseconds from now", abortTimePeriodMilliseconds);
         executorService = Executors.newScheduledThreadPool(1);
         executorService.schedule(new Runnable() {
             @Override
@@ -341,7 +351,7 @@ public class FirmwareUpdate implements FileReceiver {
 
                 firmwareUpdateHandler.updateFirmwareWithFile(firmwareFile);
             }
-        }, 5, TimeUnit.SECONDS);
+        }, abortTimePeriodMilliseconds, TimeUnit.MILLISECONDS);
     }
 
     private void stopFirmwareUpdate() {
@@ -350,7 +360,7 @@ public class FirmwareUpdate implements FileReceiver {
     }
 
     private void startUrlFirmwareDownload(final URL file) {
-        LOG.info("Scheduling firmware file download from URL 5 seconds from now");
+        LOG.info("Scheduling firmware file download from URL {} milliseconds from now", abortTimePeriodMilliseconds);
         executorService = Executors.newScheduledThreadPool(1);
         executorService.schedule(new Runnable() {
             @Override
@@ -367,7 +377,7 @@ public class FirmwareUpdate implements FileReceiver {
                     listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
                 }
             }
-        }, 5, TimeUnit.SECONDS);
+        }, abortTimePeriodMilliseconds, TimeUnit.MILLISECONDS);
     }
 
     private void stopUrlFirmwareDownload() {

@@ -19,6 +19,8 @@ package com.wolkabout.wolk.firmwareupdate;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 public class FirmwareUpdateStatus {
     public enum StatusCode {
 
@@ -100,5 +102,19 @@ public class FirmwareUpdateStatus {
                 "status=" + status +
                 ", errorCode=" + errorCode +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        final FirmwareUpdateStatus that = (FirmwareUpdateStatus) o;
+        return status == that.status &&
+                Objects.equals(errorCode, that.errorCode);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(status, errorCode);
     }
 }

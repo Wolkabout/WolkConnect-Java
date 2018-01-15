@@ -17,6 +17,7 @@
 package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filetransfer.FileAssembler;
+import com.wolkabout.wolk.filetransfer.FileReceiver;
 import com.wolkabout.wolk.filetransfer.FileTransferPacket;
 import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import org.junit.After;
@@ -32,15 +33,17 @@ import static com.wolkabout.wolk.Utils.calculateSha256;
 import static com.wolkabout.wolk.Utils.isFileValid;
 import static com.wolkabout.wolk.Utils.joinByteArrays;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class FileAssemblerTest {
 
-    private static final File FILE = Paths.get("file-constructor-test.tmp").toFile();
+    private static final File CONSTRUCTED_FILE = Paths.get("file-constructor-test.tmp").toFile();
 
     @After
     public void tearDown() {
-        if (FILE.exists()) {
-            FILE.delete();
+        if (CONSTRUCTED_FILE.exists()) {
+            CONSTRUCTED_FILE.delete();
         }
     }
 
@@ -48,25 +51,25 @@ public class FileAssemblerTest {
     public void Given_FileConstructor_When_FileConstructionIsStarted_Then_RequestForFirstPacketIsIssued() {
         // Given
         final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(FILE.getName(), 1024, calculateSha256(new byte[]{}));
+        constructor.initialize(CONSTRUCTED_FILE.getName(), 1024, calculateSha256(new byte[]{}));
 
         // When
         final FileTransferPacketRequest request = constructor.packetRequest();
 
         // Then
         assertNotNull(request);
-        assertEquals(FILE.toString(), request.getFileName());
+        assertEquals(CONSTRUCTED_FILE.toString(), request.getFileName());
         assertEquals(0, request.getPacketId());
     }
 
     @Test
-    public void Given_FileConstructorInitializedWithValidFileData_When_FFileIsReceivedInSinglePacket_Then_ConstructedFileIsValid() {
+    public void Given_FileConstructorInitializedWithValidFileParameters_When_FileIsConstructedFromSinglePacket_Then_ConstructedFileIsValid() {
         final byte[] fileContent = "Hello world~!".getBytes(StandardCharsets.UTF_8);
         final byte[] fileSha256 = calculateSha256(fileContent);
 
         // Given
         final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(FILE.toString(), fileContent.length, fileSha256);
+        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -79,18 +82,18 @@ public class FileAssemblerTest {
         assertEquals(FileAssembler.PacketProcessingError.NONE, error);
 
         // Then
-        assertTrue(Files.exists(FILE.toPath()));
-        assertTrue(isFileValid(FILE, fileSha256));
+        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
+        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
     }
 
     @Test
-    public void Given_FileConstructorWithNoRetriesPerPacket_When_InvalidPacketIsReceived_Then_RetryCountExceededErrorIsReturned() {
+    public void Given_FileConstructorWithNoRetriesPerPacket_When_InvalidPacketIsProcessed_Then_RetryCountExceededErrorIsReturned() {
         final byte[] fileContent = "Hello world~!".getBytes(StandardCharsets.UTF_8);
         final byte[] fileSha256 = calculateSha256(fileContent);
 
         // Given
         final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 1);
-        constructor.initialize(FILE.toString(), fileContent.length, fileSha256);
+        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -106,13 +109,13 @@ public class FileAssemblerTest {
     }
 
     @Test
-    public void Given_FileConstructorWithRetriesPerPacket_When_InvalidPacketIsReceived_Then_PacketIsRequestedAgain() {
+    public void Given_FileConstructorWithRetriesPerPacket_When_InvalidPacketIsProcessed_Then_PacketIsRequestedAgain() {
         final byte[] fileContent = "Hello world~!".getBytes(StandardCharsets.UTF_8);
         final byte[] fileSha256 = calculateSha256(fileContent);
 
         // Given
         final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(FILE.toString(), fileContent.length, fileSha256);
+        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
 
         // When
         final FileTransferPacketRequest initialRequest = constructor.packetRequest();
@@ -134,13 +137,13 @@ public class FileAssemblerTest {
     }
 
     @Test
-    public void Given_FileConstructorInitializedWithValidFileData_When_FileIsReceivedInSinglePacketWithRetry_Then_ConstructedFileIsValid() {
+    public void Given_FileConstructorInitializedWithValidFileParameters_When_FileIsConstructedFromSinglePacketWithRetry_Then_ConstructedFileIsValid() {
         final byte[] fileContent = "Hello world~!".getBytes(StandardCharsets.UTF_8);
         final byte[] fileSha256 = calculateSha256(fileContent);
 
         // Given
         final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(FILE.toString(), fileContent.length, fileSha256);
+        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -153,6 +156,42 @@ public class FileAssemblerTest {
 
         assertNotNull(constructor.processPacket(new FileTransferPacket(joinByteArrays(previousPacketHash, fileChunk, packetSha256))));
 
+        // first packet second time
+        fileChunk = fileContent.clone();
+        packetSha256 = calculateSha256(joinByteArrays(previousPacketHash, fileChunk));
+
+        final FileAssembler.PacketProcessingError error = constructor.processPacket(new FileTransferPacket(joinByteArrays(previousPacketHash, fileChunk, packetSha256)));
+        assertEquals(FileAssembler.PacketProcessingError.NONE, error);
+
+        assertNull(constructor.packetRequest());
+
+        // Then
+        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
+        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
+    }
+
+    @Test
+    public void Given_FileConstructorInitializedWithValidFileParameters_When_FileConstructionIsCompleted_Then_ListenerIsInvoked() {
+        final byte[] fileContent = "Hello world~!".getBytes(StandardCharsets.UTF_8);
+        final byte[] fileSha256 = calculateSha256(fileContent);
+
+        final FileReceiver fileReceiver = mock(FileReceiver.class);
+
+        // Given
+        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
+        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        constructor.setListener(fileReceiver);
+
+        // When
+        assertNotNull(constructor.packetRequest());
+
+        byte[] previousPacketHash = new byte[32];
+
+        // first packet first time
+        byte[] fileChunk = fileContent.clone();
+        byte[] packetSha256 = calculateSha256(joinByteArrays(previousPacketHash, fileChunk, "excessBytes".getBytes()));
+
+        assertNotNull(constructor.processPacket(new FileTransferPacket(joinByteArrays(previousPacketHash, fileChunk, packetSha256))));
 
         // first packet second time
         fileChunk = fileContent.clone();
@@ -164,7 +203,9 @@ public class FileAssemblerTest {
         assertNull(constructor.packetRequest());
 
         // Then
-        assertTrue(Files.exists(FILE.toPath()));
-        assertTrue(isFileValid(FILE, fileSha256));
+        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
+        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
+
+        verify(fileReceiver).onFileReceived(CONSTRUCTED_FILE.toPath().toAbsolutePath());
     }
 }
