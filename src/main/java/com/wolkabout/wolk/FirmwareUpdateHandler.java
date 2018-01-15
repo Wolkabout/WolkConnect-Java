@@ -23,10 +23,10 @@ import java.nio.file.Path;
  */
 public interface FirmwareUpdateHandler {
     /**
-     * When firmware file is received from WolkAbout IoT platform {@link #updateFirmwareWithFile(Path)} will be invoked with
-     * path to new firmware, it is up to the implementation to install new firmware.
+     * When firmware file is received from WolkAbout IoT platform this method will be invoked with
+     * path to new firmware, it is up to the implementation to perform new firmware installation.
      *
-     * <strong>Upon firmware update performed in this method, application should restart in order to finish firmware update procedure</strong>
+     * <strong>Upon firmware installation performed in this method, application should restart in order to finish firmware update procedure</strong>
      * <strong>WolkConnect Java does not delete ${code firmwareFile}, if desired one should handle this inside this method as well</strong>
      *
      * @param firmwareFile Path to new firmware
