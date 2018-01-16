@@ -54,25 +54,38 @@ public class FirmwareUpdateCommand {
     private FirmwareUpdateCommand() {
     }
 
-    private FirmwareUpdateCommand(FirmwareUpdateCommand.Type type, String url) {
+    private FirmwareUpdateCommand(FirmwareUpdateCommand.Type type) {
         this.type = type.toString();
-        this.fileName = "";
-        this.fileSize = 0L;
-        this.base64FileSha256 = "";
-        this.autoInstall = false;
-        this.fileUrl = url;
     }
 
-    public static FirmwareUpdateCommand fileUpload() {
-        return new FirmwareUpdateCommand(Type.FILE_UPLOAD, "");
+    private FirmwareUpdateCommand(FirmwareUpdateCommand.Type type, String fileName, long fileSize, String base64FileSha256, boolean autoInstall) {
+        this.type = type.toString();
+        this.fileName = fileName;
+        this.fileSize = fileSize;
+        this.base64FileSha256 = base64FileSha256;
+        this.autoInstall = autoInstall;
     }
 
-    public static FirmwareUpdateCommand urlDownload(String url) {
-        return new FirmwareUpdateCommand(Type.URL_DOWNLOAD, url);
+    private FirmwareUpdateCommand(FirmwareUpdateCommand.Type type, String fileUrl, boolean autoInstall) {
+        this.type = type.toString();
+        this.fileUrl = fileUrl;
+        this.autoInstall = autoInstall;
+    }
+
+    public static FirmwareUpdateCommand fileUpload(String fileName, long fileSize, String base64FileSha256) {
+        return new FirmwareUpdateCommand(Type.FILE_UPLOAD, fileName, fileSize, base64FileSha256, false);
+    }
+
+    public static FirmwareUpdateCommand urlDownload(String url, boolean autoInstall) {
+        return new FirmwareUpdateCommand(Type.URL_DOWNLOAD, url, false);
     }
 
     public static FirmwareUpdateCommand install() {
-        return new FirmwareUpdateCommand(Type.INSTALL, "");
+        return new FirmwareUpdateCommand(Type.INSTALL);
+    }
+
+    public static FirmwareUpdateCommand abort() {
+        return new FirmwareUpdateCommand(Type.ABORT);
     }
 
     public FirmwareUpdateCommand.Type getType() {

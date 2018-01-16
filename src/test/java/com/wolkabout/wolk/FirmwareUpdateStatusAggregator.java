@@ -28,8 +28,6 @@ public class FirmwareUpdateStatusAggregator implements FirmwareUpdate.Listener {
     private final List<FirmwareUpdateStatus> firmwareUpdateStatuses = new ArrayList<>();
 
     public List<FirmwareUpdateStatus> waitFor(int statusCount) throws InterruptedException {
-        firmwareUpdateStatuses.clear();
-
         while(firmwareUpdateStatuses.size() < statusCount) {
             Thread.sleep(50);
         }
@@ -37,8 +35,8 @@ public class FirmwareUpdateStatusAggregator implements FirmwareUpdate.Listener {
         return firmwareUpdateStatuses;
     }
 
-    public List<FirmwareUpdateStatus> getAggregatedStatuses() {
-        return firmwareUpdateStatuses;
+    public void clear() {
+        firmwareUpdateStatuses.clear();
     }
 
     @Override

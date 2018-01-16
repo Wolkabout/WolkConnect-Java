@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk;
 
+import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdate;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
@@ -52,7 +53,6 @@ public class FirmwareUpdateTest {
         firmwareDownloadHandler = mock(FirmwareDownloadHandler.class);
     }
 
-
     @After
     public void tearDown() {
         if (SAVED_FIRMWARE_VERSION_FILE.exists()) {
@@ -67,7 +67,7 @@ public class FirmwareUpdateTest {
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload());
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload("fileName", 1024, "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="));
 
         // Then
         verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
@@ -80,7 +80,7 @@ public class FirmwareUpdateTest {
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(""));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("", false));
 
         // Then
         verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
@@ -93,10 +93,23 @@ public class FirmwareUpdateTest {
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload());
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload("fileName", 1024, "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="));
 
         // Then
         verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
+    }
+
+    @Test
+    public void Given_FirmwareUpdateWithNonZeroMaximumFirmwareSize_When_FileTransferFirmwareUpdateWithUnsupportedFirmwareSizeIsRequested_Then_UnsupportedFileSizeErrorIsYielded() {
+        // Given
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, null);
+        firmwareUpdate.setListener(firmwareUpdateListener);
+
+        // When
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload("fileName", 2048, "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="));
+
+        // Then
+        verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSUPPORTED_FILE_SIZE));
     }
 
     @Test
@@ -106,7 +119,7 @@ public class FirmwareUpdateTest {
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(""));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("", false));
 
         // Then
         verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
@@ -119,7 +132,7 @@ public class FirmwareUpdateTest {
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("Obviously not valid URL"));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("Obviously not valid URL", false));
 
         // Then
         verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.MALFORMED_URL));
@@ -139,7 +152,7 @@ public class FirmwareUpdateTest {
         when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(Paths.get("./downloaded_file_path"));
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("file:///firmware_file_to_download"));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("file:///firmware_file_to_download", false));
 
         // Then
         final List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(1);
@@ -160,7 +173,7 @@ public class FirmwareUpdateTest {
         when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(Paths.get("./downloaded_file_path"));
 
         // When
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString()));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
 
         // Then
         final List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
@@ -169,7 +182,7 @@ public class FirmwareUpdateTest {
     }
 
     @Test
-    public void Given_DownloadedFirmware_When_InstallCommandIsIssued_Then_InstallationStatusIsYieldedAndFirmwareUpdateHandlerIsInvoked() throws InterruptedException, IOException {
+    public void Given_UrlDownloadedFirmware_When_InstallCommandIsIssued_Then_InstallationStatusIsYieldedAndFirmwareUpdateHandlerIsInvoked() throws InterruptedException, IOException {
         final URL fileUrl = new URL("file:///firmware_file_to_download");
         final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
 
@@ -182,13 +195,14 @@ public class FirmwareUpdateTest {
 
         when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
 
-        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString()));
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
         List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
 
         assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER), firmwareUpdateStatuses.get(0));
         assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY), firmwareUpdateStatuses.get(1));
 
         // When
+        firmwareUpdateStatusAggregator.clear();
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.install());
 
         // Then
@@ -196,5 +210,95 @@ public class FirmwareUpdateTest {
         assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION), firmwareUpdateStatuses.get(0));
 
         verify(firmwareUpdateHandler).updateFirmwareWithFile(downloadedFirmwareFile);
+    }
+
+    @Test
+    public void Given_UrlDownloadedFirmware_When_AbortCommandIsIssued_Then_AbortStatusIsYieldedAndFirmwareUpdateHandlerIsNotInvoked() throws InterruptedException, IOException {
+        final URL fileUrl = new URL("file:///firmware_file_to_download");
+        final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
+
+        final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
+
+        // Given
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
+        firmwareUpdate.setAbortTimePeriod(0);
+
+        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
+
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
+        List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
+
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER), firmwareUpdateStatuses.get(0));
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY), firmwareUpdateStatuses.get(1));
+
+        // When
+        firmwareUpdateStatusAggregator.clear();
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.abort());
+
+        // Then
+        firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(1);
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.ABORTED), firmwareUpdateStatuses.get(0));
+
+        verify(firmwareUpdateHandler, never()).updateFirmwareWithFile(downloadedFirmwareFile);
+    }
+
+    @Test
+    public void Given_UrlDownloadedFirmwareWithAutoInstall_When_AbortCommandIsIssuedInsideAbortTimeInterval_Then_AbortStatusIsYieldedAndFirmwareUpdateHandlerIsNotInvoked() throws InterruptedException, IOException {
+        final URL fileUrl = new URL("file:///firmware_file_to_download");
+        final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
+
+        final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
+
+        // Given
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
+        firmwareUpdate.setAbortTimePeriod(500);
+
+        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
+
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), true));
+        List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
+
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER), firmwareUpdateStatuses.get(0));
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY), firmwareUpdateStatuses.get(1));
+
+        // When
+        firmwareUpdateStatusAggregator.clear();
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.abort());
+
+        // Then
+        firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(1);
+        assertEquals(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.ABORTED), firmwareUpdateStatuses.get(0));
+
+        verify(firmwareUpdateHandler, never()).updateFirmwareWithFile(downloadedFirmwareFile);
+    }
+
+    @Test
+    public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FileTransferStatusIsYielded() throws InterruptedException {
+        // Given
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        firmwareUpdate.setListener(firmwareUpdateListener);
+        firmwareUpdate.setAbortTimePeriod(0);
+
+        // When
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload("fileName", 1024, "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="));
+
+        // Then
+        verify(firmwareUpdateListener).onStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_TRANSFER));
+    }
+
+    @Test
+    public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FirstPacketIsRequested() throws InterruptedException {
+        // Given
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        firmwareUpdate.setListener(firmwareUpdateListener);
+        firmwareUpdate.setAbortTimePeriod(0);
+
+        // When
+        firmwareUpdate.handleCommand(FirmwareUpdateCommand.fileUpload("fileName", 1024, "47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="));
+
+        // Then
+        verify(firmwareUpdateListener).onFilePacketRequest(new FileTransferPacketRequest("fileName", 0, anyLong()));
     }
 }

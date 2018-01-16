@@ -18,6 +18,8 @@ package com.wolkabout.wolk.filetransfer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Objects;
+
 public class FileTransferPacketRequest {
     private final String fileName;
     private final long packetId;
@@ -30,13 +32,19 @@ public class FileTransferPacketRequest {
     }
 
     @JsonProperty(value = "fileName")
-    public String getFileName() { return fileName; }
+    public String getFileName() {
+        return fileName;
+    }
 
     @JsonProperty(value = "chunkIndex")
-    public long getPacketId() { return packetId; }
+    public long getPacketId() {
+        return packetId;
+    }
 
     @JsonProperty(value = "chunkSize")
-    public long getPacketSize() { return packetSize; }
+    public long getPacketSize() {
+        return packetSize;
+    }
 
     @Override
     public String toString() {
@@ -45,5 +53,20 @@ public class FileTransferPacketRequest {
                 ", packetId=" + packetId +
                 ", packetSize=" + packetSize +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        FileTransferPacketRequest that = (FileTransferPacketRequest) o;
+        return packetId == that.packetId &&
+                packetSize == that.packetSize &&
+                Objects.equals(fileName, that.fileName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(fileName, packetId, packetSize);
     }
 }
