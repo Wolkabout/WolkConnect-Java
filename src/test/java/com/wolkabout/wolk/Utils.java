@@ -19,7 +19,6 @@ package com.wolkabout.wolk;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -40,17 +39,6 @@ public class Utils {
         }
 
         return result;
-    }
-
-    static byte[] calculateSha256(byte[] bytes) {
-        try {
-            final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update(bytes);
-
-            return md.digest();
-        } catch (NoSuchAlgorithmException ignored) {
-            return null;
-        }
     }
 
     static boolean isFileValid(File file, byte[] checksum) {

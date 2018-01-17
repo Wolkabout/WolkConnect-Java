@@ -16,18 +16,16 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
+import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class FileAssembler {
@@ -89,7 +87,7 @@ public class FileAssembler {
     }
 
     public PacketProcessingError processPacket(FileTransferPacket packet) {
-        LOG.trace("Processing packet");
+        LOG.debug("Processing {}", packet);
 
         if (!isPacketInOrder(packet)) {
             LOG.error("Discarding packet. Reason: Packet is out of order");
@@ -114,7 +112,6 @@ public class FileAssembler {
 
         appendDataChunkToFile(packet);
         currentPacketTryCount = 0;
-
 
         if (!allPacketsReceived()) {
             return PacketProcessingError.NONE;
@@ -182,7 +179,7 @@ public class FileAssembler {
         }
 
         LOG.debug("Verifying file integrity via SHA-256 checksum");
-        if (!isFileSha256Valid(constructedFile.toPath(), fileSha256)) {
+        if (!isFileSha256Valid(constructedFile, fileSha256)) {
             LOG.error("File integrity violated");
             return false;
         }
@@ -212,24 +209,14 @@ public class FileAssembler {
         }
     }
 
-    private boolean isFileSha256Valid(Path file, byte[] checksum) {
-        try (final FileInputStream fileInputStream = new FileInputStream(file.toFile())) {
-            final MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-
-            final int blockSize = 25 * 1024 * 1024; // Read binary file content in chunks of 25MB
-            final byte[] byteArray = new byte[blockSize];
-
-            int bytesCount;
-            while ((bytesCount = fileInputStream.read(byteArray)) != -1) {
-                messageDigest.update(byteArray, 0, bytesCount);
-            }
-
-            return Arrays.equals(messageDigest.digest(), checksum);
-        } catch (NoSuchAlgorithmException | IOException e) {
-            LOG.error("Unable to validate file integrity", e);
+    private boolean isFileSha256Valid(File file, byte[] checksum) {
+        try {
+            final byte[] fileBytes = DigestUtils.sha256(Files.readAllBytes(file.toPath()));
+            return Arrays.equals(checksum, fileBytes);
+        } catch (IOException e) {
+            LOG.error("Unable to verify file SHA-256", e);
+            return false;
         }
-
-        return false;
     }
 
     public void setListener(FileReceiver listener) {

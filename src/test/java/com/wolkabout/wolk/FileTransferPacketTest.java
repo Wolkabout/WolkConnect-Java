@@ -17,11 +17,11 @@
 package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filetransfer.FileTransferPacket;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Test;
 
 import java.nio.charset.StandardCharsets;
 
-import static com.wolkabout.wolk.Utils.calculateSha256;
 import static com.wolkabout.wolk.Utils.joinByteArrays;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
@@ -32,9 +32,9 @@ public class FileTransferPacketTest {
     @Test
     public void Given_ValidPacketBytes_When_PacketIsConstructed_Then_PacketContainsValidData() {
         // Given
-        final byte[] previousPacketHash = calculateSha256("".getBytes(StandardCharsets.UTF_8));
+        final byte[] previousPacketHash = DigestUtils.sha256("".getBytes(StandardCharsets.UTF_8));
         final byte[] data = "Hello world".getBytes();
-        final byte[] hash = calculateSha256(data);
+        final byte[] hash = DigestUtils.sha256(data);
 
         final byte[] packetBytes = joinByteArrays(previousPacketHash, data, hash);
 
@@ -50,9 +50,9 @@ public class FileTransferPacketTest {
     @Test
     public void Given_ValidPacketBytes_When_PacketIsConstructed_Then_PacketHashIsValid() {
         // Given
-        final byte[] previousPacketHash = calculateSha256("".getBytes(StandardCharsets.UTF_8));
+        final byte[] previousPacketHash = DigestUtils.sha256("".getBytes(StandardCharsets.UTF_8));
         final byte[] data = "Hello world".getBytes();
-        final byte[] hash = calculateSha256(joinByteArrays(previousPacketHash, data));
+        final byte[] hash = DigestUtils.sha256(data);
 
         final byte[] packetBytes = joinByteArrays(previousPacketHash, data, hash);
 
@@ -66,9 +66,9 @@ public class FileTransferPacketTest {
     @Test
     public void Given_CorruptedPacketBytes_When_PacketIsConstructed_Then_PacketHashIsNotValid() {
         // Given
-        final byte[] previousPacketHash = calculateSha256("".getBytes(StandardCharsets.UTF_8));
+        final byte[] previousPacketHash = DigestUtils.sha256("".getBytes(StandardCharsets.UTF_8));
         final byte[] data = "Hello wo".getBytes();
-        final byte[] hash = calculateSha256("Hello world".getBytes());
+        final byte[] hash = DigestUtils.sha256("Hello world".getBytes());
 
         final byte[] packetBytes = joinByteArrays(previousPacketHash, data, hash);
 
@@ -82,7 +82,7 @@ public class FileTransferPacketTest {
     @Test(expected = IllegalArgumentException.class)
     public void Given_PartialPacketBytes_When_PacketIsConstructed_Then_IllegalArgumentExceptionIsThrown() {
         // Given
-        final byte[] previousPacketHash = calculateSha256("".getBytes(StandardCharsets.UTF_8));
+        final byte[] previousPacketHash = DigestUtils.sha256("".getBytes(StandardCharsets.UTF_8));
         final byte[] data = "Hello world".getBytes();
         final byte[] hash = "partialPacketHash".getBytes();
 

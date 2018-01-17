@@ -16,16 +16,12 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.digest.DigestUtils;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
 public class FileTransferPacket {
-    private static final Logger LOG = LoggerFactory.getLogger(FileTransferPacket.class);
-
     private final byte[] hash;
     private final byte[] previousPacketHash;
 
@@ -63,15 +59,15 @@ public class FileTransferPacket {
     }
 
     public boolean isChecksumValid() {
-        try {
-            final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            md.update(previousPacketHash);
-            md.update(data);
+        final byte[] dataSha256 = DigestUtils.sha256(data);
+        return Arrays.equals(dataSha256, hash);
+    }
 
-            return Arrays.equals(md.digest(), hash);
-        } catch (NoSuchAlgorithmException e) {
-            LOG.error("Unable to validate packet integrity", e);
-            return false;
-        }
+    @Override
+    public String toString() {
+        return "FileTransferPacket{" +
+                "previousPacketHash=" + Base64.encodeBase64String(previousPacketHash) +
+                ", hash=" + Base64.encodeBase64String(hash) +
+                '}';
     }
 }
