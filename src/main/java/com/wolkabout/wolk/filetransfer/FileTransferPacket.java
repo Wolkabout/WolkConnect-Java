@@ -22,6 +22,8 @@ import org.apache.commons.codec.digest.DigestUtils;
 import java.util.Arrays;
 
 public class FileTransferPacket {
+    private static final int MINIMUM_PACKET_SIZE = 65; // 64 bytes of SHA-256 hash, and 1 byte of data
+
     private final byte[] hash;
     private final byte[] previousPacketHash;
 
@@ -35,7 +37,7 @@ public class FileTransferPacket {
          Part 3:   32 bytes   - SHA-256 hash of concatenated Part 1 and Part 2
          */
 
-        if (bytes.length <= 64) {
+        if (bytes.length < MINIMUM_PACKET_SIZE) {
             throw new IllegalArgumentException("Invalid packet.");
         }
 

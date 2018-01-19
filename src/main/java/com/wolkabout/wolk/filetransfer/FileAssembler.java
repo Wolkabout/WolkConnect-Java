@@ -117,15 +117,12 @@ public class FileAssembler {
             return PacketProcessingError.NONE;
         }
 
-        if (!createAndValidateFile()) {
-            return PacketProcessingError.UNABLE_TO_FINALIZE_FILE_CREATION;
-        }
-
         try {
+            createAndValidateFile();
             listenerOnFileCreated(constructedFile.getCanonicalFile().toPath());
             return PacketProcessingError.NONE;
         } catch (IOException e) {
-            LOG.error("Unable to convert file path to canonical one", e);
+            LOG.error("Unable to create, or validate file", e);
             return PacketProcessingError.UNABLE_TO_FINALIZE_FILE_CREATION;
         }
     }
@@ -164,27 +161,22 @@ public class FileAssembler {
         }
     }
 
-    private boolean createAndValidateFile() {
+    private void createAndValidateFile() throws IOException {
         LOG.info("Creating and validating file {}", constructedFile.toString());
 
         if (constructedFile.exists() && !constructedFile.delete()) {
-            LOG.error("Unable to remove stale firmware file (Stale firmware file and new firmware file have same name)");
-            return false;
+            throw new IOException("Unable to remove stale firmware file (Stale firmware file and new firmware file have same name)");
         }
 
         LOG.debug("Moving temporary file {} to {}", tmpFile, constructedFile.toPath().toAbsolutePath());
         if (!closeFileStream() || !moveFile(tmpFile.toPath(), constructedFile.toPath())) {
-            LOG.error("Unable to move temporary file");
-            return false;
+            throw new IOException("Unable to move temporary file");
         }
 
         LOG.debug("Verifying file integrity via SHA-256 checksum");
         if (!isFileSha256Valid(constructedFile, fileSha256)) {
-            LOG.error("File integrity violated");
-            return false;
+            throw new IOException("File integrity violated");
         }
-
-        return true;
     }
 
     private boolean closeFileStream() {

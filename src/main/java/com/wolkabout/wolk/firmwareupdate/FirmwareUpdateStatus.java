@@ -23,23 +23,11 @@ import java.util.Objects;
 
 public class FirmwareUpdateStatus {
     public enum StatusCode {
-
-        @JsonProperty("FILE_TRANSFER")
         FILE_TRANSFER,
-
-        @JsonProperty("FILE_READY")
         FILE_READY,
-
-        @JsonProperty("INSTALLATION")
         INSTALLATION,
-
-        @JsonProperty("COMPLETED")
         INSTALLATION_COMPLETED,
-
-        @JsonProperty("ABORTED")
         ABORTED,
-
-        @JsonProperty("ERROR")
         ERROR
     }
 

@@ -26,6 +26,14 @@ import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
 import java.util.List;
 
 class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
+    private static final String SENSOR_READINGS_CHANNEL = "readings/";
+    private static final String ACTUATOR_STATUSES_CHANNEL = "actuators/status/";
+    private static final String ALARMS_CHANNEL = "events/";
+
+    private static final String FIRMWARE_UPDATE_STATUSES_CHANNEL = "service/status/firmware/";
+    private static final String FIRMWARE_UPDATE_PACKET_REQUESTS_CHANNEL = "service/status/file/";
+    private static final String FIRMWARE_VERSION_CHANNEL = "firmware/version/";
+
     private final String deviceKey;
 
     JsonSingleOutboundMessageFactory(final String deviceKey) {
@@ -36,7 +44,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromReadings(List<SensorReading> readings) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(readings);
-            final String channel = "readings/" + deviceKey + "/" + readings.get(0).getReference();
+            final String channel = SENSOR_READINGS_CHANNEL + deviceKey + "/" + readings.get(0).getReference();
             return new OutboundMessage(payload, channel, readings.size());
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
@@ -47,7 +55,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(actuatorStatuses.get(0));
-            final String channel = "actuators/status/" + deviceKey + "/" + actuatorStatuses.get(0).getReference();
+            final String channel = ACTUATOR_STATUSES_CHANNEL + deviceKey + "/" + actuatorStatuses.get(0).getReference();
             return new OutboundMessage(payload, channel, 1);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
@@ -58,7 +66,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromAlarms(List<Alarm> alarms) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(alarms);
-            final String channel = "events/" + deviceKey + "/" + alarms.get(0).getReference();
+            final String channel = ALARMS_CHANNEL + deviceKey + "/" + alarms.get(0).getReference();
             return new OutboundMessage(payload, channel, alarms.size());
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
@@ -68,9 +76,9 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     @Override
     public OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus status) throws IllegalArgumentException {
         try {
-        final String payload = new ObjectMapper().writeValueAsString(status);
-        final String channel = "service/status/firmware/" + deviceKey;
-        return new OutboundMessage(payload, channel);
+            final String payload = new ObjectMapper().writeValueAsString(status);
+            final String channel = FIRMWARE_UPDATE_STATUSES_CHANNEL + deviceKey;
+            return new OutboundMessage(payload, channel);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
         }
@@ -80,7 +88,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException {
         try {
             final String payload = new ObjectMapper().writeValueAsString(request);
-            final String channel = "service/status/file/" + deviceKey;
+            final String channel = FIRMWARE_UPDATE_PACKET_REQUESTS_CHANNEL + deviceKey;
             return new OutboundMessage(payload, channel);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException(e);
@@ -89,7 +97,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     @Override
     public OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException {
-        final String channel = "firmware/version/" + deviceKey;
+        final String channel = FIRMWARE_VERSION_CHANNEL + deviceKey;
         return new OutboundMessage(firmwareVersion, channel);
     }
 }

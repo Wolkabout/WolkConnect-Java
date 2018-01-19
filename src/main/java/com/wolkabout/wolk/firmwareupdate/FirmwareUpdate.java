@@ -26,11 +26,13 @@ import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -132,8 +134,8 @@ public class FirmwareUpdate implements FileReceiver {
                 handleAbort();
                 break;
 
-            case UNKNOWN:
-                LOG.warn("Unknown command. Ignoring.");
+            default:
+                LOG.warn("Unknown command {}. Ignoring.", command.getType());
                 break;
         }
     }
@@ -145,23 +147,20 @@ public class FirmwareUpdate implements FileReceiver {
                 onPacketTimeout.cancel(false);
 
                 final FileAssembler.PacketProcessingError error = fileAssembler.processPacket(packet);
-                switch (error) {
-                    case RETRY_COUNT_EXCEEDED:
-                        state = State.IDLE;
-                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.RETRY_COUNT_EXCEEDED));
-                        break;
 
-                    case UNABLE_TO_FINALIZE_FILE_CREATION:
-                        state = State.IDLE;
-                        listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
-                        break;
-
-                    case NONE:
-                    case OUT_OF_ORDER:
-                    case INVALID_CHECKSUM:
-                        sendFilePacketRequest(fileAssembler.packetRequest());
-                        break;
+                if (error == FileAssembler.PacketProcessingError.RETRY_COUNT_EXCEEDED) {
+                    state = State.IDLE;
+                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.RETRY_COUNT_EXCEEDED));
+                    return;
                 }
+
+                if (error == FileAssembler.PacketProcessingError.UNABLE_TO_FINALIZE_FILE_CREATION) {
+                    state = State.IDLE;
+                    listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
+                    return;
+                }
+
+                sendFilePacketRequest(fileAssembler.packetRequest());
                 break;
 
             case IDLE:
@@ -293,7 +292,7 @@ public class FirmwareUpdate implements FileReceiver {
                 break;
 
             case URL_DOWNLOAD:
-                LOG.info("Aborting file download from mqtt");
+                LOG.info("Aborting file download from MQTT");
                 stopUrlFirmwareDownload();
 
                 state = State.IDLE;
@@ -301,9 +300,11 @@ public class FirmwareUpdate implements FileReceiver {
                 break;
 
             case INSTALL:
+                LOG.info("Aborting firmware update");
                 stopFirmwareUpdate();
                 /* Intentional fallthrough */
             case FILE_OBTAINED:
+                LOG.info("Discarding obtained firmware file parts");
                 if (firmwareFile != null && firmwareFile.toFile().exists()) {
                     firmwareFile.toFile().delete();
                 }
@@ -355,7 +356,7 @@ public class FirmwareUpdate implements FileReceiver {
     }
 
     private void stopFirmwareUpdate() {
-        LOG.info("Stopping firmware update");
+        LOG.debug("Stopping firmware update");
         executorService.shutdownNow();
     }
 
@@ -381,7 +382,7 @@ public class FirmwareUpdate implements FileReceiver {
     }
 
     private void stopUrlFirmwareDownload() {
-        LOG.info("Stopping Firmware file download");
+        LOG.debug("Stopping firmware download");
         executorService.shutdownNow();
     }
 
