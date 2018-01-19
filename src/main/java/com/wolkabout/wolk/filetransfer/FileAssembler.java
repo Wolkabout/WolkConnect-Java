@@ -173,7 +173,7 @@ public class FileAssembler {
         }
 
         LOG.debug("Moving temporary file {} to {}", tmpFile, constructedFile.toPath().toAbsolutePath());
-        if (!moveFile(tmpFile.toPath(), constructedFile.toPath()) || !closeFileStream()) {
+        if (!closeFileStream() || !moveFile(tmpFile.toPath(), constructedFile.toPath())) {
             LOG.error("Unable to move temporary file");
             return false;
         }
