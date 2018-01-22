@@ -205,14 +205,12 @@ public class FirmwareUpdate implements FileReceiver {
             case IDLE:
                 if (maximumFirmwareFileSize == 0) {
                     LOG.error("Unable to initialize firmware update procedure. Reason: File upload is disabled");
-                    state = State.IDLE;
                     listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
                     return;
                 }
 
                 if (fileSize > maximumFirmwareFileSize) {
                     LOG.error("Unable to initialize firmware update procedure. Reason: Unsupported file size {}", fileSize);
-                    state = State.IDLE;
                     listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSUPPORTED_FILE_SIZE));
                     return;
                 }
@@ -220,8 +218,6 @@ public class FirmwareUpdate implements FileReceiver {
                 LOG.info("Firmware update parameters - File name: {}, File size: {}, Base64 SHA-256: {}", fileName, fileSize, fileSha256);
                 if (!fileAssembler.initialize(fileName, fileSize, Base64.decodeBase64(fileSha256))) {
                     LOG.error("Unable to initialize firmware update procedure. Reason: File system error");
-                    state = State.IDLE;
-
                     listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_SYSTEM_ERROR));
                     return;
                 }
