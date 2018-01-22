@@ -135,8 +135,7 @@ public class FirmwareUpdate implements FileReceiver {
                 break;
 
             default:
-                LOG.warn("Unknown command {}. Ignoring.", command.getType());
-                break;
+                throw new IllegalArgumentException("Unknown command: " + command);
         }
     }
 
@@ -173,6 +172,9 @@ public class FirmwareUpdate implements FileReceiver {
             case INSTALL:
                 LOG.warn("Ignoring file transfer packet. Reason: Firmware file transfer completed");
                 break;
+
+            default:
+                throw new IllegalStateException("State: " + state);
         }
     }
 
@@ -237,6 +239,9 @@ public class FirmwareUpdate implements FileReceiver {
             case INSTALL:
                 LOG.warn("Ignoring file upload command. Reason: Firmware update already initiated");
                 break;
+
+            default:
+                throw new IllegalStateException("State: " + state);
         }
     }
 
@@ -261,6 +266,9 @@ public class FirmwareUpdate implements FileReceiver {
             case INSTALL:
                 LOG.warn("Ignoring url download command. Reason: Firmware update already initiated");
                 break;
+
+            default:
+                throw new IllegalStateException("State: " + state);
         }
     }
 
@@ -278,6 +286,9 @@ public class FirmwareUpdate implements FileReceiver {
             case INSTALL:
                 LOG.warn("Ignoring firmware install command. Reason: Firmware file not obtained");
                 break;
+
+            default:
+                throw new IllegalStateException("State: " + state);
         }
     }
 
@@ -316,6 +327,9 @@ public class FirmwareUpdate implements FileReceiver {
             case IDLE:
                 LOG.warn("Ignoring abort command. Reason: Firmware update not initialized");
                 break;
+
+            default:
+                throw new IllegalStateException("State: " + state);
         }
     }
 
