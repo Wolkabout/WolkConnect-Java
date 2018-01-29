@@ -67,8 +67,15 @@ public class MqttConnectivityService extends AbstractConnectivityService {
         futureConnection.connect().then(new Callback<Void>() {
             @Override
             public void onSuccess(Void aVoid) {
-                startReceiveTask();
-                listenerOnConnected();
+                // Workaround for Fusesource MQTT library - Calling publish immediately after connection establishment fails
+                executorService.schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        startReceiveTask();
+                        listenerOnConnected();
+                    }
+                }, 3, TimeUnit.SECONDS);
+
             }
 
             @Override
