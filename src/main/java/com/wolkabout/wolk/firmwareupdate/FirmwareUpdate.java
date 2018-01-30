@@ -187,7 +187,7 @@ public class FirmwareUpdate implements FileReceiver {
 
         if (!firmwareVersion.equals(savedFirmwareVersion)) {
             LOG.info("Firmware update successful. Updated firmware from version '{}' to '{}'", savedFirmwareVersion, firmwareVersion);
-            listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.INSTALLATION_COMPLETED));
+            listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.COMPLETED));
         } else {
             LOG.error("Firmware update failed. Current firmware version {}", firmwareVersion);
             listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.INSTALLATION_FAILED));

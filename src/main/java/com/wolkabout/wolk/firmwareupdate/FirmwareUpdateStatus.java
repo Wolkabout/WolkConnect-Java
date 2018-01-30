@@ -26,7 +26,7 @@ public class FirmwareUpdateStatus {
         FILE_TRANSFER,
         FILE_READY,
         INSTALLATION,
-        INSTALLATION_COMPLETED,
+        COMPLETED,
         ABORTED,
         ERROR
     }
