@@ -293,6 +293,9 @@ public class FirmwareUpdate implements FileReceiver {
             case PACKET_FILE_TRANSFER:
                 LOG.info("Aborting file transfer");
                 fileAssembler.abort();
+                if (onPacketTimeout != null) {
+                    onPacketTimeout.cancel(false);
+                }
 
                 state = State.IDLE;
                 listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.ABORTED));
@@ -340,7 +343,9 @@ public class FirmwareUpdate implements FileReceiver {
             public void run() {
                 LOG.error("Aborting firmware update. Reason: Requested file transfer packet timeout");
                 fileAssembler.abort();
+
                 state = State.IDLE;
+                listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSPECIFIED));
             }
         }, packetTimeoutMilliseconds, TimeUnit.MILLISECONDS);
         listenerOnFilePacketRequest(request);
