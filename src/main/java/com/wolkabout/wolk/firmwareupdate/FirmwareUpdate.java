@@ -276,10 +276,13 @@ public class FirmwareUpdate implements FileReceiver {
                 startFirmwareUpdate();
                 break;
 
+            case INSTALL:
+                LOG.warn("Ignoring install command. Reason: Installation already started");
+                break;
+
             case IDLE:
             case PACKET_FILE_TRANSFER:
             case URL_DOWNLOAD:
-            case INSTALL:
                 LOG.warn("Resetting to initial state and aborting on-going file transfer, if any. Reason: Illegal flow");
                 state = State.IDLE;
                 listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSPECIFIED));
