@@ -280,7 +280,9 @@ public class FirmwareUpdate implements FileReceiver {
             case PACKET_FILE_TRANSFER:
             case URL_DOWNLOAD:
             case INSTALL:
-                LOG.warn("Ignoring firmware install command. Reason: Firmware file not obtained");
+                LOG.warn("Resetting to initial state and aborting on-going file transfer, if any. Reason: Illegal flow");
+                state = State.IDLE;
+                listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSPECIFIED));
                 break;
 
             default:
@@ -324,7 +326,8 @@ public class FirmwareUpdate implements FileReceiver {
                 break;
 
             case IDLE:
-                LOG.warn("Ignoring abort command. Reason: Firmware update not initialized");
+                LOG.warn("Ignoring 'ABORT' command. Reason: Illegal flow");
+                listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.UNSPECIFIED));
                 break;
 
             default:
