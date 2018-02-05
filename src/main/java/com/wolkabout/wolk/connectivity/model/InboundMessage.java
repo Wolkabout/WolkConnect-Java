@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,28 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity.model;
 
-class OutboundMessage {
-    private final String payload;
-    private final String topic;
-    private final int serializedItemsCount;
+import java.nio.charset.StandardCharsets;
 
-    public OutboundMessage(final String payload, final String topic, final int serializedItemsCount) {
-        this.payload = payload;
-        this.topic = topic;
-        this.serializedItemsCount = serializedItemsCount;
+public class InboundMessage {
+    private final String channel;
+    private final byte[] payload;
+
+    public InboundMessage(String channel, byte[] payload) {
+        this.channel = channel;
+        this.payload = payload.clone();
     }
 
     public String getPayload() {
+        return new String(payload, StandardCharsets.UTF_8);
+    }
+
+    public byte[] getBinaryPayload() {
         return payload;
     }
 
-    public String getTopic() {
-        return topic;
-    }
-
-    public int getSerializedItemsCount() {
-        return serializedItemsCount;
+    public String getChannel() {
+        return channel;
     }
 }

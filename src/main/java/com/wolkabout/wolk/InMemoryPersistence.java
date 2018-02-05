@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,27 +19,27 @@ package com.wolkabout.wolk;
 import java.util.*;
 
 public class InMemoryPersistence implements Persistence {
-    private final HashMap<String, List<Reading>> readings = new LinkedHashMap<>();
+    private final HashMap<String, List<SensorReading>> readings = new LinkedHashMap<>();
     private final HashMap<String, List<Alarm>> alarms = new LinkedHashMap<>();
     private final HashMap<String, ActuatorStatus> actuatorStatuses = new LinkedHashMap<>();
 
 
     @Override
-    public boolean putSensorReading(String key, Reading reading) {
+    public boolean putSensorReading(String key, SensorReading reading) {
         if (readings.get(key) == null) {
-            readings.put(key, new ArrayList<Reading>());
+            readings.put(key, new ArrayList<SensorReading>());
         }
 
         return readings.get(key).add(reading);
     }
 
     @Override
-    public List<Reading> getSensorReadings(String key, int count) {
+    public List<SensorReading> getSensorReadings(String key, int count) {
         if (!readings.containsKey(key)) {
             return new ArrayList<>();
         }
 
-        final List<Reading> readingsByKey = readings.get(key);
+        final List<SensorReading> readingsByKey = readings.get(key);
         return readingsByKey.subList(0, Math.min(readingsByKey.size(), count));
     }
 
@@ -50,7 +50,7 @@ public class InMemoryPersistence implements Persistence {
             return;
         }
 
-        final List<Reading> readingsByKey = readings.get(key);
+        final List<SensorReading> readingsByKey = readings.get(key);
         if (readingsByKey.size() <= count) {
             readings.remove(key);
         } else {

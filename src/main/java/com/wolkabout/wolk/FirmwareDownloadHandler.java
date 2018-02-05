@@ -16,16 +16,18 @@
  */
 package com.wolkabout.wolk;
 
-/*
- *  Provide implementation of ActuatorHandler to pass actuation commands from platform to your device.
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Path;
+
+/**
+ * Provide implementation of {@link FirmwareDownloadHandler} to enable firmware download from URL.
  */
-public interface ActuationHandler {
+public interface FirmwareDownloadHandler {
     /**
-     * When the actuation command is given from the platform, it will be delivered to this method.
-     * This mehtod should pass the new value for the actuator to device.
-     *
-     * @param reference of the actuator.
-     * @param value     of the actuation.
+     * @param file URL of firmware file to be downloaded
+     * @return {@code Path} to downloaded file
+     * @throws IOException if {@code file} can not be obtained, or saved locally
      */
-    void handleActuation(String reference, String value);
+    Path downloadFile(URL file) throws IOException;
 }

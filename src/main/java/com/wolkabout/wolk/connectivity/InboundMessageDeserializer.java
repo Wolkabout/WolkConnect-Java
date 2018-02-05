@@ -14,18 +14,14 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity;
 
-/*
- *  Provide implementation of ActuatorHandler to pass actuation commands from platform to your device.
- */
-public interface ActuationHandler {
-    /**
-     * When the actuation command is given from the platform, it will be delivered to this method.
-     * This mehtod should pass the new value for the actuator to device.
-     *
-     * @param reference of the actuator.
-     * @param value     of the actuation.
-     */
-    void handleActuation(String reference, String value);
+import com.wolkabout.wolk.ActuatorCommand;
+import com.wolkabout.wolk.connectivity.model.InboundMessage;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
+
+public interface InboundMessageDeserializer {
+    ActuatorCommand deserializeActuatorCommand(InboundMessage inboundMessage) throws IllegalArgumentException;
+
+    FirmwareUpdateCommand deserializeFirmwareUpdateCommand(InboundMessage inboundMessage) throws IllegalArgumentException;
 }

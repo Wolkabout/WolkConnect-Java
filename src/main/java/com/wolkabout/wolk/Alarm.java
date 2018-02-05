@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,14 @@
  */
 package com.wolkabout.wolk;
 
-class Alarm {
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class Alarm {
     private final String ref;
+
     private final String value;
+
     private final long utc;
 
     public Alarm(String ref, String value, long utc) {
@@ -27,14 +32,17 @@ class Alarm {
         this.utc = utc;
     }
 
+    @JsonIgnore
     public String getReference() {
         return ref;
     }
 
+    @JsonProperty(value = "data")
     public String getValue() {
         return value;
     }
 
+    @JsonProperty(value = "utc")
     public long getUtc() {
         return utc;
     }

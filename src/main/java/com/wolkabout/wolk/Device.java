@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ public class Device {
 
     public Device(String deviceKey) {
         this.deviceKey = deviceKey;
+        this.actuators = new String[]{};
     }
 
     public Protocol getProtocol() {

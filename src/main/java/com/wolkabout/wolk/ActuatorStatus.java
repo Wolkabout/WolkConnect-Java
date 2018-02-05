@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 package com.wolkabout.wolk;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Contains the status of the Actuator.
@@ -27,6 +28,7 @@ public class ActuatorStatus {
     private String ref;
 
     private final Status status;
+
     private final String value;
 
     public ActuatorStatus(Status status, String value) {
@@ -44,10 +46,12 @@ public class ActuatorStatus {
         return ref;
     }
 
+    @JsonProperty(value = "status")
     public Status getStatus() {
         return status;
     }
 
+    @JsonProperty(value = "value")
     public String getValue() {
         return value;
     }

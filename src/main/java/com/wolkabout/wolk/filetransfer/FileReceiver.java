@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,10 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.filetransfer;
 
-import java.util.List;
+import java.nio.file.Path;
 
-interface OutboundMessageFactory {
-
-    OutboundMessage makeFromReadings(List<Reading> readings);
-
-    OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
-
-    OutboundMessage makeFromAlarms(List<Alarm> alarms);
+public interface FileReceiver {
+    void onFileReceived(Path file);
 }

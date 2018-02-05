@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.connectivity.mqtt;
 
 import org.fusesource.mqtt.client.MQTT;
+import org.fusesource.mqtt.client.QoS;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -32,7 +33,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
-class MqttFactory {
+public class MqttFactory {
     private static final String FACTORY_TYPE = "X.509";
 
     private final MQTT mqtt;
@@ -77,6 +78,9 @@ class MqttFactory {
             throw new IllegalStateException("No device key provided.");
         }
 
+        mqtt.setWillTopic("lastwill/" + mqtt.getUserName());
+        mqtt.setWillMessage("Gone offline");
+        mqtt.setWillQos(QoS.EXACTLY_ONCE);
         return mqtt;
     }
 
@@ -97,6 +101,11 @@ class MqttFactory {
             mqtt.setSslContext(sslContext);
         }
 
+
+        mqtt.setWillTopic("lastwill/" + mqtt.getUserName());
+        mqtt.setWillMessage("Gone offline");
+        mqtt.setWillQos(QoS.EXACTLY_ONCE);
+
         mqtt.setConnectAttemptsMax(-1);        // No limit on number of connection attempts
 
         mqtt.setReconnectDelay(5000);          // Delay in milliseconds
@@ -113,7 +122,7 @@ class MqttFactory {
         }
     }
 
-    private TrustManagerFactory getTrustManagerFactory(final Certificate certificate, final String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+    private TrustManagerFactory getTrustManagerFactory(Certificate certificate, String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         // Creating a KeyStore containing our trusted CAs
         final String keyStoreType = KeyStore.getDefaultType();
         final KeyStore keyStore = KeyStore.getInstance(keyStoreType);

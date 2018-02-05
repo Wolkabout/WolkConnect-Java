@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.1.4'
+    compile 'com.wolkabout:wolk:2.2.0'
 }
 ```
 
@@ -33,7 +33,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>2.1.4</version>
+  <version>2.2.0</version>
   <type>pom</type>
 </dependency>
 ```
@@ -118,3 +118,38 @@ final Wolk wolk = Wolk.connectDevice(device)
 ```
 
 For more info on persistence mechanism see WolkBuilder.withPersistence method, and Persistence interface.
+
+**Firmware Update:**
+
+WolkAbout Java Connector provides mechanism for updating device firmware.
+
+By default this feature is disabled.
+See code snippet below on how to enable device firmware update.
+
+```java
+Device device = new Device("device_key");
+device.setPassword("some_password");
+device.setProtocol(Protocol.JSON_SINGLE);
+
+class FirmwareUpdater implements FirmwareUpdateHandler {
+    @Override
+    public void updateFirmwareWithFile(Path firmwareFile) {
+        // Mock install
+        LOG.info("Updating firmware with file '{}'", firmwareFile);
+
+        // Optionally delete 'firmwareFile'
+    }
+}
+
+
+final Wolk wolk = Wolk.connectDevice(device)
+        .toHost(Wolk.WOLK_DEMO_URL)
+        .certificateAuthority(Wolk.WOLK_DEMO_CA)
+        // Enable firmware update
+        .withFirmwareUpdate("1.2.3",                             // Current firmware version                             
+                            new FirmwareUpdater(),               // Implementation of FirmwareUpdateHandler, which performs installation of obtained device firmware
+                            new File("./download").toPath(),     // Directory where downloaded device firmware files will be stored 
+                            1024 * 1024 * 1024,                  // Maximum acceptable size of firmware file, in bytes
+                            null)                                // Optional implementation of FirmwareDownloadHandler for cases when one wants to download device firmware via given URL
+        .connect();
+```
