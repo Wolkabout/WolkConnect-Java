@@ -24,10 +24,12 @@ import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
 
 import java.util.List;
+import java.util.Map;
 
 class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     private static final String SENSOR_READINGS_CHANNEL = "readings/";
     private static final String ACTUATOR_STATUSES_CHANNEL = "actuators/status/";
+    private static final String CURRENT_CONFIGURATION_CHANNEL = "configurations/current/";
     private static final String ALARMS_CHANNEL = "events/";
 
     private static final String FIRMWARE_UPDATE_STATUSES_CHANNEL = "service/status/firmware/";
@@ -99,5 +101,16 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     public OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException {
         final String channel = FIRMWARE_VERSION_CHANNEL + deviceKey;
         return new OutboundMessage(firmwareVersion, channel);
+    }
+
+    @Override
+    public OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException {
+        try {
+            final String payload = new ObjectMapper().writeValueAsString(configuration);
+            final String channel = CURRENT_CONFIGURATION_CHANNEL + deviceKey;
+            return new OutboundMessage(payload, channel);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 }

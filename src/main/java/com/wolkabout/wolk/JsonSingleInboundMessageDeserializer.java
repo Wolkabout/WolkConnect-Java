@@ -45,4 +45,13 @@ public class JsonSingleInboundMessageDeserializer implements InboundMessageDeser
             throw new IllegalArgumentException(e);
         }
     }
+
+    @Override
+    public ConfigurationCommand deserializeConfigurationCommand(InboundMessage inboundMessage) throws IllegalArgumentException {
+        try {
+            return new ObjectMapper().readValue(inboundMessage.getPayload(), ConfigurationCommand.class);
+        } catch (IOException e) {
+            throw new IllegalArgumentException(e);
+        }
+    }
 }

@@ -16,33 +16,30 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ActuatorCommand {
-    private static final Logger LOG = LoggerFactory.getLogger(ActuatorCommand.class);
+import java.util.Map;
 
-    public enum CommandType {UNKNOWN, SET, STATUS}
+public class ConfigurationCommand {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationCommand.class);
+
+    public enum CommandType {UNKNOWN, SET, CURRENT}
 
     @JsonProperty(value = "command")
     private String commandType;
 
-    @JsonProperty(value = "value")
-    private String value;
-
-    @JsonIgnore
-    private String reference;
+    @JsonProperty(value = "values")
+    private Map<String, String> values;
 
     // Required by Jackson
-    private ActuatorCommand() {
+    private ConfigurationCommand() {
     }
 
-    public ActuatorCommand(CommandType commandType, String value, String reference) {
+    public ConfigurationCommand(CommandType commandType, Map<String, String> values) {
         this.commandType = commandType.toString();
-        this.value = value;
-        this.reference = reference;
+        this.values = values;
     }
 
     public CommandType getType() {
@@ -54,20 +51,15 @@ public class ActuatorCommand {
         }
     }
 
-    public String getValue() {
-        return value;
-    }
-
-    public String getReference() {
-        return reference;
+    public Map<String, String> getValues() {
+        return values;
     }
 
     @Override
     public String toString() {
-        return "ActuatorCommand{" +
-                "type='" + commandType + '\'' +
-                ", value='" + value + '\'' +
-                ", reference='" + reference + '\'' +
+        return "ConfigurationCommand{" +
+                "commandType='" + commandType + '\'' +
+                ", values='" + values + '\'' +
                 '}';
     }
 }

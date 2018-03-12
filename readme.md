@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.2.0'
+    compile 'com.wolkabout:wolk:2.3.0'
 }
 ```
 
@@ -33,7 +33,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>2.2.0</version>
+  <version>2.3.0</version>
   <type>pom</type>
 </dependency>
 ```
@@ -56,7 +56,15 @@ final Wolk wolk = Wolk.connectDevice(device)
         })
        .actuatorStatusProvider(ref -> {
             // TODO Invoke code which reads the state of the actuator.
-            return new ActuatorStatus(ActuatorStatus.Status.READY, "1");})
+            return new ActuatorStatus(ActuatorStatus.Status.READY, "1");
+        })
+        .configurationHandler((configuration) -> {
+            // TODO Set device configuration according to received configuration
+        })
+        .configurationProvider(() -> {
+            // TODO Read configuration from device and return it
+            return new HashMap<String, String>();
+        })
        .connect();
 ```
 
@@ -74,6 +82,9 @@ wolk.addSensorReading("H", "52");
 // publish readings
 wolk.publish();
 ```
+
+// publish configuration
+wolk.publishConfiguration()
 
 To update actuator status you can publish it like this:
 ```java

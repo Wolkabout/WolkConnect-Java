@@ -24,6 +24,7 @@ import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
 
 import java.util.List;
+import java.util.Map;
 
 public interface OutboundMessageFactory {
 
@@ -38,4 +39,6 @@ public interface OutboundMessageFactory {
     OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException;
 
     OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException;
+
+    OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException;
 }

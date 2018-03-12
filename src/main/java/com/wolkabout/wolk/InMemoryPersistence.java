@@ -19,10 +19,10 @@ package com.wolkabout.wolk;
 import java.util.*;
 
 public class InMemoryPersistence implements Persistence {
-    private final HashMap<String, List<SensorReading>> readings = new LinkedHashMap<>();
-    private final HashMap<String, List<Alarm>> alarms = new LinkedHashMap<>();
-    private final HashMap<String, ActuatorStatus> actuatorStatuses = new LinkedHashMap<>();
-
+    private final Map<String, List<SensorReading>> readings = new HashMap<>();
+    private final Map<String, List<Alarm>> alarms = new HashMap<>();
+    private final Map<String, ActuatorStatus> actuatorStatuses = new HashMap<>();
+    private Map<String, String> configuration;
 
     @Override
     public boolean putSensorReading(String key, SensorReading reading) {
@@ -120,6 +120,22 @@ public class InMemoryPersistence implements Persistence {
     @Override
     public List<String> getActuatorStatusesKeys() {
         return new ArrayList<>(actuatorStatuses.keySet());
+    }
+
+    @Override
+    public boolean putConfiguration(Map<String, String> configuration) {
+        this.configuration = configuration;
+        return true;
+    }
+
+    @Override
+    public Map<String, String> getConfiguration() {
+        return configuration;
+    }
+
+    @Override
+    public void removeConfiguration() {
+        configuration = null;
     }
 
     @Override

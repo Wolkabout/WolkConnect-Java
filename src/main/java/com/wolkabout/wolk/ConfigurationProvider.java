@@ -16,16 +16,17 @@
  */
 package com.wolkabout.wolk;
 
+import java.util.Map;
+
 /*
- *  Provide implementation of ActuatorHandler to pass actuation commands from platform to your device.
+ *  ConfigurationProvider reads configuration of device. This information is passed on to the platform.
  */
-public interface ActuationHandler {
+public interface ConfigurationProvider {
     /**
-     * When the actuation command is given from the platform, it will be delivered to this method.
-     * This method should pass the new value for the actuator to device.
+     * Reads device configuration and returns it as Map<String, String> with device configuration reference as map key,
+     * and device configuration value as map value.
      *
-     * @param reference of the actuator.
-     * @param value     of the actuation.
+     * @return Map<String, String> object.
      */
-    void handleActuation(String reference, String value);
+    Map<String, String> getConfiguration();
 }
