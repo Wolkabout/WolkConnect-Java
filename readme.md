@@ -83,10 +83,12 @@ wolk.addSensorReading("H", "52");
 wolk.publish();
 ```
 
-// publish configuration
+Publish device configuration to platform:
+```java
 wolk.publishConfiguration()
+```
 
-To update actuator status you can publish it like this:
+Publish actuatorstatus to platform:
 ```java
 wolk.publishActuatorStatus("SW");
 wolk.publishActuatorStatus("SL");
