@@ -85,7 +85,7 @@ wolk.publish();
 
 Publish device configuration to platform:
 ```java
-wolk.publishConfiguration()
+wolk.publishConfiguration();
 ```
 
 Publish actuator status to platform:
