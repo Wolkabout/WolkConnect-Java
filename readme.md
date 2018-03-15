@@ -88,7 +88,7 @@ Publish device configuration to platform:
 wolk.publishConfiguration()
 ```
 
-Publish actuatorstatus to platform:
+Publish actuator status to platform:
 ```java
 wolk.publishActuatorStatus("SW");
 wolk.publishActuatorStatus("SL");
