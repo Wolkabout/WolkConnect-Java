@@ -16,9 +16,6 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 /**
  * Contains the status of the Actuator.
  */
@@ -41,17 +38,14 @@ public class ActuatorStatus {
         this.ref = ref;
     }
 
-    @JsonIgnore
     public String getReference() {
         return ref;
     }
 
-    @JsonProperty(value = "status")
     public Status getStatus() {
         return status;
     }
 
-    @JsonProperty(value = "value")
     public String getValue() {
         return value;
     }

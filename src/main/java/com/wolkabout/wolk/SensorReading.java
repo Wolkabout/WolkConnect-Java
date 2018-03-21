@@ -16,33 +16,36 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Arrays;
+import java.util.List;
 
 public class SensorReading {
     private final String ref;
 
-    private final String value;
+    private final List<String> values;
 
     private final long utc;
 
     public SensorReading(String ref, String value, long utc) {
         this.ref = ref;
-        this.value = value;
+        this.values = Arrays.asList(value);
         this.utc = utc;
     }
 
-    @JsonIgnore
+    public SensorReading(String ref, List<String> values, long utc) {
+        this.ref = ref;
+        this.values = values;
+        this.utc = utc;
+    }
+
     String getReference() {
         return ref;
     }
 
-    @JsonProperty(value = "data")
-    String getValue() {
-        return value;
+    List<String> getValues() {
+        return values;
     }
 
-    @JsonProperty(value = "utc")
     long getUtc() {
         return utc;
     }
@@ -51,7 +54,7 @@ public class SensorReading {
     public String toString() {
         return "SensorReading{" +
                 "ref='" + ref + '\'' +
-                ", value='" + value + '\'' +
+                ", values=" + values +
                 ", utc=" + utc +
                 '}';
     }

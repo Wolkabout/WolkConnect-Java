@@ -22,7 +22,7 @@ import com.wolkabout.wolk.connectivity.model.InboundMessage;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
 
 public interface InboundMessageDeserializer {
-    ActuatorCommand deserializeActuatorCommand(InboundMessage inboundMessage) throws IllegalArgumentException;
+    ActuatorCommand deserializeActuatorCommand(InboundMessage inboundMessage);
 
     FirmwareUpdateCommand deserializeFirmwareUpdateCommand(InboundMessage inboundMessage) throws IllegalArgumentException;
 

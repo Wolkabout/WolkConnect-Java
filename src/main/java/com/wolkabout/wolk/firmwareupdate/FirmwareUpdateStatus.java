@@ -16,9 +16,6 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Objects;
 
 public class FirmwareUpdateStatus {
@@ -73,13 +70,10 @@ public class FirmwareUpdateStatus {
         return new FirmwareUpdateStatus(StatusCode.ERROR, errorCode);
     }
 
-    @JsonProperty(value = "status")
     public StatusCode getStatus() {
         return status;
     }
 
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonProperty(value = "error")
     public Integer getErrorCode() {
         return errorCode;
     }

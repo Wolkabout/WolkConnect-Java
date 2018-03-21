@@ -43,6 +43,7 @@ import java.util.Map;
  * Handles the connection to the WolkAbout IoT Platform.
  */
 public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listener {
+
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
@@ -84,7 +85,8 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
         switch (device.getProtocol()) {
             case JSON_SINGLE:
-                outboundMessageFactory = new JsonSingleOutboundMessageFactory(device.getDeviceKey());
+                outboundMessageFactory =
+                        new JsonSingleOutboundMessageFactory(device.getDeviceKey(), device.getSensorDelimiters());
                 inboundMessageDeserializer = new JsonSingleInboundMessageDeserializer();
                 break;
             default:
@@ -196,7 +198,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         for (final String key : persistence.getSensorReadingsKeys()) {
             try {
                 final List<SensorReading> readings = persistence.getSensorReadings(key, PUBLISH_DATA_ITEMS_COUNT);
-                final OutboundMessage outboundMessage = outboundMessageFactory.makeFromReadings(readings);
+                final OutboundMessage outboundMessage = outboundMessageFactory.makeFromSensorReadings(readings);
 
                 LOG.info("Publishing {} persisted sensor reading(s)", outboundMessage.getSerializedItemsCount());
                 if (!connectivityService.publish(outboundMessage)) {
@@ -378,12 +380,45 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
      * @param value Value of the measurement
      * @param time  UTC timestamp, in seconds or milliseconds
      */
-    public void addSensorReading(final String ref, final String value, final long time) {
+    public void addSensorReading(String ref, String value, long time) {
+        final SensorReading reading = new SensorReading(ref, value, time);
+
         enqueueCommand(new CommandQueue.Command() {
             @Override
             public void execute() {
-                final SensorReading reading = new SensorReading(ref, value, time);
+                LOG.debug("Persisting {}", reading);
+                if (!persistence.putSensorReading(reading.getReference(), reading)) {
+                    LOG.error("Could not persist {}", reading);
+                }
+            }
+        });
+    }
 
+    /**
+     * Add single multi-value sensor reading.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of the sensor
+     * @param values Values of the measurement
+     */
+    public void addSensorReading(String ref, List<String> values) {
+        addSensorReading(ref, values, System.currentTimeMillis() / 1000L);
+    }
+
+    /**
+     * Add single multi-value sensor reading.
+     * Can be called from multiple threads simultaneously.
+     *
+     * @param ref   Reference of the sensor
+     * @param values Values of the measurement
+     * @param time  UTC timestamp, in seconds or milliseconds
+     */
+    public void addSensorReading(String ref, List<String> values, long time) {
+        final SensorReading reading = new SensorReading(ref, values, time);
+
+        enqueueCommand(new CommandQueue.Command() {
+            @Override
+            public void execute() {
                 LOG.debug("Persisting {}", reading);
                 if (!persistence.putSensorReading(reading.getReference(), reading)) {
                     LOG.error("Could not persist {}", reading);
@@ -686,7 +721,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         private void validateActuationCallbacks() throws IllegalStateException {
-            if (instance.device.getActuators().length != 0) {
+            if (instance.device.getActuators().size() != 0) {
                 if (instance.actuatorStatusProvider == null || instance.actuationHandler == null) {
                     throw new IllegalStateException("Device has actuator references, ActuatorStatusProvider and ActuationHandler must be set.");
                 }

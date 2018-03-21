@@ -16,33 +16,98 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.*;
 import com.wolkabout.wolk.connectivity.InboundMessageDeserializer;
 import com.wolkabout.wolk.connectivity.model.InboundMessage;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
 
-import java.io.IOException;
+import java.lang.reflect.Type;
 
 public class JsonSingleInboundMessageDeserializer implements InboundMessageDeserializer {
-    @Override
-    public ActuatorCommand deserializeActuatorCommand(InboundMessage inboundMessage) throws IllegalArgumentException {
-        try {
-            final String channel = inboundMessage.getChannel();
-            final String reference = channel.substring(channel.lastIndexOf("/") + 1);
 
-            final ActuatorCommand withoutReference = new ObjectMapper().readValue(inboundMessage.getPayload(), ActuatorCommand.class);
-            return new ActuatorCommand(withoutReference.getType(), withoutReference.getValue(), reference);
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
-        }
+    private final Gson gson;
+
+    public JsonSingleInboundMessageDeserializer() {
+        this.gson = new GsonBuilder()
+                .registerTypeAdapter(ActuatorCommand.class, new ActuatorCommandDeserializer())
+                .registerTypeAdapter(FirmwareUpdateCommand.class, new FirmwareUpdateCommandDeserializer())
+                .create();
     }
 
     @Override
-    public FirmwareUpdateCommand deserializeFirmwareUpdateCommand(InboundMessage inboundMessage) throws IllegalArgumentException {
-        try {
-            return new ObjectMapper().readValue(inboundMessage.getPayload(), FirmwareUpdateCommand.class);
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
+    public ActuatorCommand deserializeActuatorCommand(InboundMessage inboundMessage) {
+        final String channel = inboundMessage.getChannel();
+        final String reference = channel.substring(channel.lastIndexOf("/") + 1);
+
+        final ActuatorCommand withoutReference = gson.fromJson(inboundMessage.getPayload(), ActuatorCommand.class);
+        return new ActuatorCommand(withoutReference.getType(), withoutReference.getValue(), reference);
+    }
+
+    @Override
+    public FirmwareUpdateCommand deserializeFirmwareUpdateCommand(InboundMessage inboundMessage) {
+        return gson.fromJson(inboundMessage.getPayload(), FirmwareUpdateCommand.class);
+    }
+
+    private class ActuatorCommandDeserializer implements JsonDeserializer<ActuatorCommand> {
+
+        @Override
+        public ActuatorCommand deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+                throws JsonParseException {
+            final JsonObject jsonObject = json.getAsJsonObject();
+
+            final JsonElement commandElement = jsonObject.get("command");
+            final ActuatorCommand.CommandType commandType =
+                    commandElement != null ?
+                            ActuatorCommand.CommandType.valueOf(commandElement.getAsString()) :
+                            ActuatorCommand.CommandType.UNKNOWN;
+
+            final JsonElement valueElement = jsonObject.get("value");
+            final String value = valueElement != null ? valueElement.getAsString() : "";
+
+            return new ActuatorCommand(commandType, value, "");
+        }
+    }
+
+    private class FirmwareUpdateCommandDeserializer implements JsonDeserializer<FirmwareUpdateCommand> {
+        @Override
+        public FirmwareUpdateCommand deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+                throws JsonParseException {
+            final JsonObject jsonObject = json.getAsJsonObject();
+
+            final JsonElement commandElement = jsonObject.get("command");
+            final FirmwareUpdateCommand.Type commandType =
+                    commandElement != null ?
+                            FirmwareUpdateCommand.Type.valueOf(commandElement.getAsString()) :
+                            FirmwareUpdateCommand.Type.UNKNOWN;
+
+            switch (commandType) {
+                case FILE_UPLOAD:
+                    final JsonElement fileNameElement = jsonObject.get("fileName");
+                    final String fileName = fileNameElement.getAsString();
+
+                    final JsonElement fileSizeElement = jsonObject.get("fileSize");
+                    final long fileSize = fileSizeElement.getAsLong();
+
+                    final JsonElement base64fileSha256Element = jsonObject.get("fileHash");
+                    final String base64fileSha256 = base64fileSha256Element.getAsString();
+
+                    final JsonElement autoInstallElement = jsonObject.get("autoInstall");
+                    final boolean autoInstall = autoInstallElement.getAsBoolean();
+
+                    return new FirmwareUpdateCommand(commandType, fileName, fileSize, base64fileSha256, autoInstall);
+
+                case URL_DOWNLOAD:
+                    final JsonElement fileUrlElement = jsonObject.get("fileUrl");
+                    final String fileUrl = fileUrlElement.getAsString();
+
+                    final JsonElement urlUutoInstallElement = jsonObject.get("autoInstall");
+                    final boolean urlAutoInstall = urlUutoInstallElement.getAsBoolean();
+
+                    return new FirmwareUpdateCommand(commandType, fileUrl, urlAutoInstall);
+
+                default:
+                    return new FirmwareUpdateCommand(commandType);
+            }
         }
     }
 

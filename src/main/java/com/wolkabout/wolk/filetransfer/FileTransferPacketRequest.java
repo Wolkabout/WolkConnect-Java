@@ -16,8 +16,6 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Objects;
 
 public class FileTransferPacketRequest {
@@ -31,17 +29,14 @@ public class FileTransferPacketRequest {
         this.packetSize = packetSize;
     }
 
-    @JsonProperty(value = "fileName")
     public String getFileName() {
         return fileName;
     }
 
-    @JsonProperty(value = "chunkIndex")
     public long getPacketId() {
         return packetId;
     }
 
-    @JsonProperty(value = "chunkSize")
     public long getPacketSize() {
         return packetSize;
     }

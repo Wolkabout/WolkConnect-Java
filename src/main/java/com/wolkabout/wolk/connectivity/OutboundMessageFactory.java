@@ -28,15 +28,15 @@ import java.util.Map;
 
 public interface OutboundMessageFactory {
 
-    OutboundMessage makeFromReadings(List<SensorReading> readings) throws IllegalArgumentException;
+    OutboundMessage makeFromSensorReadings(List<SensorReading> readings);
 
-    OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) throws IllegalArgumentException;
+    OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses);
 
-    OutboundMessage makeFromAlarms(List<Alarm> alarms) throws IllegalArgumentException;
+    OutboundMessage makeFromAlarms(List<Alarm> alarms);
 
-    OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus status) throws IllegalArgumentException;
+    OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus firmwareUpdateStatus);
 
-    OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException;
+    OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest fileTransferPacketRequest);
 
     OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException;
 
