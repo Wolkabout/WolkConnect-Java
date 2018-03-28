@@ -75,7 +75,6 @@ public class MqttConnectivityService extends AbstractConnectivityService {
                         listenerOnConnected();
                     }
                 }, 3, TimeUnit.SECONDS);
-
             }
 
             @Override
