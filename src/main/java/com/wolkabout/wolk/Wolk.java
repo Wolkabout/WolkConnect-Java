@@ -679,8 +679,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
                 instance.configurationProvider = new ConfigurationProvider() {
                     @Override
                     public Map<String, String> getConfiguration() {
-                        return new HashMap<String, String>() {
-                        };
+                        return new HashMap<>();
                     }
                 };
             }
