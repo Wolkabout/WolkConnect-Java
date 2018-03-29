@@ -35,7 +35,9 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -45,6 +47,8 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     public static final String WOLK_DEMO_CA = "ca.crt";
 
     private static final String ACTUATORS_COMMANDS = "actuators/commands/";
+
+    private static final String DEVICE_CONFIGURATION_COMMANDS = "configurations/commands/";
 
     private static final String SERVICE_FIRMWARE_COMMANDS = "service/commands/firmware/";
     private static final String SERVICE_BINARY_TRANSFER = "service/binary/";
@@ -64,6 +68,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
     private ActuationHandler actuationHandler;
     private ActuatorStatusProvider actuatorStatusProvider;
+
+    private ConfigurationHandler configurationHandler;
+    private ConfigurationProvider configurationProvider;
 
     private FirmwareUpdate firmwareUpdate;
 
@@ -106,6 +113,25 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
     }
 
+    private void flushPersistedData() {
+        flushActuatorStatuses();
+
+        flushAlarms();
+
+        flushSensorReadings();
+
+        if (!persistence.isEmpty() && connectivityService.isConnected()) {
+            LOG.debug("Scheduling sending of next persisted data batch");
+
+            enqueueCommand(new CommandQueue.Command() {
+                @Override
+                public void execute() {
+                    flushPersistedData();
+                }
+            });
+        }
+    }
+
     private void flushActuatorStatuses() {
         for (final String key : persistence.getActuatorStatusesKeys()) {
             try {
@@ -121,8 +147,29 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
                 persistence.removeActuatorStatus(key);
             } catch (IllegalArgumentException e) {
-                LOG.error("Unable to build OutBound Message from ActuatorStatus(es)", e);
+                LOG.error("Unable to build OutboundMessage from ActuatorStatus(es)", e);
             }
+        }
+    }
+
+    private void flushConfiguration() {
+        try {
+            final Map<String, String> configuration = persistence.getConfiguration();
+            if (configuration == null) {
+                return;
+            }
+
+            final OutboundMessage outboundMessage = outboundMessageFactory.makeFromConfiguration(configuration);
+
+            LOG.info("Publishing persisted device configuration");
+            if (!connectivityService.publish(outboundMessage)) {
+                LOG.error("Failed to publish persisted device configuration");
+                return;
+            }
+
+            persistence.removeConfiguration();
+        } catch (IllegalArgumentException e) {
+            LOG.error("Unable to build OutboundMessage from device configuration", e);
         }
     }
 
@@ -140,7 +187,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
                 persistence.removeAlarms(key, outboundMessage.getSerializedItemsCount());
             } catch (IllegalArgumentException e) {
-                LOG.error("Unable to build OutputMessage from Alarm(s)");
+                LOG.error("Unable to build OutboundMessage from Alarm(s)");
             }
         }
     }
@@ -163,44 +210,23 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
     }
 
-    private void flushPersistedData() {
-        flushActuatorStatuses();
+    @Override
+    public void onConnected() {
+        subscribeToActuatorCommands();
 
-        flushAlarms();
+        subscribeToFirmwareUpdate();
 
-        flushSensorReadings();
+        subscribeToConfigurationCommands();
 
-        if (!persistence.isEmpty() && connectivityService.isConnected()) {
-            LOG.debug("Scheduling sending of next persisted data batch");
+        reportFirmwareVersion();
+        firmwareUpdate.reportFirmwareUpdateResult();
 
-            enqueueCommand(new CommandQueue.Command() {
-                @Override
-                public void execute() {
-                    flushPersistedData();
-                }
-            });
-        }
-    }
+        publishCurrentActuatorStatuses();
 
-    private void handleActuatorCommand(ActuatorCommand command) {
-        LOG.info("Handling actuator command: {}", command.getType());
-        switch (command.getType()) {
-            case SET:
-                actuationHandler.handleActuation(command.getReference(), command.getValue());
-            case STATUS:
-                publishActuatorStatus(command.getReference());
-                break;
-            default:
-                LOG.warn("Unknown command. Ignoring.");
-        }
-    }
+        publishConfiguration();
 
-    private void handleFileTransferPacket(FileTransferPacket packet) {
-        firmwareUpdate.handlePacket(packet);
-    }
-
-    private void handleFirmwareUpdateCommand(FirmwareUpdateCommand command) {
-        firmwareUpdate.handleCommand(command);
+        // 'publish' is called here to send persisted sensor readings, alarms, and actuator statuses
+        publish();
     }
 
     private void subscribeToActuatorCommands() {
@@ -220,19 +246,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         connectivityService.subscribe(SERVICE_BINARY_TRANSFER + device.getDeviceKey());
     }
 
-    @Override
-    public void onConnected() {
-        subscribeToActuatorCommands();
-
-        subscribeToFirmwareUpdate();
-
-        reportFirmwareVersion();
-        firmwareUpdate.reportFirmwareUpdateResult();
-
-        publishCurrentActuatorStatuses();
-
-        // 'publish' is called here to send persisted sensor readings, alarms, and actuator statuses
-        publish();
+    private void subscribeToConfigurationCommands() {
+        LOG.info("Subscribing to device configuration commands");
+        connectivityService.subscribe(DEVICE_CONFIGURATION_COMMANDS + device.getDeviceKey());
     }
 
     private void publishCurrentActuatorStatuses() {
@@ -260,8 +276,47 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
             final FileTransferPacket packet = new FileTransferPacket(inboundMessage.getBinaryPayload());
             handleFileTransferPacket(packet);
+        } else if (topic.startsWith(DEVICE_CONFIGURATION_COMMANDS)) {
+            LOG.info("Received configuration command");
+
+            final ConfigurationCommand configurationCommand = inboundMessageDeserializer.deserializeConfigurationCommand(inboundMessage);
+            handleConfigurationCommand(configurationCommand);
         } else {
             LOG.warn("Inbound message received on '{}' is ignored", topic);
+        }
+    }
+
+    private void handleActuatorCommand(ActuatorCommand actuatorCommand) {
+        LOG.info("Handling actuator command: {}", actuatorCommand.getType());
+        switch (actuatorCommand.getType()) {
+            case SET:
+                actuationHandler.handleActuation(actuatorCommand.getReference(), actuatorCommand.getValue());
+            case STATUS:
+                publishActuatorStatus(actuatorCommand.getReference());
+                break;
+            default:
+                LOG.warn("Unknown command. Ignoring.");
+        }
+    }
+
+    private void handleFileTransferPacket(FileTransferPacket packet) {
+        firmwareUpdate.handlePacket(packet);
+    }
+
+    private void handleFirmwareUpdateCommand(FirmwareUpdateCommand command) {
+        firmwareUpdate.handleCommand(command);
+    }
+
+    private void handleConfigurationCommand(ConfigurationCommand configurationCommand) {
+        LOG.info("Handling configuration command: {}", configurationCommand.getType());
+        switch (configurationCommand.getType()) {
+            case SET:
+                configurationHandler.handleConfiguration(configurationCommand.getValues());
+            case CURRENT:
+                publishConfiguration();
+                break;
+            default:
+                LOG.warn("Unknown command. Ignoring.");
         }
     }
 
@@ -409,7 +464,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
     /**
      * Publishes all the data and clears persisted data if publishing was successful.
-     * Can be called from multiple thread simultaneously.
+     * Can be called from multiple threads simultaneously.
      */
     public void publish() {
         enqueueCommand(new CommandQueue.Command() {
@@ -424,7 +479,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
      * Send the status of the actuator specified by its reference. ActuatorStatusProvider is used to
      * retrieve the status of the actuator.
      * <p>
-     * Can be called from multiple thread simultaneously.
+     * Can be called from multiple threads simultaneously.
      *
      * @param reference Reference of the actuator
      */
@@ -436,6 +491,23 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
                 final ActuatorStatus actuatorStatus = actuatorStatusProvider.getActuatorStatus(reference);
                 persistence.putActuatorStatus(reference, new ActuatorStatus(actuatorStatus.getStatus(), actuatorStatus.getValue(), reference));
                 flushActuatorStatuses();
+            }
+        });
+    }
+
+    /**
+     * Send the device configuration.
+     * <p>
+     * Can be called from multiple threads simultaneously.
+     */
+    public void publishConfiguration() {
+        enqueueCommand(new CommandQueue.Command() {
+            @Override
+            public void execute() {
+                LOG.debug("Obtaining device configuration");
+                final Map<String, String> configuration = configurationProvider.getConfiguration();
+                persistence.putConfiguration(configuration);
+                flushConfiguration();
             }
         });
     }
@@ -509,6 +581,28 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         /**
+         * Setup configuration handler.
+         *
+         * @param configurationHandler see {@link ConfigurationHandler}
+         * @return WolkBuilder
+         */
+        public WolkBuilder configurationHandler(ConfigurationHandler configurationHandler) {
+            instance.configurationHandler = configurationHandler;
+            return this;
+        }
+
+        /**
+         * Setup configuration provider.
+         *
+         * @param configurationProvider see {@link ConfigurationProvider}
+         * @return WolkBuilder
+         */
+        public WolkBuilder configurationProvider(ConfigurationProvider configurationProvider) {
+            instance.configurationProvider = configurationProvider;
+            return this;
+        }
+
+        /**
          * Setup Certificate Authority.
          *
          * @param ca Path to CA file
@@ -560,11 +654,35 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
          */
         public Wolk connect() throws Exception {
             validateActuationCallbacks();
+            validateConfigurationCallbacks();
 
             buildConnectivity();
 
             instance.connect();
             return instance;
+        }
+
+        private void validateConfigurationCallbacks() throws IllegalStateException {
+            if (instance.configurationHandler != null && instance.configurationProvider == null ||
+                    instance.configurationHandler == null && instance.configurationProvider != null) {
+                throw new IllegalStateException("Both configuration handler and configuration provider must be set.");
+            }
+
+            if (instance.configurationHandler == null && instance.configurationProvider == null) {
+                // Provide default implementation to avoid ugliness of 'if ( ... != null )'
+                instance.configurationHandler = new ConfigurationHandler() {
+                    @Override
+                    public void handleConfiguration(Map<String, String> configuration) {
+                    }
+                };
+
+                instance.configurationProvider = new ConfigurationProvider() {
+                    @Override
+                    public Map<String, String> getConfiguration() {
+                        return new HashMap<>();
+                    }
+                };
+            }
         }
 
         private void validateActuationCallbacks() throws IllegalStateException {

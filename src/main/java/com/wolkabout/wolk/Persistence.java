@@ -17,6 +17,7 @@
 package com.wolkabout.wolk;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A storage designed for holding elements in persistent store prior to publishing to WolkAbout IoT Platform.
@@ -120,7 +121,7 @@ public interface Persistence {
     /**
      * Removes {@link ActuatorStatus} from this storage, associated with given {@code key}.
      *
-     * @param key with which {@link SensorReading} should be associated.
+     * @param key with which {@link ActuatorStatus} should be removed.
      */
     void removeActuatorStatus(String key);
 
@@ -132,9 +133,30 @@ public interface Persistence {
     List<String> getActuatorStatusesKeys();
 
     /**
-     * Returns {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es and {@link Alarm}s associated with any key.
+     * Inserts the device configuration.
      *
-     * @return {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es and {@link Alarm}s associated with any key
+     * @param configuration as {@code Map<String, String>}.
+     * @return {@code true} if successful, or {@code false} if
+     * element can not be persisted
+     */
+    boolean putConfiguration(Map<String, String> configuration);
+
+    /**
+     * Retrieves, device configuration of this storage.
+     *
+     * @return Configuration as {@code Map<String, String>}, or {@code null} if this storage does not contain persisted device configuration
+     */
+    Map<String, String> getConfiguration();
+
+    /**
+     * Removes device configuration from this storage.
+     */
+    void removeConfiguration();
+
+    /**
+     * Returns {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key.
+     *
+     * @return {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key
      */
     boolean isEmpty();
 }
