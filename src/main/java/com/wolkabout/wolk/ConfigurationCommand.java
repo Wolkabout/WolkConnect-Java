@@ -16,7 +16,6 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,28 +26,17 @@ public class ConfigurationCommand {
 
     public enum CommandType {UNKNOWN, SET, CURRENT}
 
-    @JsonProperty(value = "command")
-    private String commandType;
+    private final CommandType commandType;
 
-    @JsonProperty(value = "values")
-    private Map<String, String> values;
-
-    // Required by Jackson
-    private ConfigurationCommand() {
-    }
+    private final Map<String, String> values;
 
     public ConfigurationCommand(CommandType commandType, Map<String, String> values) {
-        this.commandType = commandType.toString();
+        this.commandType = commandType;
         this.values = values;
     }
 
     public CommandType getType() {
-        try {
-            return CommandType.valueOf(commandType);
-        } catch (IllegalArgumentException e) {
-            LOG.warn("Unknown command: {}", commandType);
-            return CommandType.UNKNOWN;
-        }
+       return commandType;
     }
 
     public Map<String, String> getValues() {

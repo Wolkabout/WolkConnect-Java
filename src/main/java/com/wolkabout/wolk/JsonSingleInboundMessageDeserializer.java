@@ -22,6 +22,8 @@ import com.wolkabout.wolk.connectivity.model.InboundMessage;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
 
 import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 
 public class JsonSingleInboundMessageDeserializer implements InboundMessageDeserializer {
 
@@ -31,6 +33,7 @@ public class JsonSingleInboundMessageDeserializer implements InboundMessageDeser
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(ActuatorCommand.class, new ActuatorCommandDeserializer())
                 .registerTypeAdapter(FirmwareUpdateCommand.class, new FirmwareUpdateCommandDeserializer())
+                .registerTypeAdapter(ConfigurationCommand.class, new ConfigurationCommandDeserializer())
                 .create();
     }
 
@@ -46,6 +49,11 @@ public class JsonSingleInboundMessageDeserializer implements InboundMessageDeser
     @Override
     public FirmwareUpdateCommand deserializeFirmwareUpdateCommand(InboundMessage inboundMessage) {
         return gson.fromJson(inboundMessage.getPayload(), FirmwareUpdateCommand.class);
+    }
+
+    @Override
+    public ConfigurationCommand deserializeConfigurationCommand(InboundMessage inboundMessage) throws IllegalArgumentException {
+        return gson.fromJson(inboundMessage.getPayload(), ConfigurationCommand.class);
     }
 
     private class ActuatorCommandDeserializer implements JsonDeserializer<ActuatorCommand> {
@@ -111,12 +119,30 @@ public class JsonSingleInboundMessageDeserializer implements InboundMessageDeser
         }
     }
 
-    @Override
-    public ConfigurationCommand deserializeConfigurationCommand(InboundMessage inboundMessage) throws IllegalArgumentException {
-        try {
-            return new ObjectMapper().readValue(inboundMessage.getPayload(), ConfigurationCommand.class);
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
+    private class ConfigurationCommandDeserializer implements JsonDeserializer<ConfigurationCommand> {
+        @Override
+        public ConfigurationCommand deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context)
+                throws JsonParseException {
+            final JsonObject jsonObject = json.getAsJsonObject();
+
+            final JsonElement commandElement = jsonObject.get("command");
+            final ConfigurationCommand.CommandType commandType = commandElement != null ?
+                    ConfigurationCommand.CommandType.valueOf(commandElement.getAsString()) :
+                    ConfigurationCommand.CommandType.UNKNOWN;
+
+            if (commandType == ConfigurationCommand.CommandType.CURRENT) {
+                return new ConfigurationCommand(commandType, new HashMap<String, String>());
+            }
+
+            final JsonElement valuesElement = jsonObject.get("values");
+            final JsonObject valuesElementObject = valuesElement.getAsJsonObject();
+
+            final Map<String, String> configurationValues = new HashMap<>();
+            for (final Map.Entry<String, JsonElement> configurationItem : valuesElementObject.entrySet()) {
+                configurationValues.put(configurationItem.getKey(), configurationItem.getValue().getAsString());
+            }
+
+            return new ConfigurationCommand(commandType, configurationValues);
         }
     }
 }
