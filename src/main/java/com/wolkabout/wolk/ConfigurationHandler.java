@@ -26,7 +26,7 @@ public interface ConfigurationHandler {
      * When new set of device configuration values is given from platform, it will be delivered to this method.
      * This method should update device configuration with received configuration values.
      *
-     * @param configuration Map<String, String> with device configuration reference as map key,
+     * @param configuration {@code Map<String, String>} with device configuration reference as map key,
      *                      and device configuration value as map value
      */
     void handleConfiguration(Map<String, String> configuration);

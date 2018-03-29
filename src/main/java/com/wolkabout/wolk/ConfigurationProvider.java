@@ -23,10 +23,10 @@ import java.util.Map;
  */
 public interface ConfigurationProvider {
     /**
-     * Reads device configuration and returns it as Map<String, String> with device configuration reference as map key,
+     * Reads device configuration and returns it as {@code Map<String, String>} with device configuration reference as map key,
      * and device configuration value as map value.
      *
-     * @return Map<String, String> object.
+     * @return {@code Map<String, String>} object.
      */
     Map<String, String> getConfiguration();
 }
