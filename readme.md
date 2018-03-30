@@ -164,3 +164,20 @@ final Wolk wolk = Wolk.connectDevice(device)
                             null)                                // Optional implementation of FirmwareDownloadHandler for cases when one wants to download device firmware via given URL
         .connect();
 ```
+
+**Keep Alive Mechanism:**
+
+WolkAbout Java Connector by default uses Keep Alive mechanism to notify WolkAbout IoT Platform that device is still connected.
+Keep alive message is sent to WolkAbout IoT Platform every 10 minutes.
+
+To reduce network usage Keep Alive mechanism can be disabled in following manner:
+
+```java
+Device device = new Device("device_key");
+device.setPassword("some_password");
+device.setProtocol(Protocol.JSON_SINGLE);
+
+final Wolk wolk = Wolk.connectDevice(device)
+        .withoutKeepAlive()
+        .connect();
+```
