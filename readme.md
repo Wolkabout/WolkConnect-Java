@@ -61,16 +61,9 @@ final Wolk wolk = Wolk.connectDevice(device)
             // TODO Invoke your code which activates your actuator. 
             System.out.println("Ref: " + reference + " value: " + value);
         })
-       .actuatorStatusProvider(ref -> {
+        .actuatorStatusProvider(ref -> {
             // TODO Invoke code which reads the state of the actuator.
             return new ActuatorStatus(ActuatorStatus.Status.READY, "1");
-        })
-        .configurationHandler((configuration) -> {
-            // TODO Set device configuration according to received configuration
-        })
-        .configurationProvider(() -> {
-            // TODO Read configuration from device and return it
-            return new HashMap<String, String>();
         })
        .connect();
 ```
@@ -81,20 +74,16 @@ This will establish the connection to platform and subscribe to channels
 
 **Publishing data:**
 ```java
-// add readings to the buffer
+// Add sensor readings
 wolk.addSensorReading("T", "25.6");
 wolk.addSensorReading("P", "1024");
 wolk.addSensorReading("H", "52");
 
+// Add multi-value sensor reading
 wolk.addSensorReading("ACCL", Arrays.asList("-1", "0", "0"));
 
 // publish readings
 wolk.publish();
-```
-
-Publish device configuration to platform:
-```java
-wolk.publishConfiguration();
 ```
 
 Publish actuator status to platform:
