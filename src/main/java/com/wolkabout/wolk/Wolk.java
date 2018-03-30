@@ -83,6 +83,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
     private MqttConnectivityService connectivityService;
 
+    private boolean isKeepAliveEnabled = true;
     private final ScheduledExecutorService keepAliveExecutorService = Executors.newScheduledThreadPool(1);
 
     private Wolk(Device device) {
@@ -97,12 +98,23 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
             default:
                 throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
         }
-
-        startKeepAlive();
     }
 
     private void enqueueCommand(CommandQueue.Command command) {
         commandQueue.add(command);
+    }
+
+    public void connect() {
+        enqueueCommand(new CommandQueue.Command() {
+            @Override
+            public void execute() {
+                connectivityService.connect();
+
+                if (isKeepAliveEnabled) {
+                    startKeepAlive();
+                }
+            }
+        });
     }
 
     private void startKeepAlive() {
@@ -118,20 +130,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
                     }
                 });
             }
-        }, 10, 10, TimeUnit.MINUTES);
-    }
-
-    private void stopKeepAlive() {
-        keepAliveExecutorService.shutdownNow();
-    }
-
-    public void connect() {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                connectivityService.connect();
-            }
-        });
+        }, 0, 10, TimeUnit.MINUTES);
     }
 
     private void reportFirmwareVersion() {
@@ -714,7 +713,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
          * @return WolkBuilder
          */
         public WolkBuilder withoutKeepAlive() {
-            instance.stopKeepAlive();
+            instance.isKeepAliveEnabled = false;
             return this;
         }
 
