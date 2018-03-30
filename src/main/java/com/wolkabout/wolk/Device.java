@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk;
 
+import java.util.*;
+
 /**
  * Device for which the connection is established.
  */
@@ -31,15 +33,15 @@ public class Device {
      */
     private String password;
 
-    private String[] actuators;
+    private List<String> actuators = new ArrayList<>();
 
-    private String[] config;
+    private List<String> sensors = new ArrayList<>();
+    private Map<String, String> sensorDelimiters = new HashMap<>();
 
     private Protocol protocol = Protocol.JSON_SINGLE;
 
     public Device(String deviceKey) {
         this.deviceKey = deviceKey;
-        this.actuators = new String[]{};
     }
 
     public Protocol getProtocol() {
@@ -50,25 +52,25 @@ public class Device {
         this.protocol = protocol;
     }
 
-    public String[] getConfig() {
-        return config;
-    }
-
-    public void setConfig(String[] config) {
-        this.config = config;
-    }
-
-    public String[] getActuators() {
+    public List<String> getActuators() {
         return actuators;
     }
 
-    /**
-     * Provide list of references to actuators on the destination machine.
-     *
-     * @param actuators references to actuators on device.
-     */
-    public void setActuators(String... actuators) {
-        this.actuators = actuators;
+    public void setActuators(String... actuatorReferences) {
+        actuators = Arrays.asList(actuatorReferences);
+    }
+
+    public void addSensor(String reference) {
+        sensors.add(reference);
+    }
+
+    public void addSensor(String reference, String delimiter) {
+        addSensor(reference);
+        sensorDelimiters.put(reference, delimiter);
+    }
+
+    public Map<String, String> getSensorDelimiters() {
+        return sensorDelimiters;
     }
 
     public String getDeviceKey() {
@@ -82,5 +84,4 @@ public class Device {
     public void setPassword(final String password) {
         this.password = password;
     }
-
 }

@@ -16,17 +16,18 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.*;
 import com.wolkabout.wolk.connectivity.OutboundMessageFactory;
 import com.wolkabout.wolk.connectivity.model.OutboundMessage;
 import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 
 class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
+
     private static final String SENSOR_READINGS_CHANNEL = "readings/";
     private static final String ACTUATOR_STATUSES_CHANNEL = "actuators/status/";
     private static final String CURRENT_CONFIGURATION_CHANNEL = "configurations/current/";
@@ -38,79 +39,154 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private final String deviceKey;
 
-    JsonSingleOutboundMessageFactory(final String deviceKey) {
+    private final Gson gson;
+
+    JsonSingleOutboundMessageFactory(String deviceKey, Map<String, String> sensorDelimiters) {
         this.deviceKey = deviceKey;
+        this.gson = new GsonBuilder()
+                .disableHtmlEscaping()
+                .registerTypeAdapter(SensorReading.class, new SensorReadingSerializer(sensorDelimiters))
+                .registerTypeAdapter(Alarm.class, new AlarmSerializer())
+                .registerTypeAdapter(ActuatorStatus.class, new ActuatorStatusSerializer())
+                .registerTypeAdapter(FirmwareUpdateStatus.class, new FirmwareUpdateStatusSerializer())
+                .registerTypeAdapter(FileTransferPacketRequest.class, new FileTransferPacketRequestSerializer())
+                .create();
     }
 
     @Override
-    public OutboundMessage makeFromReadings(List<SensorReading> readings) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(readings);
-            final String channel = SENSOR_READINGS_CHANNEL + deviceKey + "/" + readings.get(0).getReference();
-            return new OutboundMessage(payload, channel, readings.size());
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
+    public OutboundMessage makeFromSensorReadings(List<SensorReading> readings) {
+        final String payload = gson.toJson(readings);
+        final String channel = SENSOR_READINGS_CHANNEL + deviceKey + "/" + readings.get(0).getReference();
+        return new OutboundMessage(payload, channel, readings.size());
+    }
+
+    @Override
+    public OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) {
+        if (actuatorStatuses.isEmpty()) {
+            throw new IllegalArgumentException("Empty actuator statuses collection received.");
         }
+
+        final String payload = gson.toJson(actuatorStatuses.get(0));
+        final String channel = ACTUATOR_STATUSES_CHANNEL + deviceKey + "/" + actuatorStatuses.get(0).getReference();
+        return new OutboundMessage(payload, channel, 1);
     }
 
     @Override
-    public OutboundMessage makeFromActuatorStatuses(List<ActuatorStatus> actuatorStatuses) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(actuatorStatuses.get(0));
-            final String channel = ACTUATOR_STATUSES_CHANNEL + deviceKey + "/" + actuatorStatuses.get(0).getReference();
-            return new OutboundMessage(payload, channel, 1);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
-        }
+    public OutboundMessage makeFromAlarms(List<Alarm> alarms) {
+        final String payload = gson.toJson(alarms);
+        final String channel = ALARMS_CHANNEL + deviceKey + "/" + alarms.get(0).getReference();
+        return new OutboundMessage(payload, channel, alarms.size());
     }
 
     @Override
-    public OutboundMessage makeFromAlarms(List<Alarm> alarms) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(alarms);
-            final String channel = ALARMS_CHANNEL + deviceKey + "/" + alarms.get(0).getReference();
-            return new OutboundMessage(payload, channel, alarms.size());
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
-        }
+    public OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus firmwareUpdateStatus) {
+        final String payload = gson.toJson(firmwareUpdateStatus);
+        final String channel = FIRMWARE_UPDATE_STATUSES_CHANNEL + deviceKey;
+        return new OutboundMessage(payload, channel);
     }
 
     @Override
-    public OutboundMessage makeFromFirmwareUpdateStatus(FirmwareUpdateStatus status) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(status);
-            final String channel = FIRMWARE_UPDATE_STATUSES_CHANNEL + deviceKey;
-            return new OutboundMessage(payload, channel);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
-        }
+    public OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest fileTransferPacketRequest) {
+        final String payload = gson.toJson(fileTransferPacketRequest);
+        final String channel = FIRMWARE_UPDATE_PACKET_REQUESTS_CHANNEL + deviceKey;
+        return new OutboundMessage(payload, channel);
     }
 
     @Override
-    public OutboundMessage makeFromFileTransferPacketRequest(FileTransferPacketRequest request) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(request);
-            final String channel = FIRMWARE_UPDATE_PACKET_REQUESTS_CHANNEL + deviceKey;
-            return new OutboundMessage(payload, channel);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
-        }
-    }
-
-    @Override
-    public OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException {
+    public OutboundMessage makeFromFirmwareVersion(String firmwareVersion) {
         final String channel = FIRMWARE_VERSION_CHANNEL + deviceKey;
         return new OutboundMessage(firmwareVersion, channel);
     }
 
     @Override
     public OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException {
-        try {
-            final String payload = new ObjectMapper().writeValueAsString(configuration);
-            final String channel = CURRENT_CONFIGURATION_CHANNEL + deviceKey;
-            return new OutboundMessage(payload, channel);
-        } catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e);
+        final String channel = CURRENT_CONFIGURATION_CHANNEL + deviceKey;
+        final String payload = gson.toJson(configuration);
+        return new OutboundMessage(payload, channel);
+    }
+
+    private class SensorReadingSerializer implements JsonSerializer<SensorReading> {
+
+        private final Map<String, String> sensorDelimiters;
+
+        SensorReadingSerializer(Map<String, String> sensorDelimiters) {
+            this.sensorDelimiters = sensorDelimiters;
+        }
+
+        public JsonElement serialize(SensorReading sensorReading, Type type, JsonSerializationContext context) {
+            if (sensorReading.getValues().isEmpty()) {
+                throw new IllegalArgumentException("Given sensor reading does not have reading data.");
+            }
+
+            if (sensorReading.getValues().size() > 1 && !sensorDelimiters.containsKey(sensorReading.getReference())) {
+                throw new IllegalArgumentException("Given sensor reading does not have matching delimiter.");
+            }
+
+            final JsonObject result = new JsonObject();
+            result.add("utc", new JsonPrimitive(sensorReading.getUtc()));
+
+            final List<String> sensorReadingValues = sensorReading.getValues();
+
+            if (sensorReadingValues.size() == 1) {
+                result.add("data", new JsonPrimitive(sensorReadingValues.get(0)));
+            } else {
+                final StringBuilder stringBuilder = new StringBuilder();
+                for (int i = 0; i < sensorReadingValues.size(); ++i) {
+                    if (i != 0) {
+                        final String delimiter = sensorDelimiters.get(sensorReading.getReference());
+                        stringBuilder.append(delimiter);
+                    }
+
+                    stringBuilder.append(sensorReadingValues.get(i));
+                }
+
+                result.add("data", new JsonPrimitive(stringBuilder.toString()));
+            }
+
+            return result;
+        }
+    }
+
+    private class AlarmSerializer implements JsonSerializer<Alarm> {
+
+        public JsonElement serialize(Alarm alarm, Type type, JsonSerializationContext context) {
+            final JsonObject result = new JsonObject();
+            result.add("utc", new JsonPrimitive(alarm.getUtc()));
+            result.add("data", new JsonPrimitive(alarm.getValue()));
+            return result;
+        }
+    }
+
+    private class ActuatorStatusSerializer implements JsonSerializer<ActuatorStatus> {
+
+        public JsonElement serialize(ActuatorStatus actuatorStatus, Type type, JsonSerializationContext context) {
+            final JsonObject result = new JsonObject();
+            result.add("status", new JsonPrimitive(String.valueOf(actuatorStatus.getStatus())));
+            result.add("value", new JsonPrimitive(actuatorStatus.getValue()));
+            return result;
+        }
+    }
+
+    private class FirmwareUpdateStatusSerializer implements JsonSerializer<FirmwareUpdateStatus> {
+
+        public JsonElement serialize(FirmwareUpdateStatus firmwareUpdateStatus, Type type, JsonSerializationContext context) {
+            final JsonObject result = new JsonObject();
+            result.add("status", new JsonPrimitive(String.valueOf(firmwareUpdateStatus.getStatus())));
+            if (firmwareUpdateStatus.getErrorCode() != null) {
+                result.add("error", new JsonPrimitive(firmwareUpdateStatus.getErrorCode()));
+            }
+            return result;
+        }
+    }
+
+    private class FileTransferPacketRequestSerializer implements JsonSerializer<FileTransferPacketRequest> {
+
+        public JsonElement serialize(FileTransferPacketRequest fileTransferPacketRequest, Type type, JsonSerializationContext context) {
+            final JsonObject result = new JsonObject();
+            result.add("fileName", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getFileName())));
+            result.add("chunkIndex", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getPacketId())));
+            result.add("chunkSize", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getPacketSize())));
+            return result;
         }
     }
 }

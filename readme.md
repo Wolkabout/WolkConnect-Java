@@ -44,7 +44,14 @@ Example Usage
 ```java
 Device device = new Device("device_key");
 device.setPassword("some_password");
-device.setActuators("SL", "SW");
+
+device.setActuators("SL", "SW")
+
+device.addSensor("P");
+device.addSensor("T");
+device.addSensor("H");
+device.addSensor("ACCL", "_"); // Accelerometer sensor reference with '_' as delimiter
+
 device.setProtocol(Protocol.JSON_SINGLE);
 
 final Wolk wolk = Wolk.connectDevice(device)
@@ -78,6 +85,8 @@ This will establish the connection to platform and subscribe to channels
 wolk.addSensorReading("T", "25.6");
 wolk.addSensorReading("P", "1024");
 wolk.addSensorReading("H", "52");
+
+wolk.addSensorReading("ACCL", Arrays.asList("-1", "0", "0"));
 
 // publish readings
 wolk.publish();

@@ -16,8 +16,6 @@
  */
 package com.wolkabout.wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,32 +24,20 @@ public class ActuatorCommand {
 
     public enum CommandType {UNKNOWN, SET, STATUS}
 
-    @JsonProperty(value = "command")
-    private String commandType;
+    private CommandType commandType;
 
-    @JsonProperty(value = "value")
     private String value;
 
-    @JsonIgnore
     private String reference;
 
-    // Required by Jackson
-    private ActuatorCommand() {
-    }
-
     public ActuatorCommand(CommandType commandType, String value, String reference) {
-        this.commandType = commandType.toString();
+        this.commandType = commandType;
         this.value = value;
         this.reference = reference;
     }
 
     public CommandType getType() {
-        try {
-            return CommandType.valueOf(commandType);
-        } catch (IllegalArgumentException e) {
-            LOG.warn("Unknown command: {}", commandType);
-            return CommandType.UNKNOWN;
-        }
+        return commandType;
     }
 
     public String getValue() {
@@ -65,7 +51,7 @@ public class ActuatorCommand {
     @Override
     public String toString() {
         return "ActuatorCommand{" +
-                "type='" + commandType + '\'' +
+                "commandType=" + commandType +
                 ", value='" + value + '\'' +
                 ", reference='" + reference + '\'' +
                 '}';
