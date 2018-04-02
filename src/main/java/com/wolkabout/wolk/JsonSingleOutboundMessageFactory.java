@@ -192,7 +192,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
         }
     }
 
-    public OutboundMessage makeFromKeepAliveMessage() throws IllegalArgumentException {
+    public OutboundMessage makeFromKeepAliveMessage() {
         final String channel = KEEP_ALIVE_CHANNEL + deviceKey;
         return new OutboundMessage("", channel);
     }

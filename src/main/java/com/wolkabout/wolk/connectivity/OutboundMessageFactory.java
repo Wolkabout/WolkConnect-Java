@@ -42,5 +42,5 @@ public interface OutboundMessageFactory {
 
     OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException;
 
-    OutboundMessage makeFromKeepAliveMessage() throws IllegalArgumentException;
+    OutboundMessage makeFromKeepAliveMessage();
 }
