@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.3.0'
+    compile 'com.wolkabout:wolk:2.4.0'
 }
 ```
 
@@ -33,7 +33,7 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>2.3.0</version>
+  <version>2.4.0</version>
   <type>pom</type>
 </dependency>
 ```
@@ -162,5 +162,22 @@ final Wolk wolk = Wolk.connectDevice(device)
                             new File("./download").toPath(),     // Directory where downloaded device firmware files will be stored 
                             1024 * 1024 * 1024,                  // Maximum acceptable size of firmware file, in bytes
                             null)                                // Optional implementation of FirmwareDownloadHandler for cases when one wants to download device firmware via given URL
+        .connect();
+```
+
+**Keep Alive Mechanism:**
+
+WolkAbout Java Connector by default uses Keep Alive mechanism to notify WolkAbout IoT Platform that device is still connected.
+Keep alive message is sent to WolkAbout IoT Platform every 10 minutes.
+
+To reduce network usage Keep Alive mechanism can be disabled in following manner:
+
+```java
+Device device = new Device("device_key");
+device.setPassword("some_password");
+device.setProtocol(Protocol.JSON_SINGLE);
+
+final Wolk wolk = Wolk.connectDevice(device)
+        .withoutKeepAlive()
         .connect();
 ```

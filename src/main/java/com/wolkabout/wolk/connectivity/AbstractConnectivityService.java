@@ -18,8 +18,6 @@ package com.wolkabout.wolk.connectivity;
 
 import com.wolkabout.wolk.connectivity.model.InboundMessage;
 
-import java.io.IOException;
-
 public abstract class AbstractConnectivityService implements ConnectivityService {
     private Listener listener;
 

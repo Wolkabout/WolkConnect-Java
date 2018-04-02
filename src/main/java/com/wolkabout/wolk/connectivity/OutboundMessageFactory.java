@@ -41,4 +41,6 @@ public interface OutboundMessageFactory {
     OutboundMessage makeFromFirmwareVersion(String firmwareVersion) throws IllegalArgumentException;
 
     OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException;
+
+    OutboundMessage makeFromKeepAliveMessage();
 }

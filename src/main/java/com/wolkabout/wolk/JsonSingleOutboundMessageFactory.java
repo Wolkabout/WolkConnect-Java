@@ -37,6 +37,8 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     private static final String FIRMWARE_UPDATE_PACKET_REQUESTS_CHANNEL = "service/status/file/";
     private static final String FIRMWARE_VERSION_CHANNEL = "firmware/version/";
 
+    private static final String KEEP_ALIVE_CHANNEL = "ping/";
+
     private final String deviceKey;
 
     private final Gson gson;
@@ -188,5 +190,10 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
             result.add("chunkSize", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getPacketSize())));
             return result;
         }
+    }
+
+    public OutboundMessage makeFromKeepAliveMessage() {
+        final String channel = KEEP_ALIVE_CHANNEL + deviceKey;
+        return new OutboundMessage("", channel);
     }
 }

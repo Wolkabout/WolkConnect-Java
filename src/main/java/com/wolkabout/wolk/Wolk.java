@@ -38,6 +38,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -80,6 +83,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
     private MqttConnectivityService connectivityService;
 
+    private boolean isKeepAliveEnabled = true;
+    private final ScheduledExecutorService keepAliveExecutorService = Executors.newScheduledThreadPool(1);
+
     private Wolk(Device device) {
         this.device = device;
 
@@ -103,8 +109,28 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
             @Override
             public void execute() {
                 connectivityService.connect();
+
+                if (isKeepAliveEnabled) {
+                    startKeepAlive();
+                }
             }
         });
+    }
+
+    private void startKeepAlive() {
+        keepAliveExecutorService.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                LOG.trace("Sending keep alive message");
+                enqueueCommand(new CommandQueue.Command() {
+                    @Override
+                    public void execute() {
+                        final OutboundMessage outboundMessage = outboundMessageFactory.makeFromKeepAliveMessage();
+                        connectivityService.publish(outboundMessage);
+                    }
+                });
+            }
+        }, 0, 10, TimeUnit.MINUTES);
     }
 
     private void reportFirmwareVersion() {
@@ -398,7 +424,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
      * Add single multi-value sensor reading.
      * Can be called from multiple threads simultaneously.
      *
-     * @param ref   Reference of the sensor
+     * @param ref    Reference of the sensor
      * @param values Values of the measurement
      */
     public void addSensorReading(String ref, List<String> values) {
@@ -409,9 +435,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
      * Add single multi-value sensor reading.
      * Can be called from multiple threads simultaneously.
      *
-     * @param ref   Reference of the sensor
+     * @param ref    Reference of the sensor
      * @param values Values of the measurement
-     * @param time  UTC timestamp, in seconds or milliseconds
+     * @param time   UTC timestamp, in seconds or milliseconds
      */
     public void addSensorReading(String ref, List<String> values, long time) {
         final SensorReading reading = new SensorReading(ref, values, time);
@@ -678,6 +704,16 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
             instance.firmwareUpdate = new FirmwareUpdate(firmwareVersion, downloadDirectory, maximumFirmwareSize, firmwareUpdateHandler, firmwareDownloadHandler);
             instance.firmwareUpdate.setListener(instance);
+            return this;
+        }
+
+        /**
+         * Disable internal keep alive mechanism.
+         *
+         * @return WolkBuilder
+         */
+        public WolkBuilder withoutKeepAlive() {
+            instance.isKeepAliveEnabled = false;
             return this;
         }
 
