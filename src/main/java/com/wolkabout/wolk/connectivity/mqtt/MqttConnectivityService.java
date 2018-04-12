@@ -47,6 +47,14 @@ public class MqttConnectivityService extends AbstractConnectivityService {
         startInboundMessageDispatcher();
     }
 
+    public MqttConnectivityService(final MQTT client, long connectionAttempts) {
+        this.client = client;
+        this.client.setConnectAttemptsMax(connectionAttempts);
+        this.futureConnection = client.futureConnection();
+
+        startInboundMessageDispatcher();
+    }
+
     private void startInboundMessageDispatcher() {
         executorService.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -80,6 +88,7 @@ public class MqttConnectivityService extends AbstractConnectivityService {
             @Override
             public void onFailure(Throwable throwable) {
                 LOG.error("Failed to connect", throwable);
+                listenerOnConnectionFailed();
             }
         });
     }

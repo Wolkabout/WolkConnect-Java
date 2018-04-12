@@ -35,6 +35,8 @@ public interface ConnectivityService {
     interface Listener {
         void onConnected();
 
+        void onConnectionFailed();
+
         void onInboundMessage(InboundMessage inboundMessage);
     }
 

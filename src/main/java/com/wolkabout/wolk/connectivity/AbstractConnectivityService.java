@@ -31,6 +31,12 @@ public abstract class AbstractConnectivityService implements ConnectivityService
         }
     }
 
+    protected void listenerOnConnectionFailed() {
+        if (listener != null) {
+            listener.onConnectionFailed();
+        }
+    }
+
     protected void listenerOnInboundMessage(final InboundMessage inboundMessage) {
         if (listener != null) {
             listener.onInboundMessage(inboundMessage);

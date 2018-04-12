@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -276,6 +277,11 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     private void subscribeToConfigurationCommands() {
         LOG.info("Subscribing to device configuration commands");
         connectivityService.subscribe(DEVICE_CONFIGURATION_COMMANDS + device.getDeviceKey());
+    }
+
+    @Override
+    public void onConnectionFailed() {
+        // Do nothing.
     }
 
     private void publishCurrentActuatorStatuses() {
@@ -732,6 +738,22 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
             return instance;
         }
 
+        /**
+         *
+         * @param listener Listener that handles connection callbacks
+         * @param connectAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailed}
+         * @return Built {@link Wolk}
+         * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
+         */
+        public Wolk connect(ConnectivityService.Listener listener, long connectAttempts) throws Exception {
+            validateActuationCallbacks();
+
+            buildConnectivity(listener, connectAttempts);
+
+            instance.connect();
+            return instance;
+        }
+
         private void validateConfigurationCallbacks() throws IllegalStateException {
             if (instance.configurationHandler != null && instance.configurationProvider == null ||
                     instance.configurationHandler == null && instance.configurationProvider != null) {
@@ -778,15 +800,27 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         private void buildConnectivity() throws Exception {
-            final MqttFactory mqttFactory = new MqttFactory()
-                    .deviceKey(instance.device.getDeviceKey())
-                    .password(instance.device.getPassword())
-                    .cleanSession(true)
-                    .host(instance.host);
+            final MqttFactory mqttFactory = getMqttFactory();
 
             final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
             instance.connectivityService = new MqttConnectivityService(client);
             instance.connectivityService.setListener(instance);
         }
+
+        private void buildConnectivity(ConnectivityService.Listener listener, long connectAttempts) throws Exception {
+            final MqttFactory mqttFactory = getMqttFactory();
+            final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
+            instance.connectivityService = new MqttConnectivityService(client, connectAttempts);
+            instance.connectivityService.setListener(listener);
+        }
+
+        private MqttFactory getMqttFactory() throws URISyntaxException {
+            return new MqttFactory()
+                            .deviceKey(instance.device.getDeviceKey())
+                            .password(instance.device.getPassword())
+                            .cleanSession(true)
+                            .host(instance.host);
+        }
     }
+
 }
