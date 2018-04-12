@@ -33,9 +33,9 @@ public interface ConnectivityService {
     void setListener(ConnectivityService.Listener listener);
 
     interface Listener {
-        void onConnected();
+        void onConnectionSuccess();
 
-        void onConnectionFailed();
+        void onConnectionFailure();
 
         void onInboundMessage(InboundMessage inboundMessage);
     }

@@ -239,7 +239,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     }
 
     @Override
-    public void onConnected() {
+    public void onConnectionSuccess() {
         subscribeToActuatorCommands();
 
         subscribeToFirmwareUpdate();
@@ -280,7 +280,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     }
 
     @Override
-    public void onConnectionFailed() {
+    public void onConnectionFailure() {
         // Do nothing.
     }
 
@@ -741,7 +741,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         /**
          *
          * @param listener Listener that handles connection callbacks
-         * @param connectAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailed}
+         * @param connectAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
          * @return Built {@link Wolk}
          * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
          */
