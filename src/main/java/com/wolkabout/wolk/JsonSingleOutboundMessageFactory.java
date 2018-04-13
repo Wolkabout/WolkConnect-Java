@@ -103,8 +103,18 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
     @Override
     public OutboundMessage makeFromConfiguration(Map<String, String> configuration) throws IllegalArgumentException {
         final String channel = CURRENT_CONFIGURATION_CHANNEL + deviceKey;
-        final String payload = gson.toJson(configuration);
+
+        final JsonObject result = new JsonObject();
+        result.add("values", gson.toJsonTree(configuration));
+        final String payload = result.toString();
+
         return new OutboundMessage(payload, channel);
+    }
+
+    @Override
+    public OutboundMessage makeFromKeepAliveMessage() {
+        final String channel = KEEP_ALIVE_CHANNEL + deviceKey;
+        return new OutboundMessage("", channel);
     }
 
     private class SensorReadingSerializer implements JsonSerializer<SensorReading> {
@@ -115,6 +125,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
             this.sensorDelimiters = sensorDelimiters;
         }
 
+        @Override
         public JsonElement serialize(SensorReading sensorReading, Type type, JsonSerializationContext context) {
             if (sensorReading.getValues().isEmpty()) {
                 throw new IllegalArgumentException("Given sensor reading does not have reading data.");
@@ -151,6 +162,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private class AlarmSerializer implements JsonSerializer<Alarm> {
 
+        @Override
         public JsonElement serialize(Alarm alarm, Type type, JsonSerializationContext context) {
             final JsonObject result = new JsonObject();
             result.add("utc", new JsonPrimitive(alarm.getUtc()));
@@ -161,6 +173,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private class ActuatorStatusSerializer implements JsonSerializer<ActuatorStatus> {
 
+        @Override
         public JsonElement serialize(ActuatorStatus actuatorStatus, Type type, JsonSerializationContext context) {
             final JsonObject result = new JsonObject();
             result.add("status", new JsonPrimitive(String.valueOf(actuatorStatus.getStatus())));
@@ -171,6 +184,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private class FirmwareUpdateStatusSerializer implements JsonSerializer<FirmwareUpdateStatus> {
 
+        @Override
         public JsonElement serialize(FirmwareUpdateStatus firmwareUpdateStatus, Type type, JsonSerializationContext context) {
             final JsonObject result = new JsonObject();
             result.add("status", new JsonPrimitive(String.valueOf(firmwareUpdateStatus.getStatus())));
@@ -183,6 +197,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private class FileTransferPacketRequestSerializer implements JsonSerializer<FileTransferPacketRequest> {
 
+        @Override
         public JsonElement serialize(FileTransferPacketRequest fileTransferPacketRequest, Type type, JsonSerializationContext context) {
             final JsonObject result = new JsonObject();
             result.add("fileName", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getFileName())));
@@ -190,10 +205,5 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
             result.add("chunkSize", new JsonPrimitive(String.valueOf(fileTransferPacketRequest.getPacketSize())));
             return result;
         }
-    }
-
-    public OutboundMessage makeFromKeepAliveMessage() {
-        final String channel = KEEP_ALIVE_CHANNEL + deviceKey;
-        return new OutboundMessage("", channel);
     }
 }
