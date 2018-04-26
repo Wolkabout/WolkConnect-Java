@@ -741,14 +741,14 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         /**
          *
          * @param listener Listener that handles connection callbacks
-         * @param connectAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
+         * @param maxConnectionAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
          * @return Built {@link Wolk}
          * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
          */
-        public Wolk connect(ConnectivityService.Listener listener, long connectAttempts) throws Exception {
+        public Wolk connect(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
             validateActuationCallbacks();
 
-            buildConnectivity(listener, connectAttempts);
+            buildConnectivity(listener, maxConnectionAttempts);
 
             instance.connect();
             return instance;
@@ -807,10 +807,10 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
             instance.connectivityService.setListener(instance);
         }
 
-        private void buildConnectivity(ConnectivityService.Listener listener, long connectAttempts) throws Exception {
+        private void buildConnectivity(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
             final MqttFactory mqttFactory = getMqttFactory();
             final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
-            instance.connectivityService = new MqttConnectivityService(client, connectAttempts);
+            instance.connectivityService = new MqttConnectivityService(client, maxConnectionAttempts);
             instance.connectivityService.setListener(listener);
         }
 

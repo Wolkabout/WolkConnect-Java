@@ -47,9 +47,9 @@ public class MqttConnectivityService extends AbstractConnectivityService {
         startInboundMessageDispatcher();
     }
 
-    public MqttConnectivityService(final MQTT client, long connectionAttempts) {
+    public MqttConnectivityService(final MQTT client, long maxConnectionAttempts) {
         this.client = client;
-        this.client.setConnectAttemptsMax(connectionAttempts);
+        this.client.setConnectAttemptsMax(maxConnectionAttempts);
         this.futureConnection = client.futureConnection();
 
         startInboundMessageDispatcher();
