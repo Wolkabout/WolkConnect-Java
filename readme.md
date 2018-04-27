@@ -11,7 +11,7 @@ Include WolkAbout Java connector to project.
 
 Gradle
 
-```sh
+```groovy
 repositories {
     mavenCentral()
     jcenter()
@@ -24,7 +24,7 @@ dependencies {
 
 Maven
 
-```sh
+```xml
 <repository>
   <id>jcenter</id>
   <url>https://jcenter.bintray.com/</url>
@@ -46,12 +46,6 @@ Device device = new Device("device_key");
 device.setPassword("some_password");
 
 device.setActuators("SL", "SW")
-
-device.addSensor("P");
-device.addSensor("T");
-device.addSensor("H");
-device.addSensor("ACCL", "_"); // Accelerometer sensor reference with '_' as delimiter
-
 device.setProtocol(Protocol.JSON_SINGLE);
 
 final Wolk wolk = Wolk.connectDevice(device)
@@ -132,11 +126,12 @@ final Wolk wolk = Wolk.connectDevice(device)
             // TODO Invoke your code which activates your actuator. 
             System.out.println("Ref: " + reference + " value: " + value);
         })
-       .actuatorStatusProvider(ref -> {
+        .actuatorStatusProvider(ref -> {
             // TODO Invoke code which reads the state of the actuator.
-            return new ActuatorStatus(ActuatorStatus.Status.READY, "1");})
-       .withPersistence(new LevelDBPersistence()) // Enable data persistence via custom persist mechanism
-       .connect();
+            return new ActuatorStatus(ActuatorStatus.Status.READY, "1");
+        })
+        .withPersistence(new LevelDBPersistence()) // Enable data persistence via custom persist mechanism
+        .connect();
 ```
 
 For more info on persistence mechanism see WolkBuilder.withPersistence method, and Persistence interface.

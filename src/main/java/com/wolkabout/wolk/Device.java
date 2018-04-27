@@ -35,9 +35,6 @@ public class Device {
 
     private List<String> actuators = new ArrayList<>();
 
-    private List<String> sensors = new ArrayList<>();
-    private Map<String, String> sensorDelimiters = new HashMap<>();
-
     private Protocol protocol = Protocol.JSON_SINGLE;
 
     public Device(String deviceKey) {
@@ -58,19 +55,6 @@ public class Device {
 
     public void setActuators(String... actuatorReferences) {
         actuators = Arrays.asList(actuatorReferences);
-    }
-
-    public void addSensor(String reference) {
-        sensors.add(reference);
-    }
-
-    public void addSensor(String reference, String delimiter) {
-        addSensor(reference);
-        sensorDelimiters.put(reference, delimiter);
-    }
-
-    public Map<String, String> getSensorDelimiters() {
-        return sensorDelimiters;
     }
 
     public String getDeviceKey() {
