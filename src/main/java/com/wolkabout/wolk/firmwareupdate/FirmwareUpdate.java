@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
+import com.google.common.io.Files;
 import com.wolkabout.wolk.FirmwareDownloadHandler;
 import com.wolkabout.wolk.FirmwareUpdateHandler;
 import com.wolkabout.wolk.filetransfer.FileAssembler;
@@ -26,13 +27,11 @@ import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -41,7 +40,7 @@ import java.util.concurrent.TimeUnit;
 public class FirmwareUpdate implements FileReceiver {
     private static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdate.class);
 
-    private static final Path FIRMWARE_VERSION_FILE = Paths.get(".dfu-version");
+    private static final File FIRMWARE_VERSION_FILE = new File(".dfu-version");
 
     private enum State {
         IDLE,
@@ -69,12 +68,12 @@ public class FirmwareUpdate implements FileReceiver {
 
     private ScheduledFuture<?> onPacketTimeout;
 
-    private Path firmwareFile;
+    private File firmwareFile;
     private boolean autoInstall;
 
     private State state;
 
-    public FirmwareUpdate(String firmwareVersion, Path downloadDirectory, long maximumFirmwareSize,
+    public FirmwareUpdate(String firmwareVersion, File downloadDirectory, long maximumFirmwareSize,
                           FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
         this.firmwareVersion = firmwareVersion;
 
@@ -179,7 +178,7 @@ public class FirmwareUpdate implements FileReceiver {
     }
 
     public void reportFirmwareUpdateResult() {
-        if (!Files.exists(FIRMWARE_VERSION_FILE)) {
+        if (!FIRMWARE_VERSION_FILE.exists() || FIRMWARE_VERSION_FILE.isDirectory()) {
             return;
         }
 
@@ -194,8 +193,8 @@ public class FirmwareUpdate implements FileReceiver {
         }
 
         try {
-            Files.delete(FIRMWARE_VERSION_FILE);
-        } catch (IOException e) {
+            FIRMWARE_VERSION_FILE.delete();
+        } catch (Exception e) {
             LOG.error("Error deleting file containing previous firmware version", e);
         }
     }
@@ -320,8 +319,8 @@ public class FirmwareUpdate implements FileReceiver {
                 /* Intentional fallthrough */
             case FILE_OBTAINED:
                 LOG.info("Discarding obtained firmware file parts");
-                if (firmwareFile != null && firmwareFile.toFile().exists()) {
-                    firmwareFile.toFile().delete();
+                if (firmwareFile != null && firmwareFile.exists()) {
+                    firmwareFile.delete();
                 }
 
                 state = State.IDLE;
@@ -391,7 +390,7 @@ public class FirmwareUpdate implements FileReceiver {
                 LOG.debug("Firmware file download started");
 
                 try {
-                    final Path downloadedFile = firmwareDownloadHandler.downloadFile(file);
+                    final File downloadedFile = firmwareDownloadHandler.downloadFile(file);
                     onFileReceived(downloadedFile);
                 } catch (IOException e) {
                     LOG.error("Firmware file could not be downloaded", e);
@@ -409,7 +408,7 @@ public class FirmwareUpdate implements FileReceiver {
 
     private boolean saveFirmwareVersion() {
         try {
-            Files.write(FIRMWARE_VERSION_FILE, firmwareVersion.getBytes(StandardCharsets.UTF_8));
+            Files.write(firmwareVersion.getBytes(StandardCharsets.UTF_8), FIRMWARE_VERSION_FILE);
             return true;
         } catch (IOException e) {
             LOG.error("Could not save current firmware version to file");
@@ -419,7 +418,7 @@ public class FirmwareUpdate implements FileReceiver {
 
     private String getSavedFirmwareVersion() {
         try {
-            return new String(Files.readAllBytes(FIRMWARE_VERSION_FILE), StandardCharsets.UTF_8);
+            return new String(Files.toByteArray(FIRMWARE_VERSION_FILE), StandardCharsets.UTF_8);
         } catch (IOException e) {
             LOG.error("Could not read saved firmware version", e);
             return "";
@@ -427,8 +426,8 @@ public class FirmwareUpdate implements FileReceiver {
     }
 
     @Override
-    public void onFileReceived(Path file) {
-        LOG.debug("Firmware file received: {}", file.toAbsolutePath());
+    public void onFileReceived(File file) {
+        LOG.debug("Firmware file received: {}", file.getAbsolutePath());
         firmwareFile = file;
         state = State.FILE_OBTAINED;
         listenerOnStatus(FirmwareUpdateStatus.ok(FirmwareUpdateStatus.StatusCode.FILE_READY));
