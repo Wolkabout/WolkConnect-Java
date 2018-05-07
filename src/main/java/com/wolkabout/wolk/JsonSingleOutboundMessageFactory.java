@@ -28,6 +28,8 @@ import java.util.Map;
 
 class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
+    private static final String DELIMITER = ",";
+
     private static final String SENSOR_READINGS_CHANNEL = "readings/";
     private static final String ACTUATOR_STATUSES_CHANNEL = "actuators/status/";
     private static final String CURRENT_CONFIGURATION_CHANNEL = "configurations/current/";
@@ -43,11 +45,11 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private final Gson gson;
 
-    JsonSingleOutboundMessageFactory(String deviceKey, Map<String, String> sensorDelimiters) {
+    JsonSingleOutboundMessageFactory(String deviceKey) {
         this.deviceKey = deviceKey;
         this.gson = new GsonBuilder()
                 .disableHtmlEscaping()
-                .registerTypeAdapter(SensorReading.class, new SensorReadingSerializer(sensorDelimiters))
+                .registerTypeAdapter(SensorReading.class, new SensorReadingSerializer())
                 .registerTypeAdapter(Alarm.class, new AlarmSerializer())
                 .registerTypeAdapter(ActuatorStatus.class, new ActuatorStatusSerializer())
                 .registerTypeAdapter(FirmwareUpdateStatus.class, new FirmwareUpdateStatusSerializer())
@@ -119,20 +121,10 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
 
     private class SensorReadingSerializer implements JsonSerializer<SensorReading> {
 
-        private final Map<String, String> sensorDelimiters;
-
-        SensorReadingSerializer(Map<String, String> sensorDelimiters) {
-            this.sensorDelimiters = sensorDelimiters;
-        }
-
         @Override
         public JsonElement serialize(SensorReading sensorReading, Type type, JsonSerializationContext context) {
             if (sensorReading.getValues().isEmpty()) {
                 throw new IllegalArgumentException("Given sensor reading does not have reading data.");
-            }
-
-            if (sensorReading.getValues().size() > 1 && !sensorDelimiters.containsKey(sensorReading.getReference())) {
-                throw new IllegalArgumentException("Given sensor reading does not have matching delimiter.");
             }
 
             final JsonObject result = new JsonObject();
@@ -146,8 +138,7 @@ class JsonSingleOutboundMessageFactory implements OutboundMessageFactory {
                 final StringBuilder stringBuilder = new StringBuilder();
                 for (int i = 0; i < sensorReadingValues.size(); ++i) {
                     if (i != 0) {
-                        final String delimiter = sensorDelimiters.get(sensorReading.getReference());
-                        stringBuilder.append(delimiter);
+                        stringBuilder.append(DELIMITER);
                     }
 
                     stringBuilder.append(sensorReadingValues.get(i));

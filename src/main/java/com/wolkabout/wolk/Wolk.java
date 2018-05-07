@@ -91,8 +91,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
 
         switch (device.getProtocol()) {
             case JSON_SINGLE:
-                outboundMessageFactory =
-                        new JsonSingleOutboundMessageFactory(device.getDeviceKey(), device.getSensorDelimiters());
+                outboundMessageFactory = new JsonSingleOutboundMessageFactory(device.getDeviceKey());
                 inboundMessageDeserializer = new JsonSingleInboundMessageDeserializer();
                 break;
             default:
