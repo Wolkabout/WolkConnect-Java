@@ -723,7 +723,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         /**
-         * Establish connection to the platform.
+         * Establish a connection to the platform.
          *
          * @return Built {@link Wolk}
          * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
@@ -739,6 +739,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         /**
+         * Establish a connection to the platform.
          *
          * @param listener Listener that handles connection callbacks
          * @param maxConnectionAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
