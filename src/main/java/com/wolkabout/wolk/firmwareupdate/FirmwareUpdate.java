@@ -16,13 +16,13 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.google.common.io.Files;
 import com.wolkabout.wolk.FirmwareDownloadHandler;
 import com.wolkabout.wolk.FirmwareUpdateHandler;
 import com.wolkabout.wolk.filetransfer.FileAssembler;
 import com.wolkabout.wolk.filetransfer.FileReceiver;
 import com.wolkabout.wolk.filetransfer.FileTransferPacket;
 import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
+import com.wolkabout.wolk.util.Utils;
 import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -408,7 +408,7 @@ public class FirmwareUpdate implements FileReceiver {
 
     private boolean saveFirmwareVersion() {
         try {
-            Files.write(firmwareVersion.getBytes(StandardCharsets.UTF_8), FIRMWARE_VERSION_FILE);
+            Utils.writeToFile(firmwareVersion.getBytes(StandardCharsets.UTF_8), FIRMWARE_VERSION_FILE);
             return true;
         } catch (IOException e) {
             LOG.error("Could not save current firmware version to file");
@@ -418,7 +418,7 @@ public class FirmwareUpdate implements FileReceiver {
 
     private String getSavedFirmwareVersion() {
         try {
-            return new String(Files.toByteArray(FIRMWARE_VERSION_FILE), StandardCharsets.UTF_8);
+            return new String(Utils.toByteArray(FIRMWARE_VERSION_FILE), StandardCharsets.UTF_8);
         } catch (IOException e) {
             LOG.error("Could not read saved firmware version", e);
             return "";

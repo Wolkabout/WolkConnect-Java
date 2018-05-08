@@ -16,7 +16,7 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
-import com.google.common.io.Files;
+import com.wolkabout.wolk.util.Utils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,7 +191,7 @@ public class FileAssembler {
     private boolean moveFile(File source, File destination) {
         try {
             LOG.trace("Moving file {} -> {}", source.getAbsolutePath(), destination.getAbsolutePath());
-            Files.move(source, destination);
+            Utils.moveFile(source, destination);
             return true;
         } catch (IOException e) {
             LOG.error("Unable to move file", e);
@@ -201,7 +201,7 @@ public class FileAssembler {
 
     private boolean isFileSha256Valid(File file, byte[] checksum) {
         try {
-            final byte[] fileBytes = DigestUtils.sha256(Files.toByteArray(new File(file.getPath())));
+            final byte[] fileBytes = DigestUtils.sha256(Utils.toByteArray(new File(file.getPath())));
             return Arrays.equals(checksum, fileBytes);
         } catch (IOException e) {
             LOG.error("Unable to verify file SHA-256", e);
