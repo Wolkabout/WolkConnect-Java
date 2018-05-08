@@ -16,8 +16,8 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
-import java.nio.file.Path;
+import java.io.File;
 
 public interface FileReceiver {
-    void onFileReceived(Path file);
+    void onFileReceived(File file);
 }

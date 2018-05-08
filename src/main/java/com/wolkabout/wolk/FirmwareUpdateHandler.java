@@ -16,7 +16,7 @@
  */
 package com.wolkabout.wolk;
 
-import java.nio.file.Path;
+import java.io.File;
 
 /**
  * Provide implementation of {@link FirmwareUpdateHandler} to enable OTA updates for device.
@@ -31,5 +31,5 @@ public interface FirmwareUpdateHandler {
      *
      * @param firmwareFile Path to new firmware
      */
-    void updateFirmwareWithFile(Path firmwareFile);
+    void updateFirmwareWithFile(File firmwareFile);
 }

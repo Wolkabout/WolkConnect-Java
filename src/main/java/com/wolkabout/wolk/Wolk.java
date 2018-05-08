@@ -32,8 +32,8 @@ import org.fusesource.mqtt.client.MQTT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -695,9 +695,9 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
          * @return WolkBuilder
          * @throws IllegalArgumentException if {@code downloadDirectory} does not point to directory, or directory does not exist
          */
-        public WolkBuilder withFirmwareUpdate(String firmwareVersion, FirmwareUpdateHandler firmwareUpdateHandler, Path downloadDirectory,
+        public WolkBuilder withFirmwareUpdate(String firmwareVersion, FirmwareUpdateHandler firmwareUpdateHandler, File downloadDirectory,
                                               long maximumFirmwareSize, FirmwareDownloadHandler firmwareDownloadHandler) throws IllegalArgumentException {
-            if (!downloadDirectory.toFile().isDirectory() || !downloadDirectory.toFile().exists()) {
+            if (!downloadDirectory.isDirectory() || !downloadDirectory.exists()) {
                 throw new IllegalArgumentException("Given path does not point to directory.");
             }
 

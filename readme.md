@@ -165,7 +165,7 @@ final Wolk wolk = Wolk.connectDevice(device)
         // Enable firmware update
         .withFirmwareUpdate("1.2.3",                             // Current firmware version                             
                             new FirmwareUpdater(),               // Implementation of FirmwareUpdateHandler, which performs installation of obtained device firmware
-                            new File("./download").toPath(),     // Directory where downloaded device firmware files will be stored 
+                            new File("./download"),              // Directory where downloaded device firmware files will be stored 
                             1024 * 1024 * 1024,                  // Maximum acceptable size of firmware file, in bytes
                             null)                                // Optional implementation of FirmwareDownloadHandler for cases when one wants to download device firmware via given URL
         .connect();

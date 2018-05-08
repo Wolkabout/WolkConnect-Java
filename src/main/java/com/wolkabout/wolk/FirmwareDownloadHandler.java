@@ -16,18 +16,18 @@
  */
 package com.wolkabout.wolk;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Path;
-
 /**
  * Provide implementation of {@link FirmwareDownloadHandler} to enable firmware download from URL.
  */
+
 public interface FirmwareDownloadHandler {
     /**
      * @param file URL of firmware file to be downloaded
      * @return {@code Path} to downloaded file
      * @throws IOException if {@code file} can not be obtained, or saved locally
      */
-    Path downloadFile(URL file) throws IOException;
+    File downloadFile(URL file) throws IOException;
 }

@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.filetransfer;
 
+import com.google.common.io.Files;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 
 public class FileAssembler {
@@ -41,7 +39,7 @@ public class FileAssembler {
         UNABLE_TO_FINALIZE_FILE_CREATION
     }
 
-    private final Path downloadDirectory;
+    private final File downloadDirectory;
     private final int maxTriesPerPacket;
 
     private int currentPacketTryCount;
@@ -58,7 +56,7 @@ public class FileAssembler {
 
     private FileOutputStream tmpFileOutputStream;
 
-    public FileAssembler(Path downloadDirectory, int maxTriesPerPacket) {
+    public FileAssembler(File downloadDirectory, int maxTriesPerPacket) {
         this.downloadDirectory = downloadDirectory;
         this.maxTriesPerPacket = maxTriesPerPacket;
     }
@@ -75,7 +73,7 @@ public class FileAssembler {
             tmpFile = File.createTempFile(fileName, null);
             tmpFile.deleteOnExit();
 
-            constructedFile = Paths.get(downloadDirectory.toString(), fileName).toFile();
+            constructedFile = new File(downloadDirectory.getPath().toString() + fileName);
             this.fileSha256 = fileSha256;
 
             tmpFileOutputStream = new FileOutputStream(tmpFile);
@@ -119,7 +117,7 @@ public class FileAssembler {
 
         try {
             createAndValidateFile();
-            listenerOnFileCreated(constructedFile.getCanonicalFile().toPath());
+            listenerOnFileCreated(new File(constructedFile.getPath()));
             return PacketProcessingError.NONE;
         } catch (IOException e) {
             LOG.error("Unable to create, or validate file", e);
@@ -168,8 +166,8 @@ public class FileAssembler {
             throw new IOException("Unable to remove stale firmware file (Stale firmware file and new firmware file have same name)");
         }
 
-        LOG.debug("Moving temporary file {} to {}", tmpFile, constructedFile.toPath().toAbsolutePath());
-        if (!closeFileStream() || !moveFile(tmpFile.toPath(), constructedFile.toPath())) {
+        LOG.debug("Moving temporary file {} to {}", tmpFile, constructedFile.getAbsolutePath());
+        if (!closeFileStream() || !moveFile(tmpFile, constructedFile)) {
             throw new IOException("Unable to move temporary file");
         }
 
@@ -190,9 +188,9 @@ public class FileAssembler {
         }
     }
 
-    private boolean moveFile(Path source, Path destination) {
+    private boolean moveFile(File source, File destination) {
         try {
-            LOG.trace("Moving file {} -> {}", source.toAbsolutePath(), destination.toAbsolutePath());
+            LOG.trace("Moving file {} -> {}", source.getAbsolutePath(), destination.getAbsolutePath());
             Files.move(source, destination);
             return true;
         } catch (IOException e) {
@@ -203,7 +201,7 @@ public class FileAssembler {
 
     private boolean isFileSha256Valid(File file, byte[] checksum) {
         try {
-            final byte[] fileBytes = DigestUtils.sha256(Files.readAllBytes(file.toPath()));
+            final byte[] fileBytes = DigestUtils.sha256(Files.toByteArray(new File(file.getPath())));
             return Arrays.equals(checksum, fileBytes);
         } catch (IOException e) {
             LOG.error("Unable to verify file SHA-256", e);
@@ -216,7 +214,7 @@ public class FileAssembler {
     }
 
 
-    private void listenerOnFileCreated(Path file) {
+    private void listenerOnFileCreated(File file) {
         if (listener != null) {
             listener.onFileReceived(file);
         }

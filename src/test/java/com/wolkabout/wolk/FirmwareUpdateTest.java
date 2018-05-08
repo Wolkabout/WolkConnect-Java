@@ -27,8 +27,6 @@ import org.junit.Test;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -36,7 +34,7 @@ import static org.mockito.Mockito.*;
 
 public class FirmwareUpdateTest {
 
-    private static final File SAVED_FIRMWARE_VERSION_FILE = Paths.get(".dfu-version").toFile();
+    private static final File SAVED_FIRMWARE_VERSION_FILE = new File(".dfu-version");
 
     private FirmwareUpdate.Listener firmwareUpdateListener;
 
@@ -63,7 +61,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithoutFirmwareUpdateHandler_When_FileTransferFirmwareUpdateIsRequested_Then_FileUploadDisabledErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, null, null);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, null, null);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -76,7 +74,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithoutFirmwareUpdateHandler_When_UrlDownloadFirmwareUpdateIsRequested_Then_FileUploadDisabledErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, null, null);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, null, null);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -89,7 +87,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithMaximumFirmwareSizeOfZero_When_FileTransferFirmwareUpdateIsRequested_Then_FileUploadDisabledErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, null);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, null);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -102,7 +100,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithNonZeroMaximumFirmwareSize_When_FileTransferFirmwareUpdateWithUnsupportedFirmwareSizeIsRequested_Then_UnsupportedFileSizeErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, null);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, null);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -115,7 +113,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithoutUrlDownloaded_When_UrlDownloadFirmwareUpdateIsRequested_Then_FileUploadDisabledErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, null);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, null);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -128,7 +126,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithUrlDownload_When_MalformedUrlDownloadFirmwareUpdateIsRequested_Then_MalformedUrlErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -145,11 +143,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(Paths.get("./downloaded_file_path"));
+        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
 
         // When
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("file:///firmware_file_to_download", false));
@@ -166,11 +164,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(Paths.get("./downloaded_file_path"));
+        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
 
         // When
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
@@ -184,12 +182,12 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmware_When_InstallCommandIsIssued_Then_InstallationStatusIsYieldedAndFirmwareUpdateHandlerIsInvoked() throws InterruptedException, IOException {
         final URL fileUrl = new URL("file:///firmware_file_to_download");
-        final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
+        final File downloadedFirmwareFile = new File("./downloaded_firmware_file");
 
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
@@ -215,12 +213,12 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmware_When_AbortCommandIsIssued_Then_AbortStatusIsYieldedAndFirmwareUpdateHandlerIsNotInvoked() throws InterruptedException, IOException {
         final URL fileUrl = new URL("file:///firmware_file_to_download");
-        final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
+        final File downloadedFirmwareFile = new File("./downloaded_firmware_file");
 
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
@@ -246,12 +244,12 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmwareWithAutoInstall_When_AbortCommandIsIssuedInsideAbortTimeInterval_Then_AbortStatusIsYieldedAndFirmwareUpdateHandlerIsNotInvoked() throws InterruptedException, IOException {
         final URL fileUrl = new URL("file:///firmware_file_to_download");
-        final Path downloadedFirmwareFile = Paths.get("./downloaded_firmware_file");
+        final File downloadedFirmwareFile = new File("./downloaded_firmware_file");
 
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(500);
 
@@ -277,7 +275,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FileTransferStatusIsYielded() throws InterruptedException {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateListener);
         firmwareUpdate.setAbortTimePeriod(0);
 
@@ -291,7 +289,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FirstPacketIsRequested() throws InterruptedException {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", Paths.get(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
         firmwareUpdate.setListener(firmwareUpdateListener);
         firmwareUpdate.setAbortTimePeriod(0);
 

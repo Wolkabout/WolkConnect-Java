@@ -26,9 +26,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 import static com.wolkabout.wolk.Utils.isFileValid;
 import static com.wolkabout.wolk.Utils.joinByteArrays;
@@ -38,27 +35,32 @@ import static org.mockito.Mockito.verify;
 
 public class FileAssemblerTest {
 
-    private static final File CONSTRUCTED_FILE = Paths.get("file-constructor-test.tmp").toFile();
+    private static final String TEMP_FILE_PATH = "file-constructor-test.tmp";
+
+    private File createTempFile() {
+        return new File(TEMP_FILE_PATH);
+    }
 
     @After
     public void tearDown() {
-        if (CONSTRUCTED_FILE.exists()) {
-            CONSTRUCTED_FILE.delete();
+        final File tempFile = createTempFile();
+        if (tempFile.exists()) {
+            tempFile.delete();
         }
     }
 
     @Test
     public void Given_FileConstructor_When_FileConstructionIsStarted_Then_RequestForFirstPacketIsIssued() {
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(CONSTRUCTED_FILE.getName(), 1024, DigestUtils.sha256(new byte[]{}));
+        final FileAssembler constructor = new FileAssembler(new File(""), 3);
+        constructor.initialize(TEMP_FILE_PATH, 1024, DigestUtils.sha256(new byte[]{}));
 
         // When
         final FileTransferPacketRequest request = constructor.packetRequest();
 
         // Then
         assertNotNull(request);
-        assertEquals(CONSTRUCTED_FILE.toString(), request.getFileName());
+        assertEquals(TEMP_FILE_PATH, request.getFileName());
         assertEquals(0, request.getPacketId());
     }
 
@@ -68,8 +70,8 @@ public class FileAssemblerTest {
         final byte[] fileSha256 = DigestUtils.sha256(fileContent);
 
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        final FileAssembler constructor = new FileAssembler(new File(""), 3);
+        constructor.initialize(TEMP_FILE_PATH, fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -82,8 +84,9 @@ public class FileAssemblerTest {
         assertEquals(FileAssembler.PacketProcessingError.NONE, error);
 
         // Then
-        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
-        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
+        final File tempFile = createTempFile();
+        assertTrue(tempFile.exists());
+        assertTrue(isFileValid(tempFile, fileSha256));
     }
 
     @Test
@@ -92,8 +95,8 @@ public class FileAssemblerTest {
         final byte[] fileSha256 = DigestUtils.sha256(fileContent);
 
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 1);
-        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        final FileAssembler constructor = new FileAssembler(new File(""), 1);
+        constructor.initialize(TEMP_FILE_PATH, fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -114,8 +117,8 @@ public class FileAssemblerTest {
         final byte[] fileSha256 = DigestUtils.sha256(fileContent);
 
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        final FileAssembler constructor = new FileAssembler(new File(""), 3);
+        constructor.initialize(TEMP_FILE_PATH, fileContent.length, fileSha256);
 
         // When
         final FileTransferPacketRequest initialRequest = constructor.packetRequest();
@@ -142,8 +145,8 @@ public class FileAssemblerTest {
         final byte[] fileSha256 = DigestUtils.sha256(fileContent);
 
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        final FileAssembler constructor = new FileAssembler(new File(""), 3);
+        constructor.initialize(TEMP_FILE_PATH, fileContent.length, fileSha256);
 
         // When
         assertNotNull(constructor.packetRequest());
@@ -166,8 +169,9 @@ public class FileAssemblerTest {
         assertNull(constructor.packetRequest());
 
         // Then
-        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
-        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
+        final File tempFile = createTempFile();
+        assertTrue(tempFile.exists());
+        assertTrue(isFileValid(tempFile, fileSha256));
     }
 
     @Test
@@ -178,8 +182,8 @@ public class FileAssemblerTest {
         final FileReceiver fileReceiver = mock(FileReceiver.class);
 
         // Given
-        final FileAssembler constructor = new FileAssembler(FileSystems.getDefault().getPath("."), 3);
-        constructor.initialize(CONSTRUCTED_FILE.toString(), fileContent.length, fileSha256);
+        final FileAssembler constructor = new FileAssembler(new File(""), 3);
+        constructor.initialize(TEMP_FILE_PATH, fileContent.length, fileSha256);
         constructor.setListener(fileReceiver);
 
         // When
@@ -203,9 +207,10 @@ public class FileAssemblerTest {
         assertNull(constructor.packetRequest());
 
         // Then
-        assertTrue(Files.exists(CONSTRUCTED_FILE.toPath()));
-        assertTrue(isFileValid(CONSTRUCTED_FILE, fileSha256));
+        final File tempFile = createTempFile();
+        assertTrue(tempFile.exists());
+        assertTrue(isFileValid(tempFile, fileSha256));
 
-        verify(fileReceiver).onFileReceived(CONSTRUCTED_FILE.toPath().toAbsolutePath());
+        verify(fileReceiver).onFileReceived(tempFile);
     }
 }
