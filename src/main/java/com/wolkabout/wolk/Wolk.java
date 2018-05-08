@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -238,7 +239,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     }
 
     @Override
-    public void onConnected() {
+    public void onConnectionSuccess() {
         subscribeToActuatorCommands();
 
         subscribeToFirmwareUpdate();
@@ -276,6 +277,11 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
     private void subscribeToConfigurationCommands() {
         LOG.info("Subscribing to device configuration commands");
         connectivityService.subscribe(DEVICE_CONFIGURATION_COMMANDS + device.getDeviceKey());
+    }
+
+    @Override
+    public void onConnectionFailure() {
+        // Do nothing.
     }
 
     private void publishCurrentActuatorStatuses() {
@@ -717,7 +723,7 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         /**
-         * Establish connection to the platform.
+         * Establish a connection to the platform.
          *
          * @return Built {@link Wolk}
          * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
@@ -727,6 +733,23 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
             validateConfigurationCallbacks();
 
             buildConnectivity();
+
+            instance.connect();
+            return instance;
+        }
+
+        /**
+         * Establish a connection to the platform.
+         *
+         * @param listener Listener that handles connection callbacks
+         * @param maxConnectionAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
+         * @return Built {@link Wolk}
+         * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
+         */
+        public Wolk connect(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
+            validateActuationCallbacks();
+
+            buildConnectivity(listener, maxConnectionAttempts);
 
             instance.connect();
             return instance;
@@ -778,15 +801,27 @@ public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listen
         }
 
         private void buildConnectivity() throws Exception {
-            final MqttFactory mqttFactory = new MqttFactory()
-                    .deviceKey(instance.device.getDeviceKey())
-                    .password(instance.device.getPassword())
-                    .cleanSession(true)
-                    .host(instance.host);
+            final MqttFactory mqttFactory = getMqttFactory();
 
             final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
             instance.connectivityService = new MqttConnectivityService(client);
             instance.connectivityService.setListener(instance);
         }
+
+        private void buildConnectivity(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
+            final MqttFactory mqttFactory = getMqttFactory();
+            final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
+            instance.connectivityService = new MqttConnectivityService(client, maxConnectionAttempts);
+            instance.connectivityService.setListener(listener);
+        }
+
+        private MqttFactory getMqttFactory() throws URISyntaxException {
+            return new MqttFactory()
+                            .deviceKey(instance.device.getDeviceKey())
+                            .password(instance.device.getPassword())
+                            .cleanSession(true)
+                            .host(instance.host);
+        }
     }
+
 }
