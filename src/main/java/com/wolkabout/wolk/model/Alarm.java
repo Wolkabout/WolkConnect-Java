@@ -14,13 +14,12 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.model;
 
 public class Alarm {
+
     private final String ref;
-
     private final String value;
-
     private final long utc;
 
     public Alarm(String ref, String value, long utc) {

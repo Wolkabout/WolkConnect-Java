@@ -14,48 +14,42 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.model;
 
-/**
- * Contains the status of the Actuator.
- */
-public class ActuatorStatus {
-    public enum Status {READY, BUSY, ERROR}
+public class Reading {
 
-    private String ref;
-
-    private final Status status;
-
+    private final String ref;
     private final String value;
+    private final long utc;
 
-    public ActuatorStatus(Status status, String value) {
-        this.status = status;
-        this.value = value;
-    }
-
-    ActuatorStatus(Status status, String value, String ref) {
-        this(status, value);
+    public Reading(String ref, String values, long utc) {
         this.ref = ref;
+        this.value = values;
+        this.utc = utc;
     }
 
-    public String getReference() {
+    String getReference() {
         return ref;
     }
 
-    public Status getStatus() {
-        return status;
+    public String getRef() {
+        return ref;
     }
 
     public String getValue() {
         return value;
     }
 
+    long getUtc() {
+        return utc;
+    }
+
     @Override
     public String toString() {
-        return "ActuatorStatus {" +
+        return "Reading{" +
                 "ref='" + ref + '\'' +
-                ", status='" + status + '\'' +
-                ", value='" + value + '\'' +
+                ", values=" + value +
+                ", utc=" + utc +
                 '}';
     }
 }

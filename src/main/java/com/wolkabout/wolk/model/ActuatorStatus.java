@@ -14,48 +14,45 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.model;
 
-import java.util.Arrays;
-import java.util.List;
+/**
+ * Contains the status of the Actuator.
+ */
+public class ActuatorStatus {
 
-public class SensorReading {
-    private final String ref;
-
-    private final List<String> values;
-
-    private final long utc;
-
-    public SensorReading(String ref, String value, long utc) {
-        this.ref = ref;
-        this.values = Arrays.asList(value);
-        this.utc = utc;
+    public enum Status {
+        READY, BUSY, ERROR
     }
 
-    public SensorReading(String ref, List<String> values, long utc) {
+    private String ref;
+    private final Status status;
+    private final String value;
+
+    ActuatorStatus(Status status, String value, String ref) {
+        this.status = status;
+        this.value = value;
         this.ref = ref;
-        this.values = values;
-        this.utc = utc;
     }
 
-    String getReference() {
+    public String getReference() {
         return ref;
     }
 
-    List<String> getValues() {
-        return values;
+    public Status getStatus() {
+        return status;
     }
 
-    long getUtc() {
-        return utc;
+    public String getValue() {
+        return value;
     }
 
     @Override
     public String toString() {
-        return "SensorReading{" +
+        return "ActuatorStatus {" +
                 "ref='" + ref + '\'' +
-                ", values=" + values +
-                ", utc=" + utc +
+                ", status='" + status + '\'' +
+                ", value='" + value + '\'' +
                 '}';
     }
 }

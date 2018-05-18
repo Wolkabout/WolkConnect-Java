@@ -14,32 +14,37 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.persistence;
+
+import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Alarm;
+import com.wolkabout.wolk.model.Reading;
 
 import java.util.*;
 
 public class InMemoryPersistence implements Persistence {
-    private final Map<String, List<SensorReading>> readings = new HashMap<>();
+
+    private final Map<String, List<Reading>> readings = new HashMap<>();
     private final Map<String, List<Alarm>> alarms = new HashMap<>();
     private final Map<String, ActuatorStatus> actuatorStatuses = new HashMap<>();
     private Map<String, String> configuration;
 
     @Override
-    public boolean putSensorReading(String key, SensorReading reading) {
+    public boolean putSensorReading(String key, Reading reading) {
         if (readings.get(key) == null) {
-            readings.put(key, new ArrayList<SensorReading>());
+            readings.put(key, new ArrayList<Reading>());
         }
 
         return readings.get(key).add(reading);
     }
 
     @Override
-    public List<SensorReading> getSensorReadings(String key, int count) {
+    public List<Reading> getSensorReadings(String key, int count) {
         if (!readings.containsKey(key)) {
             return new ArrayList<>();
         }
 
-        final List<SensorReading> readingsByKey = readings.get(key);
+        final List<Reading> readingsByKey = readings.get(key);
         return readingsByKey.subList(0, Math.min(readingsByKey.size(), count));
     }
 
@@ -50,7 +55,7 @@ public class InMemoryPersistence implements Persistence {
             return;
         }
 
-        final List<SensorReading> readingsByKey = readings.get(key);
+        final List<Reading> readingsByKey = readings.get(key);
         if (readingsByKey.size() <= count) {
             readings.remove(key);
         } else {

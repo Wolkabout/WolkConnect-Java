@@ -20,6 +20,8 @@ import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdate;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
+import com.wolkabout.wolk.firmwareupdate.processor.FileInfoReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.processor.FirmwareUpdateHandler;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +42,7 @@ public class FirmwareUpdateTest {
 
     private FirmwareUpdateHandler firmwareUpdateHandler;
 
-    private FirmwareDownloadHandler firmwareDownloadHandler;
+    private FileInfoReceivedProcessor fileInfoReceivedProcessor;
 
     @Before
     public void setUp() {
@@ -48,7 +50,7 @@ public class FirmwareUpdateTest {
 
         firmwareUpdateHandler = mock(FirmwareUpdateHandler.class);
 
-        firmwareDownloadHandler = mock(FirmwareDownloadHandler.class);
+        fileInfoReceivedProcessor = mock(FileInfoReceivedProcessor.class);
     }
 
     @After
@@ -126,7 +128,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_FirmwareUpdateWithUrlDownload_When_MalformedUrlDownloadFirmwareUpdateIsRequested_Then_MalformedUrlErrorIsYielded() {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateListener);
 
         // When
@@ -143,11 +145,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
+        when(fileInfoReceivedProcessor.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
 
         // When
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload("file:///firmware_file_to_download", false));
@@ -164,11 +166,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
+        when(fileInfoReceivedProcessor.downloadFile(fileUrl)).thenReturn(new File("./downloaded_file_path"));
 
         // When
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
@@ -187,11 +189,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
+        when(fileInfoReceivedProcessor.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
 
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
         List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
@@ -218,11 +220,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(0);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
+        when(fileInfoReceivedProcessor.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
 
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), false));
         List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
@@ -249,11 +251,11 @@ public class FirmwareUpdateTest {
         final FirmwareUpdateStatusAggregator firmwareUpdateStatusAggregator = new FirmwareUpdateStatusAggregator();
 
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 0, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateStatusAggregator);
         firmwareUpdate.setAbortTimePeriod(500);
 
-        when(firmwareDownloadHandler.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
+        when(fileInfoReceivedProcessor.downloadFile(fileUrl)).thenReturn(downloadedFirmwareFile);
 
         firmwareUpdate.handleCommand(FirmwareUpdateCommand.urlDownload(fileUrl.toString(), true));
         List<FirmwareUpdateStatus> firmwareUpdateStatuses = firmwareUpdateStatusAggregator.waitFor(2);
@@ -275,7 +277,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FileTransferStatusIsYielded() throws InterruptedException {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateListener);
         firmwareUpdate.setAbortTimePeriod(0);
 
@@ -289,7 +291,7 @@ public class FirmwareUpdateTest {
     @Test
     public void Given_UrlDownloadedFirmwareWithFileTransfer_When_ValidFileUploadCommandIsIssued_Then_FirstPacketIsRequested() throws InterruptedException {
         // Given
-        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, firmwareDownloadHandler);
+        final FirmwareUpdate firmwareUpdate = new FirmwareUpdate("", new File(""), 1024, firmwareUpdateHandler, fileInfoReceivedProcessor);
         firmwareUpdate.setListener(firmwareUpdateListener);
         firmwareUpdate.setAbortTimePeriod(0);
 

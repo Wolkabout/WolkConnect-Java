@@ -16,8 +16,8 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.FirmwareDownloadHandler;
-import com.wolkabout.wolk.FirmwareUpdateHandler;
+import com.wolkabout.wolk.firmwareupdate.processor.FileInfoReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.processor.FirmwareUpdateHandler;
 import com.wolkabout.wolk.filetransfer.FileAssembler;
 import com.wolkabout.wolk.filetransfer.FileReceiver;
 import com.wolkabout.wolk.filetransfer.FileTransferPacket;
@@ -53,7 +53,7 @@ public class FirmwareUpdate implements FileReceiver {
     private final String firmwareVersion;
 
     private final FirmwareUpdateHandler firmwareUpdateHandler;
-    private final FirmwareDownloadHandler firmwareDownloadHandler;
+    private final FileInfoReceivedProcessor fileInfoReceivedProcessor;
 
     private final long maximumFirmwareFileSize;
 
@@ -74,11 +74,11 @@ public class FirmwareUpdate implements FileReceiver {
     private State state;
 
     public FirmwareUpdate(String firmwareVersion, File downloadDirectory, long maximumFirmwareSize,
-                          FirmwareUpdateHandler firmwareUpdateHandler, FirmwareDownloadHandler firmwareDownloadHandler) {
+                          FirmwareUpdateHandler firmwareUpdateHandler, FileInfoReceivedProcessor fileInfoReceivedProcessor) {
         this.firmwareVersion = firmwareVersion;
 
         this.firmwareUpdateHandler = firmwareUpdateHandler;
-        this.firmwareDownloadHandler = firmwareDownloadHandler;
+        this.fileInfoReceivedProcessor = fileInfoReceivedProcessor;
 
         this.maximumFirmwareFileSize = maximumFirmwareSize;
 
@@ -116,7 +116,7 @@ public class FirmwareUpdate implements FileReceiver {
                 break;
 
             case URL_DOWNLOAD:
-                if (firmwareDownloadHandler == null) {
+                if (fileInfoReceivedProcessor == null) {
                     LOG.warn("Ignoring firmware update command: {} - Reason: Firmware download from URL disabled", command.getType());
                     listenerOnStatus(FirmwareUpdateStatus.error(FirmwareUpdateStatus.ErrorCode.FILE_UPLOAD_DISABLED));
                     return;
@@ -390,7 +390,7 @@ public class FirmwareUpdate implements FileReceiver {
                 LOG.debug("Firmware file download started");
 
                 try {
-                    final File downloadedFile = firmwareDownloadHandler.downloadFile(file);
+                    final File downloadedFile = fileInfoReceivedProcessor.downloadFile(file);
                     onFileReceived(downloadedFile);
                 } catch (IOException e) {
                     LOG.error("Firmware file could not be downloaded", e);

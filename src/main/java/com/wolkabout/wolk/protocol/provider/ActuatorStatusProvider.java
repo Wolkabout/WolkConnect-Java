@@ -14,19 +14,19 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.protocol.provider;
 
-import java.util.Map;
+import com.wolkabout.wolk.model.ActuatorStatus;
 
-/*
- *  ConfigurationProvider reads configuration of device. This information is passed on to the platform.
+/**
+ *  ActuatorStatusProvider reads status of your device's actuators. This information is passed on to the platform.
  */
-public interface ConfigurationProvider {
+public interface ActuatorStatusProvider {
     /**
-     * Reads device configuration and returns it as {@code Map<String, String>} with device configuration reference as map key,
-     * and device configuration value as map value.
+     * Reads the status of actuator from device and returns it as ActuatorStatus object.
      *
-     * @return {@code Map<String, String>} object.
+     * @param ref of the actuator.
+     * @return ActuatorStatus object.
      */
-    Map<String, String> getConfiguration();
+    ActuatorStatus getActuatorStatus(String ref);
 }

@@ -14,20 +14,16 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.wolkabout.wolk.model;
 
 public class ActuatorCommand {
-    private static final Logger LOG = LoggerFactory.getLogger(ActuatorCommand.class);
 
-    public enum CommandType {UNKNOWN, SET, STATUS}
+    public enum CommandType {
+        UNKNOWN, SET, STATUS
+    }
 
     private CommandType commandType;
-
     private String value;
-
     private String reference;
 
     public ActuatorCommand(CommandType commandType, String value, String reference) {
@@ -36,16 +32,28 @@ public class ActuatorCommand {
         this.reference = reference;
     }
 
-    public CommandType getType() {
+    public CommandType getCommandType() {
         return commandType;
+    }
+
+    public void setCommandType(CommandType commandType) {
+        this.commandType = commandType;
     }
 
     public String getValue() {
         return value;
     }
 
+    public void setValue(String value) {
+        this.value = value;
+    }
+
     public String getReference() {
         return reference;
+    }
+
+    public void setReference(String reference) {
+        this.reference = reference;
     }
 
     @Override

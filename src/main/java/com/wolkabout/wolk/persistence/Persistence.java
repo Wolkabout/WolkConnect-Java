@@ -14,7 +14,11 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
+package com.wolkabout.wolk.persistence;
+
+import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Alarm;
+import com.wolkabout.wolk.model.Reading;
 
 import java.util.List;
 import java.util.Map;
@@ -22,45 +26,45 @@ import java.util.Map;
 /**
  * A storage designed for holding elements in persistent store prior to publishing to WolkAbout IoT Platform.
  * <p>
- * Multiple {@link SensorReading}s can be stored under the same key.
+ * Multiple {@link Reading}s can be stored under the same key.
  * Multiple {@link Alarm}s can be stored under the same key.
  * Single {@link ActuatorStatus} can be stored under one key.
  * Implementation storing/retrieving strategy must be FIFO.
  */
 public interface Persistence {
     /**
-     * Inserts the {@link SensorReading}.
+     * Inserts the {@link Reading}.
      *
-     * @param key     with which {@link SensorReading} should be associated
+     * @param key     with which {@link Reading} should be associated
      * @param reading to be inserted
      * @return {@code true} if successful, or {@code false} if
      * element can not be inserted
      */
-    boolean putSensorReading(String key, SensorReading reading);
+    boolean putSensorReading(String key, Reading reading);
 
     /**
-     * Retrieves, first {@code count} {@link SensorReading}s of this storage, associated with given {@code key}
+     * Retrieves, first {@code count} {@link Reading}s of this storage, associated with given {@code key}
      * or returns empty {@code List<Reading>} if this storage is empty.
      *
-     * @param key   with which {@link SensorReading} should be associated
+     * @param key   with which {@link Reading} should be associated
      * @param count number of items to peek
-     * @return {@code List<Reading>} containing {@code count} {@link SensorReading}s starting from the head,
-     * or returns less than {@code count} {@link SensorReading}s if this storage does not have requested number of elements
+     * @return {@code List<Reading>} containing {@code count} {@link Reading}s starting from the head,
+     * or returns less than {@code count} {@link Reading}s if this storage does not have requested number of elements
      */
-    List<SensorReading> getSensorReadings(String key, int count);
+    List<Reading> getSensorReadings(String key, int count);
 
     /**
-     * Removes first {@code count} {@link SensorReading}s of this storage, associated with given {@code key}.
+     * Removes first {@code count} {@link Reading}s of this storage, associated with given {@code key}.
      *
-     * @param key   of the {@link SensorReading}s
+     * @param key   of the {@link Reading}s
      * @param count number of items to remove
      */
     void removeSensorReadings(String key, int count);
 
     /**
-     * Returns {@code List<String>} of {@link SensorReading} keys contained in this storage.
+     * Returns {@code List<String>} of {@link Reading} keys contained in this storage.
      *
-     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link SensorReading}s are present.
+     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Reading}s are present.
      */
     List<String> getSensorReadingsKeys();
 
@@ -154,9 +158,9 @@ public interface Persistence {
     void removeConfiguration();
 
     /**
-     * Returns {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key.
+     * Returns {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key.
      *
-     * @return {@code true} if this storage contains no {@link SensorReading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key
+     * @return {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key
      */
     boolean isEmpty();
 }

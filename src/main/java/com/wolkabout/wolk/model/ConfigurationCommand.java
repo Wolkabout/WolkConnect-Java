@@ -14,17 +14,15 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.wolkabout.wolk.model;
 
 import java.util.Map;
 
 public class ConfigurationCommand {
-    private static final Logger LOG = LoggerFactory.getLogger(ConfigurationCommand.class);
 
-    public enum CommandType {UNKNOWN, SET, CURRENT}
+    public enum CommandType {
+        UNKNOWN, SET, CURRENT
+    }
 
     private final CommandType commandType;
 

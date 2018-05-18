@@ -14,28 +14,20 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.connectivity.model;
+package com.wolkabout.wolk.protocol.processor;
 
-import java.nio.charset.StandardCharsets;
+import com.wolkabout.wolk.model.ActuatorCommand;
 
-public class InboundMessage {
-    private final String channel;
-    private final byte[] payload;
+/*
+ *  Provide implementation of ActuatorHandler to pass actuation commands from platform to your device.
+ */
+public interface ActuationProcessor {
 
-    public InboundMessage(String channel, byte[] payload) {
-        this.channel = channel;
-        this.payload = payload.clone();
-    }
-
-    public String getPayload() {
-        return new String(payload, StandardCharsets.UTF_8);
-    }
-
-    public byte[] getBinaryPayload() {
-        return payload;
-    }
-
-    public String getChannel() {
-        return channel;
-    }
+    /**
+     * When the actuation command is given from the platform, it will be delivered to this method.
+     * This method should pass the new value for the actuator to device.
+     *
+     * @param actuatorCommand {@link ActuatorCommand}
+     */
+    void onActuationReceived(ActuatorCommand actuatorCommand);
 }
