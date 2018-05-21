@@ -26,6 +26,9 @@ public class ActuatorCommand {
     private String value;
     private String reference;
 
+    public ActuatorCommand() {
+    }
+
     public ActuatorCommand(CommandType commandType, String value, String reference) {
         this.commandType = commandType;
         this.value = value;

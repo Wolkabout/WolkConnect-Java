@@ -2,18 +2,12 @@
  * Copyright (c) 2018 Wolkabout
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.firmwareupdate.model.command;
 
 
-public class SimpleCommand {
+public class Command {
 
     private String command;
-
-    public SimpleCommand() {}
-
-    public SimpleCommand(String command) {
-        this.command = command;
-    }
 
     public String getCommand() {
         return command;
@@ -25,7 +19,7 @@ public class SimpleCommand {
 
     @Override
     public String toString() {
-        return "SimpleCommand{" +
+        return "Command{" +
                 "command='" + command + '\'' +
                 '}';
     }

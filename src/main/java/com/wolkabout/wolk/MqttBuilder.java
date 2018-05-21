@@ -18,12 +18,14 @@ package com.wolkabout.wolk;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -32,9 +34,11 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 
-public class MqttConnection {
+public class MqttBuilder {
 
     private static final String FACTORY_TYPE = "X.509";
+
+    private WeakReference<Wolk.Builder> wolkBuilder;
 
     /**
      * URL of the MQTT broker. Must start with "ssl://" or "tcp://"
@@ -95,7 +99,11 @@ public class MqttConnection {
      */
     private String[] certificateAuthority;
 
-    public MqttConnection host(String host) {
+    MqttBuilder(Wolk.Builder wolkBuilder) {
+        this.wolkBuilder = new WeakReference<>(wolkBuilder);
+    }
+
+    public MqttBuilder host(String host) {
         if (!host.startsWith("ssl://") && !host.startsWith("tcp://")) {
             throw new IllegalArgumentException("Host must start with ssl:// or tcp://");
         }
@@ -104,37 +112,37 @@ public class MqttConnection {
         return this;
     }
 
-    public MqttConnection deviceKey(String deviceKey) {
+    public MqttBuilder deviceKey(String deviceKey) {
         this.deviceKey = deviceKey;
         return this;
     }
 
-    public MqttConnection password(String password) {
+    public MqttBuilder password(String password) {
         this.password = password;
         return this;
     }
 
-    public MqttConnection keepAlive(int keepAlive) {
+    public MqttBuilder keepAlive(int keepAlive) {
         this.keepAlive = keepAlive;
         return this;
     }
 
-    public MqttConnection cleanSession(boolean cleanSession) {
+    public MqttBuilder cleanSession(boolean cleanSession) {
         this.cleanSession = cleanSession;
         return this;
     }
 
-    public MqttConnection connectionTimeout(int connectionTimeout) {
+    public MqttBuilder connectionTimeout(int connectionTimeout) {
         this.connectionTimeout = connectionTimeout;
         return this;
     }
 
-    public MqttConnection maxInflight(int maxInflight) {
+    public MqttBuilder maxInflight(int maxInflight) {
         this.maxInflight = maxInflight;
         return this;
     }
 
-    public MqttConnection sslCertification(String... certificateAuthority) throws Exception {
+    public MqttBuilder sslCertification(String... certificateAuthority) throws Exception {
         if (certificateAuthority != null && certificateAuthority.length == 1 && certificateAuthority[0] != null) {
             throw new IllegalArgumentException("Invalid certification authority.");
         }
@@ -143,7 +151,11 @@ public class MqttConnection {
         return this;
     }
 
-    public MqttClient connect() throws Exception {
+    public Wolk.Builder build() {
+        return wolkBuilder.get();
+    }
+
+    public MqttClient connect() throws MqttException {
         final MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName(deviceKey);
         options.setPassword(password.toCharArray());

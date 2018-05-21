@@ -1,47 +1,44 @@
 package com.wolkabout.wolk.protocol;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wolkabout.wolk.model.*;
+import com.wolkabout.wolk.util.JsonUtil;
+import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 
 public class JsonSingleReferenceProtocol extends Protocol {
 
-    private static final ObjectMapper mapper = new ObjectMapper();
-
-    public JsonSingleReferenceProtocol(MqttClient client) {
-        super(client);
+    public JsonSingleReferenceProtocol(MqttClient client, ProtocolHandler handler) {
+        super(client, handler);
     }
 
     @Override
-    protected String getActuationTopic() {
-        return "actuators/commands/";
-    }
+    protected void subscribe() throws Exception {
+        client.subscribe("actuators/commands/" + client.getClientId(), new IMqttMessageListener() {
+            @Override
+            public void messageArrived(String topic, MqttMessage message) throws Exception {
+                final String payload = new String(message.getPayload(), "UTF-8");
+                final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
+                if (actuatorCommand.getCommandType() == ActuatorCommand.CommandType.SET) {
+                    handler.onActuationReceived(actuatorCommand);
+                } else {
+                    final ActuatorStatus actuatorStatus = handler.getActuatorStatus(actuatorCommand.getReference());
+                    publish(actuatorStatus);
+                }
+            }
+        });
 
-    @Override
-    protected String getConfigurationTopic() {
-        return "configurations/commands/";
-    }
-
-    @Override
-    protected ActuatorCommand parseActuatorCommand(String payload) {
-        try {
-            return mapper.readValue(payload, ActuatorCommand.class);
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Could not deserialize actuator command: " + payload);
-        }
-    }
-
-    @Override
-    protected Map<String, Object> parseConfiguration(String payload) {
-        try {
-            return mapper.readValue(payload, Map.class);
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Could not deserialize actuator command: " + payload);
-        }
+        client.subscribe("configurations/commands/" + client.getClientId(), new IMqttMessageListener() {
+            @Override
+            public void messageArrived(String topic, MqttMessage message) throws Exception {
+                final String payload = new String(message.getPayload(), "UTF-8");
+                final Map<String, Object> configuration = JsonUtil.deserialize(payload, Map.class);
+                handler.onConfigurationReceived(configuration);
+            }
+        });
     }
 
     @Override
@@ -50,35 +47,20 @@ public class JsonSingleReferenceProtocol extends Protocol {
     }
 
     @Override
-    public void publish(List<Reading> readings) {
+    public void publish(Collection<Reading> readings) {
         for (Reading reading : readings) {
             publish(reading);
         }
     }
 
     @Override
-    public void publish(ConfigurationCommand configurations) {
+    public void publish(Map<String, String> values) {
+        final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
         publish("configurations/current", configurations);
     }
 
     @Override
     public void publish(ActuatorStatus actuatorStatus) {
         publish("actuators/status", actuatorStatus);
-    }
-
-    private void publish(String topic, Object payload) {
-        try {
-            client.publish("readings/" + client.getClientId(), serialize(payload), 1, false);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
-        }
-    }
-
-    private byte[] serialize(Object object) {
-        try {
-            return mapper.writeValueAsString(object).getBytes("UTF-8");
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not deserialize: " + object, e);
-        }
     }
 }

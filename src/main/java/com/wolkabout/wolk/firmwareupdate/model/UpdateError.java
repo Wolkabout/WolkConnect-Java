@@ -7,11 +7,6 @@ package com.wolkabout.wolk.firmwareupdate.model;
 public enum UpdateError {
 
     /**
-     * An error not understood by the current protocol version.
-     */
-    UNKNOWN_ERROR(-1),
-
-    /**
      * An error not predicted by the protocol.
      */
     UNSPECIFIED_ERROR(0),
@@ -52,13 +47,7 @@ public enum UpdateError {
         this.code = code;
     }
 
-    public static UpdateError byCode(int code) {
-        for (UpdateError error : values()) {
-            if (error.code == code) {
-                return error;
-            }
-        }
-
-        return UNKNOWN_ERROR;
+    public int getCode() {
+        return code;
     }
 }

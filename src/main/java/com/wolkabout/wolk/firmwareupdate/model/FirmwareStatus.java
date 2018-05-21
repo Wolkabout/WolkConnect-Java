@@ -10,11 +10,6 @@ package com.wolkabout.wolk.firmwareupdate.model;
 public enum FirmwareStatus {
 
     /**
-     * Device notified. Waiting for a response.
-     */
-    AWAITING_DEVICE,
-
-    /**
      * File transfer in progress.
      */
     FILE_TRANSFER,

@@ -2,21 +2,14 @@
  * Copyright (c) 2018 Wolkabout
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.firmwareupdate.model.command;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.wolkabout.wolk.firmwareupdate.model.command.Command;
 
-public class UrlInfo {
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private final String command = "URL_DOWNLOAD";
+public class UrlInfo extends Command {
 
     private String fileUrl;
     private boolean autoInstall;
-
-    public String getCommand() {
-        return command;
-    }
 
     public String getFileUrl() {
         return fileUrl;
@@ -37,9 +30,8 @@ public class UrlInfo {
     @Override
     public String toString() {
         return "UrlInfo{" +
-                "command='" + command + '\'' +
-                ", fileUrl='" + fileUrl + '\'' +
+                "fileUrl='" + fileUrl + '\'' +
                 ", autoInstall=" + autoInstall +
-                '}';
+                "} " + super.toString();
     }
 }

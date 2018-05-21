@@ -2,7 +2,7 @@
  * Copyright (c) 2018 Wolkabout
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.firmwareupdate.model.command;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

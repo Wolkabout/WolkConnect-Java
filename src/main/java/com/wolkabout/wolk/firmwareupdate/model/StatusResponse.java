@@ -23,8 +23,8 @@ public class StatusResponse {
         return error;
     }
 
-    public void setError(Integer code) {
-        error = code == null ? null : UpdateError.byCode(code);
+    public void setError(UpdateError error) {
+        this.error = error;
     }
 
     @Override

@@ -16,135 +16,43 @@
  */
 package com.wolkabout.wolk.persistence;
 
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class InMemoryPersistence implements Persistence {
 
-    private final Map<String, List<Reading>> readings = new HashMap<>();
-    private final Map<String, List<Alarm>> alarms = new HashMap<>();
-    private final Map<String, ActuatorStatus> actuatorStatuses = new HashMap<>();
-    private Map<String, String> configuration;
+    private final Queue<Reading> store = new ConcurrentLinkedQueue<>();
 
     @Override
-    public boolean putSensorReading(String key, Reading reading) {
-        if (readings.get(key) == null) {
-            readings.put(key, new ArrayList<Reading>());
-        }
-
-        return readings.get(key).add(reading);
+    public void addReading(Reading reading) {
+        store.add(reading);
     }
 
     @Override
-    public List<Reading> getSensorReadings(String key, int count) {
-        if (!readings.containsKey(key)) {
-            return new ArrayList<>();
-        }
-
-        final List<Reading> readingsByKey = readings.get(key);
-        return readingsByKey.subList(0, Math.min(readingsByKey.size(), count));
-    }
-
-
-    @Override
-    public void removeSensorReadings(String key, int count) {
-        if (!readings.containsKey(key)) {
-            return;
-        }
-
-        final List<Reading> readingsByKey = readings.get(key);
-        if (readingsByKey.size() <= count) {
-            readings.remove(key);
-        } else {
-            readings.put(key, readingsByKey.subList(count, readingsByKey.size()));
-        }
+    public void addReadings(Collection<Reading> readings) {
+        store.addAll(readings);
     }
 
     @Override
-    public List<String> getSensorReadingsKeys() {
-        return new ArrayList<>(readings.keySet());
+    public Reading poll() {
+        return store.poll();
     }
 
     @Override
-    public boolean putAlarm(String key, Alarm alarm) {
-        if (alarms.get(key) == null) {
-            alarms.put(key, new ArrayList<Alarm>());
-        }
-
-        alarms.get(key).add(alarm);
-        return true;
+    public List<Reading> getAll() {
+        return new ArrayList<>(store);
     }
 
     @Override
-    public List<Alarm> getAlarms(String key, int count) {
-        if (!alarms.containsKey(key)) {
-            return Collections.emptyList();
-        }
-
-        final List<Alarm> alarmsByKey = alarms.get(key);
-        return alarmsByKey.subList(0, Math.min(alarmsByKey.size(), count));
+    public void remove(Reading reading) {
+        store.remove(reading);
     }
 
     @Override
-    public void removeAlarms(String key, int count) {
-        if (!alarms.containsKey(key)) {
-            return;
-        }
-
-        final List<Alarm> alarmsByKey = alarms.get(key);
-        if (alarmsByKey.size() <= count) {
-            alarms.remove(key);
-        } else {
-            alarms.put(key, alarmsByKey.subList(count, alarmsByKey.size()));
-        }
+    public void removeAll() {
+        store.clear();
     }
 
-    @Override
-    public List<String> getAlarmsKeys() {
-        return new ArrayList<>(alarms.keySet());
-    }
-
-    @Override
-    public boolean putActuatorStatus(String key, ActuatorStatus actuatorStatus) {
-        return actuatorStatuses.put(key, actuatorStatus) != null;
-    }
-
-    @Override
-    public ActuatorStatus getActuatorStatus(String key) {
-        return actuatorStatuses.get(key);
-    }
-
-    @Override
-    public void removeActuatorStatus(String key) {
-        actuatorStatuses.remove(key);
-    }
-
-    @Override
-    public List<String> getActuatorStatusesKeys() {
-        return new ArrayList<>(actuatorStatuses.keySet());
-    }
-
-    @Override
-    public boolean putConfiguration(Map<String, String> configuration) {
-        this.configuration = configuration;
-        return true;
-    }
-
-    @Override
-    public Map<String, String> getConfiguration() {
-        return configuration;
-    }
-
-    @Override
-    public void removeConfiguration() {
-        configuration = null;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return readings.isEmpty() && actuatorStatuses.isEmpty();
-    }
 }

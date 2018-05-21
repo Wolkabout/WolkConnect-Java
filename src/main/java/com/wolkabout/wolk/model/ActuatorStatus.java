@@ -29,7 +29,7 @@ public class ActuatorStatus {
     private final Status status;
     private final String value;
 
-    ActuatorStatus(Status status, String value, String ref) {
+    public ActuatorStatus(Status status, String value, String ref) {
         this.status = status;
         this.value = value;
         this.ref = ref;

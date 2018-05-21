@@ -16,151 +16,23 @@
  */
 package com.wolkabout.wolk.persistence;
 
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
-/**
- * A storage designed for holding elements in persistent store prior to publishing to WolkAbout IoT Platform.
- * <p>
- * Multiple {@link Reading}s can be stored under the same key.
- * Multiple {@link Alarm}s can be stored under the same key.
- * Single {@link ActuatorStatus} can be stored under one key.
- * Implementation storing/retrieving strategy must be FIFO.
- */
 public interface Persistence {
-    /**
-     * Inserts the {@link Reading}.
-     *
-     * @param key     with which {@link Reading} should be associated
-     * @param reading to be inserted
-     * @return {@code true} if successful, or {@code false} if
-     * element can not be inserted
-     */
-    boolean putSensorReading(String key, Reading reading);
 
-    /**
-     * Retrieves, first {@code count} {@link Reading}s of this storage, associated with given {@code key}
-     * or returns empty {@code List<Reading>} if this storage is empty.
-     *
-     * @param key   with which {@link Reading} should be associated
-     * @param count number of items to peek
-     * @return {@code List<Reading>} containing {@code count} {@link Reading}s starting from the head,
-     * or returns less than {@code count} {@link Reading}s if this storage does not have requested number of elements
-     */
-    List<Reading> getSensorReadings(String key, int count);
+    void addReading(Reading reading);
 
-    /**
-     * Removes first {@code count} {@link Reading}s of this storage, associated with given {@code key}.
-     *
-     * @param key   of the {@link Reading}s
-     * @param count number of items to remove
-     */
-    void removeSensorReadings(String key, int count);
+    void addReadings(Collection<Reading> readings);
 
-    /**
-     * Returns {@code List<String>} of {@link Reading} keys contained in this storage.
-     *
-     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Reading}s are present.
-     */
-    List<String> getSensorReadingsKeys();
+    Reading poll();
 
-    /**
-     * Inserts the {@link Alarm}.
-     *
-     * @param key   with which {@link Alarm} should be associated
-     * @param alarm to be inserted
-     * @return {@code true} if successful, or {@code false} if
-     * element can not be inserted
-     */
-    boolean putAlarm(String key, Alarm alarm);
+    List<Reading> getAll();
 
-    /**
-     * Retrieves, first {@code count} {@link Alarm}s of this storage, associated with given {@code key}
-     * or returns empty {@code List<Alarm>} if this storage is empty.
-     *
-     * @param key   with which {@link Alarm} should be associated
-     * @param count number of items to peek
-     * @return {@code List<Alarm>} containing {@code count} {@link Alarm}s starting from the head,
-     * or returns less than {@code count} {@link Alarm}s if this storage does not have requested number of elements
-     */
-    List<Alarm> getAlarms(String key, int count);
+    void remove(Reading reading);
 
-    /**
-     * Removes first {@code count} {@link Alarm}s of this storage, associated with given {@code key}.
-     *
-     * @param key   of the {@link Alarm}s
-     * @param count number of items to remove
-     */
-    void removeAlarms(String key, int count);
+    void removeAll();
 
-    /**
-     * Returns {@code List<String>} of {@link Alarm} keys contained in this storage
-     *
-     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link Alarm}s are present.
-     */
-    List<String> getAlarmsKeys();
-
-    /**
-     * Inserts the {@link ActuatorStatus}.
-     *
-     * @param key            with which {@link ActuatorStatus} should be associated.
-     * @param actuatorStatus to be inserted
-     * @return {@code true} if successful, or {@code false} if
-     * element can not be inserted
-     */
-    boolean putActuatorStatus(String key, ActuatorStatus actuatorStatus);
-
-    /**
-     * Retrieves, {@link ActuatorStatus} of this storage, associated with given {@code key}.
-     *
-     * @param key of the {@link ActuatorStatus}.
-     * @return {@link ActuatorStatus}, or {@code null} if this storage does not contain {@link ActuatorStatus} for given {@code key}
-     */
-    ActuatorStatus getActuatorStatus(String key);
-
-    /**
-     * Removes {@link ActuatorStatus} from this storage, associated with given {@code key}.
-     *
-     * @param key with which {@link ActuatorStatus} should be removed.
-     */
-    void removeActuatorStatus(String key);
-
-    /**
-     * Returns {@code List<String>} of {@link ActuatorStatus} keys contained in this storage.
-     *
-     * @return {@code List<String>} containing keys, or empty {@code List<String>} if no {@link ActuatorStatus}es are present.
-     */
-    List<String> getActuatorStatusesKeys();
-
-    /**
-     * Inserts the device configuration.
-     *
-     * @param configuration as {@code Map<String, String>}.
-     * @return {@code true} if successful, or {@code false} if
-     * element can not be persisted
-     */
-    boolean putConfiguration(Map<String, String> configuration);
-
-    /**
-     * Retrieves, device configuration of this storage.
-     *
-     * @return Configuration as {@code Map<String, String>}, or {@code null} if this storage does not contain persisted device configuration
-     */
-    Map<String, String> getConfiguration();
-
-    /**
-     * Removes device configuration from this storage.
-     */
-    void removeConfiguration();
-
-    /**
-     * Returns {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key.
-     *
-     * @return {@code true} if this storage contains no {@link Reading}s, {@link ActuatorStatus}es, {@link Alarm}s and device configuration associated with any key
-     */
-    boolean isEmpty();
 }
