@@ -16,11 +16,24 @@
  */
 package com.wolkabout.wolk.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class Reading {
 
+    @JsonIgnore
     private final String ref;
+
+    @JsonProperty("data")
     private final String value;
+
     private final long utc;
+
+    public Reading(String ref, String values) {
+        this.ref = ref;
+        this.value = values;
+        this.utc = System.currentTimeMillis();
+    }
 
     public Reading(String ref, String values, long utc) {
         this.ref = ref;
@@ -40,7 +53,7 @@ public class Reading {
         return value;
     }
 
-    long getUtc() {
+    public long getUtc() {
         return utc;
     }
 

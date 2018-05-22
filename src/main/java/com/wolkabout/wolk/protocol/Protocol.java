@@ -2,6 +2,8 @@ package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
+import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.slf4j.Logger;
@@ -15,11 +17,13 @@ public abstract class Protocol {
     private static final Logger LOG = LoggerFactory.getLogger(Protocol.class);
 
     protected final MqttClient client;
-    protected final ProtocolHandler handler;
+    protected final ActuatorHandler actuatorHandler;
+    protected final ConfigurationHandler configurationHandler;
 
-    public Protocol(MqttClient client, ProtocolHandler handler) {
+    public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         this.client = client;
-        this.handler = handler;
+        this.actuatorHandler = actuatorHandler;
+        this.configurationHandler = configurationHandler;
 
         try {
             subscribe();
@@ -37,6 +41,16 @@ public abstract class Protocol {
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
         }
+    }
+
+    public void publishCurrentConfig() {
+        final Map<String, String> configurations = configurationHandler.getConfigurations();
+        publish(configurations);
+    }
+
+    public void publishActuatorStatus(String ref) {
+        final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
+        publish(actuatorStatus);
     }
 
     public abstract void publish(Reading reading);

@@ -165,7 +165,7 @@ public class MqttBuilder {
         options.setConnectionTimeout(connectionTimeout);
         options.setMaxInflight(maxInflight);
 
-        options.setWill("lastwill", "Gone offline".getBytes(), 2, false);
+        options.setWill("lastwill/" + deviceKey, "Gone offline".getBytes(), 2, false);
 
         if (host.startsWith("ssl") && certificateAuthority != null) {
             options.setSocketFactory(getSslSocketFactory());

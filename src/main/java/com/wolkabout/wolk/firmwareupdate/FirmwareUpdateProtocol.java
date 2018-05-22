@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URL;
-import java.util.Arrays;
 
 public class FirmwareUpdateProtocol {
 
@@ -23,23 +22,6 @@ public class FirmwareUpdateProtocol {
     private static final String URL_INFO_COMMAND = "URL_DOWNLOAD";
     private static final String INSTALL_COMMAND = "INSTALL";
     private static final String ABORT_COMMAND = "ABORT";
-
-    public static final CommandReceivedProcessor LOGGING_PROCESSOR = new CommandReceivedProcessor() {
-        @Override
-        public void onFileReady(byte[] bytes) {
-            LOG.trace("File received: " + Arrays.toString(bytes));
-        }
-
-        @Override
-        public void onInstallCommandReceived() {
-            LOG.trace("Install command received.");
-        }
-
-        @Override
-        public void onAbortCommandReceived() {
-            LOG.trace("Abort command received.");
-        }
-    };
 
     private static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocol.class);
 
@@ -68,8 +50,8 @@ public class FirmwareUpdateProtocol {
             }
 
             @Override
-            public void onFileReceived(byte[] bytes) {
-                commandReceivedProcessor.onFileReady(bytes);
+            public void onFileReceived(String fileName, boolean autoInstall, byte[] bytes) {
+                commandReceivedProcessor.onFileReady(fileName, autoInstall, bytes);
             }
         });
 
@@ -90,12 +72,15 @@ public class FirmwareUpdateProtocol {
                         case URL_INFO_COMMAND:
                             final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
                             final byte[] bytes = downloadFileFromUrl(urlInfo);
-                            commandReceivedProcessor.onFileReady(bytes);
+                            final String[] urlParts = urlInfo.getFileUrl().split("/");
+                            final String fileName = urlParts[urlParts.length - 1];
+                            commandReceivedProcessor.onFileReady(fileName, urlInfo.isAutoInstall(), bytes);
                             break;
                         case INSTALL_COMMAND:
                             commandReceivedProcessor.onInstallCommandReceived();
                             break;
                         case ABORT_COMMAND:
+                            fileDownloader.abort();
                             commandReceivedProcessor.onAbortCommandReceived();
                             break;
                         default:
@@ -109,7 +94,32 @@ public class FirmwareUpdateProtocol {
         }
     }
 
-    public void publishFlowStatus(StatusResponse statusResponse) {
+    public void publishFlowStatus(FirmwareStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("Status must be set.");
+        }
+
+        if (status == FirmwareStatus.ERROR) {
+            throw new IllegalArgumentException("Use publishFlowStatus(UpdateError error) to publish an error state.");
+        }
+
+        final StatusResponse statusResponse = new StatusResponse();
+        statusResponse.setStatus(status);
+        publishFlowStatus(statusResponse);
+    }
+
+    public void publishFlowStatus(UpdateError error) {
+        if (error == null) {
+            throw new IllegalArgumentException("Error must be set.");
+        }
+
+        final StatusResponse statusResponse = new StatusResponse();
+        statusResponse.setStatus(FirmwareStatus.ERROR);
+        statusResponse.setError(error);
+        publishFlowStatus(statusResponse);
+    }
+
+    private void publishFlowStatus(StatusResponse statusResponse) {
         publish("service/status/firmware/" + client.getClientId(), statusResponse);
     }
 

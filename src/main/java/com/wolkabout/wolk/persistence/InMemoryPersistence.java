@@ -18,12 +18,15 @@ package com.wolkabout.wolk.persistence;
 
 import com.wolkabout.wolk.model.Reading;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class InMemoryPersistence implements Persistence {
 
-    private final Queue<Reading> store = new ConcurrentLinkedQueue<>();
+    private final Queue<Reading> store = new LinkedBlockingQueue<>();
 
     @Override
     public void addReading(Reading reading) {
@@ -42,7 +45,9 @@ public class InMemoryPersistence implements Persistence {
 
     @Override
     public List<Reading> getAll() {
-        return new ArrayList<>(store);
+        final ArrayList<Reading> readings = new ArrayList<>(store);
+        store.clear();
+        return readings;
     }
 
     @Override

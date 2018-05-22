@@ -4,7 +4,9 @@
 
 package com.wolkabout.wolk.firmwareupdate.model.command;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Command {
 
     private String command;

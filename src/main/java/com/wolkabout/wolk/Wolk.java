@@ -18,12 +18,17 @@ package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
+import com.wolkabout.wolk.firmwareupdate.model.StatusResponse;
+import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Reading;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.*;
+import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
+import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.slf4j.Logger;
@@ -78,6 +83,17 @@ public class Wolk {
     private Persistence persistence;
 
     /**
+     * Disconnects from the MQTT broker.
+     */
+    public void disconnect() {
+        try {
+            client.disconnect();
+        } catch (MqttException e) {
+            LOG.trace("Could not disconnect from MQTT broker.", e);
+        }
+    }
+
+    /**
      * Start automatic reading publishing.
      * Readings are published every X seconds.
      * Automatic publishing requires a persistence store.
@@ -119,6 +135,18 @@ public class Wolk {
      * Adds readings to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
 
+     * @param reference {@link Reading#ref}
+     * @param value {@link Reading#value}
+     */
+    public void addReading(String reference, String value) {
+        final Reading reading = new Reading(reference, value);
+        addReading(reading);
+    }
+
+    /**
+     * Adds readings to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+
      * @param reading {@link Reading}
      */
     public void addReading(Reading reading) {
@@ -143,25 +171,84 @@ public class Wolk {
         }
     }
 
+    /**
+     * Publishes current configuration.
+     */
+    public void publishConfiguration() {
+        protocol.publishCurrentConfig();
+    }
+
+    /**
+     * Publishes current actuator status for the given reference.
+     * @param ref actuator reference.
+     */
+    public void publishActuatorStatus(String ref) {
+        protocol.publishActuatorStatus(ref);
+    }
+
+    /**
+     * Publishes the new version of the firmware.
+     * @param version current firmware version.
+     */
+    public void publishFirmwareVersion(String version) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFirmwareVersion(version);
+    }
+
+    /**
+     * Publishes the progress of firmware update.
+     * To publish an error state use {link {@link #publishFirmwareUpdateStatus(UpdateError)}}
+     * @param status Status of the firmware update.
+     */
+    public void publishFirmwareUpdateStatus(FirmwareStatus status) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFlowStatus(status);
+    }
+
+    /**
+     * Publishes an error that occurred during firmware update.
+     * @param error Error that terminated firmware update.
+     */
+    public void publishFirmwareUpdateStatus(UpdateError error) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFlowStatus(error);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public static class Builder {
 
         private MqttBuilder mqttBuilder = new MqttBuilder(this);
 
         private ProtocolType protocolType = ProtocolType.JSON;
-        private ProtocolHandler protocolHandler = new ProtocolHandler() {
+
+        private ActuatorHandler actuatorHandler = new ActuatorHandler() {
             @Override
             public void onActuationReceived(ActuatorCommand actuatorCommand) {
                 LOG.trace("Actuation received: " + actuatorCommand);
             }
 
             @Override
-            public void onConfigurationReceived(Map<String, Object> configuration) {
-                LOG.trace("Configuration received: " + configuration);
-            }
-
-            @Override
             public ActuatorStatus getActuatorStatus(String ref) {
                 return null;
+            }
+        };
+
+        private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
+            @Override
+            public void onConfigurationReceived(Map<String, Object> configuration) {
+                LOG.trace("Configuration received: " + configuration);
             }
 
             @Override
@@ -170,16 +257,19 @@ public class Wolk {
             }
         };
 
-        private Persistence persistence;
+        private Persistence persistence = new InMemoryPersistence();
 
         private boolean firmwareUpdateEnabled = false;
+
         private CommandReceivedProcessor commandReceivedProcessor = null;
+
+        private Builder() {}
 
         public MqttBuilder mqtt() {
             return mqttBuilder;
         }
 
-        public Builder protocolType(ProtocolType protocolType) {
+        public Builder protocol(ProtocolType protocolType) {
             if (protocolType == null) {
                 throw new IllegalArgumentException("Protocol type cannot be null.");
             }
@@ -188,12 +278,21 @@ public class Wolk {
             return this;
         }
 
-        public Builder protocolHandler(ProtocolHandler protocolHandler) {
-            if (protocolHandler == null) {
-                throw new IllegalArgumentException("Protocol handler must be set.");
+        public Builder actuator(ActuatorHandler actuatorHandler) {
+            if (actuatorHandler == null) {
+                throw new IllegalStateException("Actuator handler must be set.");
             }
 
-            this.protocolHandler = protocolHandler;
+            this.actuatorHandler = actuatorHandler;
+            return this;
+        }
+
+        public Builder configuration(ConfigurationHandler configurationHandler) {
+            if (configurationHandler == null) {
+                throw new IllegalArgumentException("Configuration handler must be set.");
+            }
+
+            this.configurationHandler = configurationHandler;
             return this;
         }
 
@@ -232,9 +331,9 @@ public class Wolk {
         private Protocol getProtocol(MqttClient client) {
             switch (protocolType) {
                 case JSON_SINGLE_REFERENCE:
-                    return new JsonSingleReferenceProtocol(client, protocolHandler);
+                    return new JsonSingleReferenceProtocol(client, actuatorHandler, configurationHandler);
                 case JSON:
-                    return new JsonProtocol(client, protocolHandler);
+                    return new JsonProtocol(client, actuatorHandler, configurationHandler);
                 default:
                     throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
             }

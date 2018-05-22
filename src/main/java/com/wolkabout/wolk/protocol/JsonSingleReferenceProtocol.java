@@ -1,6 +1,8 @@
 package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.*;
+import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
+import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -11,8 +13,8 @@ import java.util.Map;
 
 public class JsonSingleReferenceProtocol extends Protocol {
 
-    public JsonSingleReferenceProtocol(MqttClient client, ProtocolHandler handler) {
-        super(client, handler);
+    public JsonSingleReferenceProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
+        super(client, actuatorHandler, configurationHandler);
     }
 
     @Override
@@ -23,9 +25,9 @@ public class JsonSingleReferenceProtocol extends Protocol {
                 final String payload = new String(message.getPayload(), "UTF-8");
                 final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
                 if (actuatorCommand.getCommandType() == ActuatorCommand.CommandType.SET) {
-                    handler.onActuationReceived(actuatorCommand);
+                    actuatorHandler.onActuationReceived(actuatorCommand);
                 } else {
-                    final ActuatorStatus actuatorStatus = handler.getActuatorStatus(actuatorCommand.getReference());
+                    final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
                     publish(actuatorStatus);
                 }
             }
@@ -36,14 +38,14 @@ public class JsonSingleReferenceProtocol extends Protocol {
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
                 final Map<String, Object> configuration = JsonUtil.deserialize(payload, Map.class);
-                handler.onConfigurationReceived(configuration);
+                configurationHandler.onConfigurationReceived(configuration);
             }
         });
     }
 
     @Override
     public void publish(Reading reading) {
-        publish("readings/" + client.getClientId() + "/" + reading.getRef(), new DataWrapper(reading.getValue()));
+        publish("readings/" + client.getClientId() + "/" + reading.getRef(), reading);
     }
 
     @Override
