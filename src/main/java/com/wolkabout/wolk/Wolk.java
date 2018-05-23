@@ -16,812 +16,328 @@
  */
 package com.wolkabout.wolk;
 
-import com.wolkabout.wolk.connectivity.ConnectivityService;
-import com.wolkabout.wolk.connectivity.InboundMessageDeserializer;
-import com.wolkabout.wolk.connectivity.OutboundMessageFactory;
-import com.wolkabout.wolk.connectivity.model.InboundMessage;
-import com.wolkabout.wolk.connectivity.model.OutboundMessage;
-import com.wolkabout.wolk.connectivity.mqtt.MqttConnectivityService;
-import com.wolkabout.wolk.connectivity.mqtt.MqttFactory;
-import com.wolkabout.wolk.filetransfer.FileTransferPacket;
-import com.wolkabout.wolk.filetransfer.FileTransferPacketRequest;
-import com.wolkabout.wolk.firmwareupdate.FirmwareUpdate;
-import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateCommand;
-import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateStatus;
-import org.fusesource.mqtt.client.MQTT;
+import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
+import com.wolkabout.wolk.firmwareupdate.model.StatusResponse;
+import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
+import com.wolkabout.wolk.model.ActuatorCommand;
+import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.persistence.InMemoryPersistence;
+import com.wolkabout.wolk.persistence.Persistence;
+import com.wolkabout.wolk.protocol.*;
+import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
+import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
  */
-public class Wolk implements ConnectivityService.Listener, FirmwareUpdate.Listener {
+public class Wolk {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
 
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
-    private static final String ACTUATORS_COMMANDS = "actuators/commands/";
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private final Runnable publishTask = new Runnable() {
+        @Override
+        public void run() {
+            publish();
+        }
+    };
 
-    private static final String DEVICE_CONFIGURATION_COMMANDS = "configurations/commands/";
+    private ScheduledFuture<?> runningTask;
 
-    private static final String SERVICE_FIRMWARE_COMMANDS = "service/commands/firmware/";
-    private static final String SERVICE_BINARY_TRANSFER = "service/binary/";
+    /**
+     * Connected MQTT client.
+     */
+    private MqttClient client;
 
-    private static final int PUBLISH_DATA_ITEMS_COUNT = 50;
+    /**
+     * Protocol for sending and receiving data.
+     */
+    private Protocol protocol;
 
-    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
+    /**
+     * Protocol for receiving firmware updates.
+     */
+    private FirmwareUpdateProtocol firmwareUpdateProtocol;
 
-    private final CommandQueue commandQueue = new CommandQueue();
-
-    private final Device device;
-
-    private final OutboundMessageFactory outboundMessageFactory;
-    private final InboundMessageDeserializer inboundMessageDeserializer;
-
+    /**
+     * Persistence mechanism for storing and retrieving data.
+     */
     private Persistence persistence;
 
-    private ActuationHandler actuationHandler;
-    private ActuatorStatusProvider actuatorStatusProvider;
-
-    private ConfigurationHandler configurationHandler;
-    private ConfigurationProvider configurationProvider;
-
-    private FirmwareUpdate firmwareUpdate;
-
-    private String host;
-    private String caName;
-
-    private MqttConnectivityService connectivityService;
-
-    private boolean isKeepAliveEnabled = true;
-    private final ScheduledExecutorService keepAliveExecutorService = Executors.newScheduledThreadPool(1);
-
-    private Wolk(Device device) {
-        this.device = device;
-
-        switch (device.getProtocol()) {
-            case JSON_SINGLE:
-                outboundMessageFactory = new JsonSingleOutboundMessageFactory(device.getDeviceKey());
-                inboundMessageDeserializer = new JsonSingleInboundMessageDeserializer();
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported protocol: " + device.getProtocol());
-        }
-    }
-
-    private void enqueueCommand(CommandQueue.Command command) {
-        commandQueue.add(command);
-    }
-
-    public void connect() {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                connectivityService.connect();
-
-                if (isKeepAliveEnabled) {
-                    startKeepAlive();
-                }
-            }
-        });
-    }
-
-    private void startKeepAlive() {
-        keepAliveExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                LOG.trace("Sending keep alive message");
-                enqueueCommand(new CommandQueue.Command() {
-                    @Override
-                    public void execute() {
-                        final OutboundMessage outboundMessage = outboundMessageFactory.makeFromKeepAliveMessage();
-                        connectivityService.publish(outboundMessage);
-                    }
-                });
-            }
-        }, 0, 10, TimeUnit.MINUTES);
-    }
-
-    private void reportFirmwareVersion() {
-        LOG.debug("Publishing firmware version");
-        final OutboundMessage firmwareVersionMessage = outboundMessageFactory.makeFromFirmwareVersion(firmwareUpdate.getFirmwareVersion());
-        if (!connectivityService.publish(firmwareVersionMessage)) {
-            LOG.error("Unable to publish firmware version");
-        }
-    }
-
-    private void flushPersistedData() {
-        flushActuatorStatuses();
-
-        flushAlarms();
-
-        flushSensorReadings();
-
-        if (!persistence.isEmpty() && connectivityService.isConnected()) {
-            LOG.debug("Scheduling sending of next persisted data batch");
-
-            enqueueCommand(new CommandQueue.Command() {
-                @Override
-                public void execute() {
-                    flushPersistedData();
-                }
-            });
-        }
-    }
-
-    private void flushActuatorStatuses() {
-        for (final String key : persistence.getActuatorStatusesKeys()) {
-            try {
-                final ActuatorStatus actuatorStatus = persistence.getActuatorStatus(key);
-                final OutboundMessage outboundMessage =
-                        outboundMessageFactory.makeFromActuatorStatuses(Collections.singletonList(actuatorStatus));
-
-                LOG.info("Publishing {} persisted actuator status(es)", outboundMessage.getSerializedItemsCount());
-                if (!connectivityService.publish(outboundMessage)) {
-                    LOG.error("Failed to publish persisted actuator status(es)");
-                    return;
-                }
-
-                persistence.removeActuatorStatus(key);
-            } catch (IllegalArgumentException e) {
-                LOG.error("Unable to build OutboundMessage from ActuatorStatus(es)", e);
-            }
-        }
-    }
-
-    private void flushConfiguration() {
-        try {
-            final Map<String, String> configuration = persistence.getConfiguration();
-            if (configuration == null) {
-                return;
-            }
-
-            final OutboundMessage outboundMessage = outboundMessageFactory.makeFromConfiguration(configuration);
-
-            LOG.info("Publishing persisted device configuration");
-            if (!connectivityService.publish(outboundMessage)) {
-                LOG.error("Failed to publish persisted device configuration");
-                return;
-            }
-
-            persistence.removeConfiguration();
-        } catch (IllegalArgumentException e) {
-            LOG.error("Unable to build OutboundMessage from device configuration", e);
-        }
-    }
-
-    private void flushAlarms() {
-        for (final String key : persistence.getAlarmsKeys()) {
-            try {
-                final List<Alarm> alarms = persistence.getAlarms(key, PUBLISH_DATA_ITEMS_COUNT);
-                final OutboundMessage outboundMessage = outboundMessageFactory.makeFromAlarms(alarms);
-
-                LOG.info("Publishing {} persisted alarm(s)", outboundMessage.getSerializedItemsCount());
-                if (!connectivityService.publish(outboundMessage)) {
-                    LOG.error("Failed to publish persisted alarm(s)");
-                    return;
-                }
-
-                persistence.removeAlarms(key, outboundMessage.getSerializedItemsCount());
-            } catch (IllegalArgumentException e) {
-                LOG.error("Unable to build OutboundMessage from Alarm(s)");
-            }
-        }
-    }
-
-    private void flushSensorReadings() {
-        for (final String key : persistence.getSensorReadingsKeys()) {
-            try {
-                final List<SensorReading> readings = persistence.getSensorReadings(key, PUBLISH_DATA_ITEMS_COUNT);
-                final OutboundMessage outboundMessage = outboundMessageFactory.makeFromSensorReadings(readings);
-
-                LOG.info("Publishing {} persisted sensor reading(s)", outboundMessage.getSerializedItemsCount());
-                if (!connectivityService.publish(outboundMessage)) {
-                    LOG.error("Failed to publish persisted sensor reading(s)");
-                    return;
-                }
-                persistence.removeSensorReadings(key, outboundMessage.getSerializedItemsCount());
-            } catch (IllegalArgumentException e) {
-                LOG.error("Unable to build OutboundMessage from Reading(s)", e);
-            }
-        }
-    }
-
-    @Override
-    public void onConnectionSuccess() {
-        subscribeToActuatorCommands();
-
-        subscribeToFirmwareUpdate();
-
-        subscribeToConfigurationCommands();
-
-        reportFirmwareVersion();
-        firmwareUpdate.reportFirmwareUpdateResult();
-
-        publishCurrentActuatorStatuses();
-
-        publishConfiguration();
-
-        // 'publish' is called here to send persisted sensor readings, alarms, and actuator statuses
-        publish();
-    }
-
-    private void subscribeToActuatorCommands() {
-        for (String ref : device.getActuators()) {
-            try {
-                LOG.debug("Subscribing to actuator commands. Reference: {}", ref);
-                connectivityService.subscribe(ACTUATORS_COMMANDS + device.getDeviceKey() + "/" + ref);
-            } catch (Exception e) {
-                LOG.error("Failed to subscribe to: {}", ref, e);
-            }
-        }
-    }
-
-    private void subscribeToFirmwareUpdate() {
-        LOG.info("Subscribing to firmware update commands");
-        connectivityService.subscribe(SERVICE_FIRMWARE_COMMANDS + device.getDeviceKey());
-        connectivityService.subscribe(SERVICE_BINARY_TRANSFER + device.getDeviceKey());
-    }
-
-    private void subscribeToConfigurationCommands() {
-        LOG.info("Subscribing to device configuration commands");
-        connectivityService.subscribe(DEVICE_CONFIGURATION_COMMANDS + device.getDeviceKey());
-    }
-
-    @Override
-    public void onConnectionFailure() {
-        // Do nothing.
-    }
-
-    private void publishCurrentActuatorStatuses() {
-        for (final String reference : device.getActuators()) {
-            publishActuatorStatus(reference);
-        }
-    }
-
-    @Override
-    public void onInboundMessage(InboundMessage inboundMessage) {
-        final String topic = inboundMessage.getChannel();
-
-        if (topic.startsWith(ACTUATORS_COMMANDS)) {
-            LOG.info("Received actuator command");
-
-            final ActuatorCommand command = inboundMessageDeserializer.deserializeActuatorCommand(inboundMessage);
-            handleActuatorCommand(command);
-        } else if (topic.startsWith(SERVICE_FIRMWARE_COMMANDS)) {
-            LOG.info("Received firmware update command");
-
-            final FirmwareUpdateCommand firmwareUpdateCommand = inboundMessageDeserializer.deserializeFirmwareUpdateCommand(inboundMessage);
-            handleFirmwareUpdateCommand(firmwareUpdateCommand);
-        } else if (topic.startsWith(SERVICE_BINARY_TRANSFER)) {
-            LOG.info("Received file transfer packet");
-
-            final FileTransferPacket packet = new FileTransferPacket(inboundMessage.getBinaryPayload());
-            handleFileTransferPacket(packet);
-        } else if (topic.startsWith(DEVICE_CONFIGURATION_COMMANDS)) {
-            LOG.info("Received configuration command");
-
-            final ConfigurationCommand configurationCommand = inboundMessageDeserializer.deserializeConfigurationCommand(inboundMessage);
-            handleConfigurationCommand(configurationCommand);
-        } else {
-            LOG.warn("Inbound message received on '{}' is ignored", topic);
-        }
-    }
-
-    private void handleActuatorCommand(ActuatorCommand actuatorCommand) {
-        LOG.info("Handling actuator command: {}", actuatorCommand.getType());
-        switch (actuatorCommand.getType()) {
-            case SET:
-                actuationHandler.handleActuation(actuatorCommand.getReference(), actuatorCommand.getValue());
-            case STATUS:
-                publishActuatorStatus(actuatorCommand.getReference());
-                break;
-            default:
-                LOG.warn("Unknown command. Ignoring.");
-        }
-    }
-
-    private void handleFileTransferPacket(FileTransferPacket packet) {
-        firmwareUpdate.handlePacket(packet);
-    }
-
-    private void handleFirmwareUpdateCommand(FirmwareUpdateCommand command) {
-        firmwareUpdate.handleCommand(command);
-    }
-
-    private void handleConfigurationCommand(ConfigurationCommand configurationCommand) {
-        LOG.info("Handling configuration command: {}", configurationCommand.getType());
-        switch (configurationCommand.getType()) {
-            case SET:
-                configurationHandler.handleConfiguration(configurationCommand.getValues());
-            case CURRENT:
-                publishConfiguration();
-                break;
-            default:
-                LOG.warn("Unknown command. Ignoring.");
-        }
-    }
-
-    @Override
-    public void onStatus(FirmwareUpdateStatus status) {
-        final OutboundMessage outboundMessage = outboundMessageFactory.makeFromFirmwareUpdateStatus(status);
-        connectivityService.publish(outboundMessage);
-    }
-
-    @Override
-    public void onFilePacketRequest(FileTransferPacketRequest request) {
-        final OutboundMessage outboundMessage = outboundMessageFactory.makeFromFileTransferPacketRequest(request);
-        connectivityService.publish(outboundMessage);
-    }
-
     /**
-     * Use this method to create MQTT connection. Use the subsequent builder methods to set up and establish the
-     * connection.
-     *
-     * @param device Describes the device we are connecting to the platform
-     * @return WolkBuilder
-     */
-    public static WolkBuilder connectDevice(Device device) {
-        if (device.getDeviceKey().isEmpty()) {
-            throw new IllegalArgumentException("No device key present.");
-        }
-
-        return new WolkBuilder(device);
-    }
-
-    /**
-     * Disconnect from the platform.
+     * Disconnects from the MQTT broker.
      */
     public void disconnect() {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                connectivityService.disconnect();
-            }
-        });
+        try {
+            client.disconnect();
+        } catch (MqttException e) {
+            LOG.trace("Could not disconnect from MQTT broker.", e);
+        }
     }
 
     /**
-     * Add a single sensor reading.
-     * Can be called from multiple threads simultaneously.
+     * Start automatic reading publishing.
+     * Readings are published every X seconds.
+     * Automatic publishing requires a persistence store.
      *
-     * @param ref   Reference of the sensor
-     * @param value Value of the measurement
+     * @param seconds Time in seconds between 2 publishes.
      */
-    public void addSensorReading(String ref, String value) {
-        addSensorReading(ref, value, System.currentTimeMillis() / 1000L);
+    public void startPublishing(int seconds) {
+        if (persistence == null) {
+            throw new IllegalStateException("Automatic publishing requires persistence store.");
+        }
+
+        runningTask = executor.scheduleAtFixedRate(publishTask, 0, seconds, TimeUnit.SECONDS);
     }
 
     /**
-     * Add single sensor reading.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref   Reference of the sensor
-     * @param value Value of the measurement
-     * @param time  UTC timestamp, in seconds or milliseconds
+     * Stop automatic reading publishing
      */
-    public void addSensorReading(String ref, String value, long time) {
-        final SensorReading reading = new SensorReading(ref, value, time);
+    public void stopPublishing() {
+        if (runningTask == null) {
+            return;
+        }
 
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                LOG.debug("Persisting {}", reading);
-                if (!persistence.putSensorReading(reading.getReference(), reading)) {
-                    LOG.error("Could not persist {}", reading);
-                }
-            }
-        });
+        runningTask.cancel(true);
     }
 
     /**
-     * Add single multi-value sensor reading.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref    Reference of the sensor
-     * @param values Values of the measurement
-     */
-    public void addSensorReading(String ref, List<String> values) {
-        addSensorReading(ref, values, System.currentTimeMillis() / 1000L);
-    }
-
-    /**
-     * Add single multi-value sensor reading.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref    Reference of the sensor
-     * @param values Values of the measurement
-     * @param time   UTC timestamp, in seconds or milliseconds
-     */
-    public void addSensorReading(String ref, List<String> values, long time) {
-        final SensorReading reading = new SensorReading(ref, values, time);
-
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                LOG.debug("Persisting {}", reading);
-                if (!persistence.putSensorReading(reading.getReference(), reading)) {
-                    LOG.error("Could not persist {}", reading);
-                }
-            }
-        });
-    }
-
-    /**
-     * Add a single sensor reading.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref   Reference of the sensor
-     * @param value Value of the measurement
-     * @deprecated Use {@link #addSensorReading(String, String)} instead
-     */
-    @Deprecated
-    public void addReading(String ref, String value) {
-        addReading(ref, value, System.currentTimeMillis() / 1000L);
-    }
-
-    /**
-     * Add single sensor reading.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref   Reference of the sensor
-     * @param value Value of the measurement
-     * @param time  UTC timestamp, in seconds or milliseconds
-     * @deprecated Use {@link #addSensorReading(String, String, long)} instead
-     */
-    @Deprecated
-    public void addReading(final String ref, final String value, final long time) {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                final SensorReading reading = new SensorReading(ref, value, time);
-
-                LOG.debug("Persisting {}", reading);
-                if (!persistence.putSensorReading(reading.getReference(), reading)) {
-                    LOG.error("Could not persist {}", reading);
-                }
-            }
-        });
-    }
-
-    /**
-     * Add single alarm.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref   Reference of he alarm
-     * @param value Value of the measurement
-     */
-    public void addAlarm(String ref, String value) {
-        addAlarm(ref, value, System.currentTimeMillis() / 1000);
-    }
-
-    /**
-     * Add single alarm.
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param ref   Reference of he alarm
-     * @param value Value of the measurement
-     * @param time  UTC timestamp, in seconds or milliseconds
-     */
-    public void addAlarm(final String ref, final String value, final long time) {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                final Alarm alarm = new Alarm(ref, value, time);
-
-                LOG.debug("Persisting {}", alarm);
-                if (!persistence.putAlarm(alarm.getReference(), alarm)) {
-                    LOG.error("Could not persist " + alarm);
-                }
-            }
-        });
-    }
-
-    /**
-     * Publishes all the data and clears persisted data if publishing was successful.
-     * Can be called from multiple threads simultaneously.
+     * Manually publish stored readings.
+     * Requires a persistence store.
      */
     public void publish() {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                flushPersistedData();
-            }
-        });
+        if (persistence == null) {
+            throw new IllegalStateException("Manual publishing requires persistence store.");
+        }
+
+        protocol.publish(persistence.getAll());
     }
 
     /**
-     * Send the status of the actuator specified by its reference. ActuatorStatusProvider is used to
-     * retrieve the status of the actuator.
-     * <p>
-     * Can be called from multiple threads simultaneously.
-     *
-     * @param reference Reference of the actuator
+     * Adds readings to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+
+     * @param reference {@link Reading#ref}
+     * @param value {@link Reading#value}
      */
-    public void publishActuatorStatus(final String reference) {
-        enqueueCommand(new CommandQueue.Command() {
-            @Override
-            public void execute() {
-                LOG.debug("Obtaining actuator status for reference {}", reference);
-                final ActuatorStatus actuatorStatus = actuatorStatusProvider.getActuatorStatus(reference);
-                persistence.putActuatorStatus(reference, new ActuatorStatus(actuatorStatus.getStatus(), actuatorStatus.getValue(), reference));
-                flushActuatorStatuses();
-            }
-        });
+    public void addReading(String reference, String value) {
+        final Reading reading = new Reading(reference, value);
+        addReading(reading);
     }
 
     /**
-     * Send the device configuration.
-     * <p>
-     * Can be called from multiple threads simultaneously.
+     * Adds readings to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+
+     * @param reading {@link Reading}
+     */
+    public void addReading(Reading reading) {
+        if (persistence == null) {
+            protocol.publish(reading);
+        } else {
+            persistence.addReading(reading);
+        }
+    }
+
+    /**
+     * Adds a reading collection to be published.
+     * If the persistence store is set, readings will be stored. Otherwise, they will be published immediately.
+     *
+     * @param readings A collection of {@link Reading}
+     */
+    public void addReadings(Collection<Reading> readings) {
+        if (persistence == null) {
+            protocol.publish(readings);
+        } else {
+            persistence.addReadings(readings);
+        }
+    }
+
+    /**
+     * Publishes current configuration.
      */
     public void publishConfiguration() {
-        enqueueCommand(new CommandQueue.Command() {
+        protocol.publishCurrentConfig();
+    }
+
+    /**
+     * Publishes current actuator status for the given reference.
+     * @param ref actuator reference.
+     */
+    public void publishActuatorStatus(String ref) {
+        protocol.publishActuatorStatus(ref);
+    }
+
+    /**
+     * Publishes the new version of the firmware.
+     * @param version current firmware version.
+     */
+    public void publishFirmwareVersion(String version) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFirmwareVersion(version);
+    }
+
+    /**
+     * Publishes the progress of firmware update.
+     * To publish an error state use {link {@link #publishFirmwareUpdateStatus(UpdateError)}}
+     * @param status Status of the firmware update.
+     */
+    public void publishFirmwareUpdateStatus(FirmwareStatus status) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFlowStatus(status);
+    }
+
+    /**
+     * Publishes an error that occurred during firmware update.
+     * @param error Error that terminated firmware update.
+     */
+    public void publishFirmwareUpdateStatus(UpdateError error) {
+        if (firmwareUpdateProtocol == null) {
+            throw new IllegalStateException("Firmware update protocol not configured.");
+        }
+
+        firmwareUpdateProtocol.publishFlowStatus(error);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+
+        private MqttBuilder mqttBuilder = new MqttBuilder(this);
+
+        private ProtocolType protocolType = ProtocolType.JSON;
+
+        private ActuatorHandler actuatorHandler = new ActuatorHandler() {
             @Override
-            public void execute() {
-                LOG.debug("Obtaining device configuration");
-                final Map<String, String> configuration = configurationProvider.getConfiguration();
-                persistence.putConfiguration(configuration);
-                flushConfiguration();
-            }
-        });
-    }
-
-    public static class WolkBuilder {
-        private final Wolk instance;
-
-        private WolkBuilder(Device device) {
-            instance = new Wolk(device);
-            instance.host = Wolk.WOLK_DEMO_URL;
-            instance.caName = Wolk.WOLK_DEMO_CA;
-
-            instance.persistence = new InMemoryPersistence();
-
-            instance.firmwareUpdate = new FirmwareUpdate("", null, 0, null, null);
-            instance.firmwareUpdate.setListener(instance);
-        }
-
-        /**
-         * Setup host URI.
-         * If port is not provided it will be inferred from URI scheme.
-         *
-         * @param host URI to WolkAbout IoT platform instance
-         *             <ul>
-         *             <li>For SSL version use format "ssl://address:port". </li>
-         *             <li>Otherwise use format "tcp://address:port". </li>
-         *             </ul>
-         * @return WolkBuilder.
-         */
-        public WolkBuilder toHost(String host) {
-            // When port is not present, splitting by ':' yields array of 2 elements
-            if (host.split(":").length == 2) {
-                host = host + ":" + (host.toLowerCase().startsWith("ssl") ? 8883 : 1883);
+            public void onActuationReceived(ActuatorCommand actuatorCommand) {
+                LOG.trace("Actuation received: " + actuatorCommand);
             }
 
-            instance.host = host;
-            return this;
-        }
+            @Override
+            public ActuatorStatus getActuatorStatus(String ref) {
+                return null;
+            }
+        };
 
-        /**
-         * Setup host URI.
-         *
-         * @param host URI to WolkAbout IoT platform instance
-         * @return WolkBuilder
-         */
-        public WolkBuilder toHost(URI host) {
-            instance.host = host.toString();
-            return this;
-        }
-
-        /**
-         * Setup actuation handler.
-         *
-         * @param actuationHandler see  {@link ActuationHandler}
-         * @return WolkBuilder
-         */
-        public WolkBuilder actuationHandler(ActuationHandler actuationHandler) {
-            instance.actuationHandler = actuationHandler;
-            return this;
-        }
-
-        /**
-         * Setup status provider for actuators.
-         *
-         * @param actuatorStatusProvider see {@link ActuatorStatus}
-         * @return WolkBuilder
-         */
-        public WolkBuilder actuatorStatusProvider(ActuatorStatusProvider actuatorStatusProvider) {
-            instance.actuatorStatusProvider = actuatorStatusProvider;
-            return this;
-        }
-
-        /**
-         * Setup configuration handler.
-         *
-         * @param configurationHandler see {@link ConfigurationHandler}
-         * @return WolkBuilder
-         */
-        public WolkBuilder configurationHandler(ConfigurationHandler configurationHandler) {
-            instance.configurationHandler = configurationHandler;
-            return this;
-        }
-
-        /**
-         * Setup configuration provider.
-         *
-         * @param configurationProvider see {@link ConfigurationProvider}
-         * @return WolkBuilder
-         */
-        public WolkBuilder configurationProvider(ConfigurationProvider configurationProvider) {
-            instance.configurationProvider = configurationProvider;
-            return this;
-        }
-
-        /**
-         * Setup Certificate Authority.
-         *
-         * @param ca Path to CA file
-         * @return WolkBuilder
-         */
-        public WolkBuilder certificateAuthority(String ca) {
-            instance.caName = ca;
-            return this;
-        }
-
-        /**
-         * Setup with persistence (aka Offline buffering).
-         *
-         * @param persistence instance of {@link Persistence}
-         * @return WolkBuilder
-         */
-        public WolkBuilder withPersistence(Persistence persistence) {
-            instance.persistence = persistence;
-            return this;
-        }
-
-        /**
-         * Setup firmware update (aka OTA) with firmware download via WolkAbout IoT platform.
-         *
-         * @param firmwareVersion         current firmware version
-         * @param firmwareUpdateHandler   instance of {@link FirmwareUpdateHandler}
-         * @param downloadDirectory       directory to which firmware file will be downloaded
-         * @param maximumFirmwareSize     maximum size of firmware file, in bytes
-         * @param firmwareDownloadHandler handler for downloading firmware file via URL. {@code null} if not used
-         * @return WolkBuilder
-         * @throws IllegalArgumentException if {@code downloadDirectory} does not point to directory, or directory does not exist
-         */
-        public WolkBuilder withFirmwareUpdate(String firmwareVersion, FirmwareUpdateHandler firmwareUpdateHandler, File downloadDirectory,
-                                              long maximumFirmwareSize, FirmwareDownloadHandler firmwareDownloadHandler) throws IllegalArgumentException {
-            if (!downloadDirectory.isDirectory() || !downloadDirectory.exists()) {
-                throw new IllegalArgumentException("Given path does not point to directory.");
+        private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
+            @Override
+            public void onConfigurationReceived(Map<String, Object> configuration) {
+                LOG.trace("Configuration received: " + configuration);
             }
 
-            instance.firmwareUpdate = new FirmwareUpdate(firmwareVersion, downloadDirectory, maximumFirmwareSize, firmwareUpdateHandler, firmwareDownloadHandler);
-            instance.firmwareUpdate.setListener(instance);
+            @Override
+            public Map<String, String> getConfigurations() {
+                return new HashMap<>();
+            }
+        };
+
+        private Persistence persistence = new InMemoryPersistence();
+
+        private boolean firmwareUpdateEnabled = false;
+
+        private CommandReceivedProcessor commandReceivedProcessor = null;
+
+        private Builder() {}
+
+        public MqttBuilder mqtt() {
+            return mqttBuilder;
+        }
+
+        public Builder protocol(ProtocolType protocolType) {
+            if (protocolType == null) {
+                throw new IllegalArgumentException("Protocol type cannot be null.");
+            }
+
+            this.protocolType = protocolType;
             return this;
         }
 
-        /**
-         * Disable internal keep alive mechanism.
-         *
-         * @return WolkBuilder
-         */
-        public WolkBuilder withoutKeepAlive() {
-            instance.isKeepAliveEnabled = false;
+        public Builder actuator(ActuatorHandler actuatorHandler) {
+            if (actuatorHandler == null) {
+                throw new IllegalStateException("Actuator handler must be set.");
+            }
+
+            this.actuatorHandler = actuatorHandler;
             return this;
         }
 
-        /**
-         * Establish a connection to the platform.
-         *
-         * @return Built {@link Wolk}
-         * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
-         */
-        public Wolk connect() throws Exception {
-            validateActuationCallbacks();
-            validateConfigurationCallbacks();
-
-            buildConnectivity();
-
-            instance.connect();
-            return instance;
-        }
-
-        /**
-         * Establish a connection to the platform.
-         *
-         * @param listener Listener that handles connection callbacks
-         * @param maxConnectionAttempts Number of times the client will attempt to connect to broker before falling into {#link onConnectionFailure}
-         * @return Built {@link Wolk}
-         * @throws Exception if building {@link Wolk} fails, or an error occurs while establishing the connection
-         */
-        public Wolk connect(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
-            validateActuationCallbacks();
-
-            buildConnectivity(listener, maxConnectionAttempts);
-
-            instance.connect();
-            return instance;
-        }
-
-        private void validateConfigurationCallbacks() throws IllegalStateException {
-            if (instance.configurationHandler != null && instance.configurationProvider == null ||
-                    instance.configurationHandler == null && instance.configurationProvider != null) {
-                throw new IllegalStateException("Both configuration handler and configuration provider must be set.");
+        public Builder configuration(ConfigurationHandler configurationHandler) {
+            if (configurationHandler == null) {
+                throw new IllegalArgumentException("Configuration handler must be set.");
             }
 
-            if (instance.configurationHandler == null && instance.configurationProvider == null) {
-                // Provide default implementation to avoid ugliness of 'if ( ... != null )'
-                instance.configurationHandler = new ConfigurationHandler() {
-                    @Override
-                    public void handleConfiguration(Map<String, String> configuration) {
-                    }
-                };
-
-                instance.configurationProvider = new ConfigurationProvider() {
-                    @Override
-                    public Map<String, String> getConfiguration() {
-                        return new HashMap<>();
-                    }
-                };
-            }
+            this.configurationHandler = configurationHandler;
+            return this;
         }
 
-        private void validateActuationCallbacks() throws IllegalStateException {
-            if (instance.device.getActuators().size() != 0) {
-                if (instance.actuatorStatusProvider == null || instance.actuationHandler == null) {
-                    throw new IllegalStateException("Device has actuator references, ActuatorStatusProvider and ActuationHandler must be set.");
+        public Builder persistence(Persistence persistence) {
+            this.persistence = persistence;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(CommandReceivedProcessor commandReceivedProcessor) {
+            if (commandReceivedProcessor == null) {
+                throw new IllegalArgumentException("CommandReceivedProcessor is required to enable firmware updates.");
+            }
+
+            firmwareUpdateEnabled = true;
+            this.commandReceivedProcessor = commandReceivedProcessor;
+            return this;
+        }
+
+        public Wolk connect() {
+            try {
+                final Wolk wolk = new Wolk();
+                wolk.client = mqttBuilder.connect();
+                wolk.protocol = getProtocol(wolk.client);
+                wolk.persistence = persistence;
+
+                if (firmwareUpdateEnabled) {
+                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
                 }
-            } else {
-                // Provide default implementation to avoid ugliness of 'if ( ... != null )'
-                actuationHandler(new ActuationHandler() {
-                    @Override
-                    public void handleActuation(String reference, String value) {
-                    }
-                });
 
-                actuatorStatusProvider(new ActuatorStatusProvider() {
-                    @Override
-                    public ActuatorStatus getActuatorStatus(String ref) {
-                        return new ActuatorStatus(ActuatorStatus.Status.ERROR, "");
-                    }
-                });
+                return wolk;
+            } catch (MqttException mqttException) {
+                throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);
             }
         }
 
-        private void buildConnectivity() throws Exception {
-            final MqttFactory mqttFactory = getMqttFactory();
+        private Protocol getProtocol(MqttClient client) {
+            switch (protocolType) {
+                case JSON_SINGLE_REFERENCE:
+                    return new JsonSingleReferenceProtocol(client, actuatorHandler, configurationHandler);
+                case JSON:
+                    return new JsonProtocol(client, actuatorHandler, configurationHandler);
+                default:
+                    throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
+            }
 
-            final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
-            instance.connectivityService = new MqttConnectivityService(client);
-            instance.connectivityService.setListener(instance);
-        }
-
-        private void buildConnectivity(ConnectivityService.Listener listener, long maxConnectionAttempts) throws Exception {
-            final MqttFactory mqttFactory = getMqttFactory();
-            final MQTT client = instance.host.startsWith("ssl") ? mqttFactory.sslClient(instance.caName) : mqttFactory.noSslClient();
-            instance.connectivityService = new MqttConnectivityService(client, maxConnectionAttempts);
-            instance.connectivityService.setListener(listener);
-        }
-
-        private MqttFactory getMqttFactory() throws URISyntaxException {
-            return new MqttFactory()
-                            .deviceKey(instance.device.getDeviceKey())
-                            .password(instance.device.getPassword())
-                            .cleanSession(true)
-                            .host(instance.host);
         }
     }
-
 }
