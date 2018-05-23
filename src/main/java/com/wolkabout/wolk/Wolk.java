@@ -19,7 +19,6 @@ package com.wolkabout.wolk;
 import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
-import com.wolkabout.wolk.firmwareupdate.model.StatusResponse;
 import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
