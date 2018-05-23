@@ -27,7 +27,6 @@ repositories {
 }
 
 dependencies {
-//    compile files('lib/mqtt-client-1.14-wolk-uber.jar')
     implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.0'
     implementation 'commons-codec:commons-codec:1.11'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.5'
