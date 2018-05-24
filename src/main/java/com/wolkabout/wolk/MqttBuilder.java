@@ -97,7 +97,7 @@ public class MqttBuilder {
      * Sets the certificate authority to be used for SSL authentication.
      * Only used if the host URL starts with "ssl://"
      */
-    private String[] certificateAuthority;
+    private String certificateAuthority;
 
     MqttBuilder(Wolk.Builder wolkBuilder) {
         this.wolkBuilder = new WeakReference<>(wolkBuilder);
@@ -142,8 +142,8 @@ public class MqttBuilder {
         return this;
     }
 
-    public MqttBuilder sslCertification(String... certificateAuthority) throws Exception {
-        if (certificateAuthority != null && certificateAuthority.length == 1 && certificateAuthority[0] != null) {
+    public MqttBuilder sslCertification(String certificateAuthority) throws Exception {
+        if (certificateAuthority == null || certificateAuthority.isEmpty()) {
             throw new IllegalArgumentException("Invalid certification authority.");
         }
 
@@ -178,7 +178,7 @@ public class MqttBuilder {
 
     private SSLSocketFactory getSslSocketFactory() {
         try {
-            final String certificateName = certificateAuthority[0];
+            final String certificateName = certificateAuthority;
             final Certificate certificate = getCertificate(certificateName);
             final TrustManagerFactory trustManagerFactory = getTrustManagerFactory(certificate, certificateName);
             final SSLContext sslContext = SSLContext.getInstance("TLS");
