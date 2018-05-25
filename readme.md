@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.6.2'
+    compile 'com.wolkabout:wolk:2.6.3'
 }
 ```
 
