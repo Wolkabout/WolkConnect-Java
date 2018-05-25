@@ -99,7 +99,7 @@ public class MqttBuilder {
     /**
      * Persistence for inflight MQTT messages. If not set, defaults to {@link MqttDefaultFilePersistence}.
      */
-    private MqttClientPersistence mqttPersistance;
+    private MqttClientPersistence persistence = new MqttDefaultFilePersistence();
 
     /**
      * Sets the certificate authority to be used for SSL authentication.
@@ -150,8 +150,8 @@ public class MqttBuilder {
         return this;
     }
 
-    public MqttBuilder mqttPersistence(MqttClientPersistence mqttClientPersistence) {
-        this.mqttPersistance = mqttClientPersistence;
+    public MqttBuilder persistence(MqttClientPersistence mqttClientPersistence) {
+        this.persistence = mqttClientPersistence;
         return this;
     }
 
@@ -183,8 +183,6 @@ public class MqttBuilder {
         if (host.startsWith("ssl") && certificateAuthority != null) {
             options.setSocketFactory(getSslSocketFactory());
         }
-
-        final MqttClientPersistence persistence = mqttPersistance == null ? new MqttDefaultFilePersistence() : mqttPersistance;
 
         final MqttClient client = new MqttClient(host, deviceKey, persistence);
         client.connect(options);
