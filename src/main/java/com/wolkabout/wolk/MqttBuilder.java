@@ -17,8 +17,10 @@
 package com.wolkabout.wolk;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -93,6 +95,12 @@ public class MqttBuilder {
      */
     private int maxInflight = 10;
 
+
+    /**
+     * Persistence for inflight MQTT messages. If not set, defaults to {@link MqttDefaultFilePersistence}.
+     */
+    private MqttClientPersistence persistence = new MqttDefaultFilePersistence();
+
     /**
      * Sets the certificate authority to be used for SSL authentication.
      * Only used if the host URL starts with "ssl://"
@@ -142,6 +150,11 @@ public class MqttBuilder {
         return this;
     }
 
+    public MqttBuilder persistence(MqttClientPersistence mqttClientPersistence) {
+        this.persistence = mqttClientPersistence;
+        return this;
+    }
+
     public MqttBuilder sslCertification(String certificateAuthority) throws Exception {
         if (certificateAuthority == null || certificateAuthority.isEmpty()) {
             throw new IllegalArgumentException("Invalid certification authority.");
@@ -171,7 +184,7 @@ public class MqttBuilder {
             options.setSocketFactory(getSslSocketFactory());
         }
 
-        final MqttClient client = new MqttClient(host, deviceKey);
+        final MqttClient client = new MqttClient(host, deviceKey, persistence);
         client.connect(options);
         return client;
     }
