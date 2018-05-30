@@ -36,7 +36,7 @@ public class JsonProtocol extends Protocol {
 
     @Override
     protected void subscribe() throws Exception {
-        client.subscribe("p2d/actuator_set/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("p2d/actuator_set/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> actuation = JsonUtil.deserialize(message, HashMap.class);
@@ -44,14 +44,14 @@ public class JsonProtocol extends Protocol {
 
                 final String reference = topic.substring(("p2d/actuator_set/" + client.getClientId() + "/r/").length());
                 final ActuatorCommand actuatorCommand = new ActuatorCommand();
-                actuatorCommand.setCommandType(ActuatorCommand.CommandType.SET);
+                actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
                 actuatorCommand.setReference(reference);
                 actuatorCommand.setValue(value.toString());
                 actuatorHandler.onActuationReceived(actuatorCommand);
             }
         });
 
-        client.subscribe("p2d/actuator_get/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("p2d/actuator_get/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String reference = topic.substring(("p2d/actuator_get/" + client.getClientId() + "/r/").length());
@@ -60,7 +60,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe("p2d/configuration_set/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("p2d/configuration_set/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
@@ -68,7 +68,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe("p2d/configuration_get/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("p2d/configuration_get/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final Map<String, String> configurations = configurationHandler.getConfigurations();
