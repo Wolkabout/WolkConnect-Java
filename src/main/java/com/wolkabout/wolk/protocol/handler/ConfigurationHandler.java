@@ -16,21 +16,38 @@
  */
 package com.wolkabout.wolk.protocol.handler;
 
+import com.wolkabout.wolk.Wolk;
+
+import java.lang.ref.WeakReference;
 import java.util.Map;
 
-public interface ConfigurationHandler {
+public abstract class ConfigurationHandler {
+
+    private WeakReference<Wolk> wolk;
+
+    protected Wolk getWolk() {
+        return wolk.get();
+    }
+
+    public void setWolk(Wolk wolk) {
+        if (this.wolk != null) {
+            throw new IllegalStateException("Wolk instance already set.");
+        }
+
+        this.wolk = new WeakReference<>(wolk);
+    }
 
     /**
      * Called when configuration is received.
      *
      * @param configuration Key-value pair of references and values.
      */
-    void onConfigurationReceived(Map<String, Object> configuration);
+    public abstract void onConfigurationReceived(Map<String, Object> configuration);
 
     /**
      * Called when configuration is requested by server.
      *
      * @return Key-value pairs of references and values.
      */
-    Map<String, String> getConfigurations();
+    public abstract Map<String, String> getConfigurations();
 }

@@ -16,10 +16,27 @@
  */
 package com.wolkabout.wolk.protocol.handler;
 
+import com.wolkabout.wolk.Wolk;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 
-public interface ActuatorHandler {
+import java.lang.ref.WeakReference;
+
+public abstract class ActuatorHandler {
+
+    private WeakReference<Wolk> wolk;
+
+    protected Wolk getWolk() {
+        return wolk.get();
+    }
+
+    public void setWolk(Wolk wolk) {
+        if (this.wolk != null) {
+            throw new IllegalStateException("Wolk instance already set.");
+        }
+
+        this.wolk = new WeakReference<>(wolk);
+    }
 
     /**
      * When the actuation command is given from the platform, it will be delivered to this method.
@@ -27,7 +44,7 @@ public interface ActuatorHandler {
      *
      * @param actuatorCommand {@link ActuatorCommand}
      */
-    void onActuationReceived(ActuatorCommand actuatorCommand);
+    public abstract void onActuationReceived(ActuatorCommand actuatorCommand);
 
     /**
      * Reads the status of actuator from device and returns it as ActuatorStatus object.
@@ -35,5 +52,5 @@ public interface ActuatorHandler {
      * @param ref of the actuator.
      * @return ActuatorStatus object.
      */
-    ActuatorStatus getActuatorStatus(String ref);
+    public abstract ActuatorStatus getActuatorStatus(String ref);
 }

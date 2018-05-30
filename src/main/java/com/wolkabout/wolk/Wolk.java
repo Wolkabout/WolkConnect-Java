@@ -321,6 +321,9 @@ public class Wolk {
                     wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
                 }
 
+                actuatorHandler.setWolk(wolk);
+                configurationHandler.setWolk(wolk);
+
                 return wolk;
             } catch (MqttException mqttException) {
                 throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);

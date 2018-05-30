@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * Contains the status of the Actuator.
  */
@@ -25,6 +27,7 @@ public class ActuatorStatus {
         READY, BUSY, ERROR
     }
 
+    @JsonIgnore
     private String ref;
     private final Status status;
     private final String value;

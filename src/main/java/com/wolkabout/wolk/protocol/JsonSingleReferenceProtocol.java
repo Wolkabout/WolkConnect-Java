@@ -76,11 +76,11 @@ public class JsonSingleReferenceProtocol extends Protocol {
     @Override
     public void publish(Map<String, String> values) {
         final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
-        publish("configurations/current", configurations);
+        publish("configurations/current/" + client.getClientId(), configurations);
     }
 
     @Override
     public void publish(ActuatorStatus actuatorStatus) {
-        publish("actuators/status", actuatorStatus);
+        publish("actuators/status/" + client.getClientId() + "/" + actuatorStatus.getReference(), actuatorStatus);
     }
 }
