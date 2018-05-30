@@ -35,12 +35,12 @@ public class JsonSingleReferenceProtocol extends Protocol {
 
     @Override
     protected void subscribe() throws Exception {
-        client.subscribe("actuators/commands/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("actuators/commands/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
                 final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
-                if (actuatorCommand.getCommandType() == ActuatorCommand.CommandType.SET) {
+                if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
                     actuatorHandler.onActuationReceived(actuatorCommand);
                 } else {
                     final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
@@ -49,7 +49,7 @@ public class JsonSingleReferenceProtocol extends Protocol {
             }
         });
 
-        client.subscribe("configurations/commands/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe("configurations/commands/" + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");

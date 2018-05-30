@@ -22,25 +22,25 @@ public class ActuatorCommand {
         UNKNOWN, SET, STATUS
     }
 
-    private CommandType commandType;
+    private CommandType command;
     private String value;
     private String reference;
 
     public ActuatorCommand() {
     }
 
-    public ActuatorCommand(CommandType commandType, String value, String reference) {
-        this.commandType = commandType;
+    public ActuatorCommand(CommandType command, String value, String reference) {
+        this.command = command;
         this.value = value;
         this.reference = reference;
     }
 
-    public CommandType getCommandType() {
-        return commandType;
+    public CommandType getCommand() {
+        return command;
     }
 
-    public void setCommandType(CommandType commandType) {
-        this.commandType = commandType;
+    public void setCommand(CommandType command) {
+        this.command = command;
     }
 
     public String getValue() {
@@ -62,7 +62,7 @@ public class ActuatorCommand {
     @Override
     public String toString() {
         return "ActuatorCommand{" +
-                "commandType=" + commandType +
+                "command=" + command +
                 ", value='" + value + '\'' +
                 ", reference='" + reference + '\'' +
                 '}';
