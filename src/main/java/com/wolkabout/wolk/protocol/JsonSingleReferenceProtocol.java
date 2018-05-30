@@ -40,6 +40,8 @@ public class JsonSingleReferenceProtocol extends Protocol {
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
                 final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
+                final String reference = topic.substring(("actuators/commands/" + client.getClientId() + "/").length());
+                actuatorCommand.setReference(reference);
                 if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
                     actuatorHandler.onActuationReceived(actuatorCommand);
                 } else {
