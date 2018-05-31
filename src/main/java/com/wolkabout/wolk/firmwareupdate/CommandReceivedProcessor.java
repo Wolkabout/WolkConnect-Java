@@ -16,11 +16,29 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-public interface CommandReceivedProcessor {
+import com.wolkabout.wolk.Wolk;
 
-    void onFileReady(String fileName, boolean autoInstall, byte[] bytes);
+import java.lang.ref.WeakReference;
 
-    void onInstallCommandReceived();
+public abstract class CommandReceivedProcessor {
 
-    void onAbortCommandReceived();
+    private WeakReference<Wolk> wolk;
+
+    protected Wolk getWolk() {
+        return wolk.get();
+    }
+
+    public void setWolk(Wolk wolk) {
+        if (this.wolk != null) {
+            throw new IllegalStateException("Wolk instance already set.");
+        }
+
+        this.wolk = new WeakReference<>(wolk);
+    }
+
+    public abstract void onFileReady(String fileName, boolean autoInstall, byte[] bytes);
+
+    public abstract void onInstallCommandReceived();
+
+    public abstract void onAbortCommandReceived();
 }
