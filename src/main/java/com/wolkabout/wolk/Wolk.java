@@ -319,6 +319,7 @@ public class Wolk {
 
                 if (firmwareUpdateEnabled) {
                     wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
+                    commandReceivedProcessor.setWolk(wolk);
                 }
 
                 actuatorHandler.setWolk(wolk);
