@@ -24,11 +24,16 @@ import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class JsonProtocol extends Protocol {
+
+    private static final String P2D_ACTUATOR_SET = "p2d/actuator_set/d/";
+    private static final String ACTUATOR_GET = "p2d/actuator_get/d/";
+
+    private static final String CONFIGURATION_SET = "p2d/configuration_set/d/";
+    private static final String CONFIGURATION_GET = "p2d/configuration_get/d/";
+    private static final String SENSOR_READING = "d2p/sensor_reading/d/";
 
     public JsonProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
@@ -36,13 +41,13 @@ public class JsonProtocol extends Protocol {
 
     @Override
     protected void subscribe() throws Exception {
-        client.subscribe("p2d/actuator_set/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe(P2D_ACTUATOR_SET + client.getClientId() + "/r/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> actuation = JsonUtil.deserialize(message, HashMap.class);
                 final Object value = actuation.get("value");
 
-                final String reference = topic.substring(("p2d/actuator_set/" + client.getClientId() + "/r/").length());
+                final String reference = topic.substring((P2D_ACTUATOR_SET + client.getClientId() + "/r/").length());
                 final ActuatorCommand actuatorCommand = new ActuatorCommand();
                 actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
                 actuatorCommand.setReference(reference);
@@ -51,16 +56,16 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe("p2d/actuator_get/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe(ACTUATOR_GET + client.getClientId() + "/r/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final String reference = topic.substring(("p2d/actuator_get/" + client.getClientId() + "/r/").length());
+                final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
                 final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(reference);
                 publish(actuatorStatus);
             }
         });
 
-        client.subscribe("p2d/configuration_set/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe(CONFIGURATION_SET + client.getClientId(), new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
@@ -68,7 +73,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe("p2d/configuration_get/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe(CONFIGURATION_GET + client.getClientId(), new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final Map<String, String> configurations = configurationHandler.getConfigurations();
@@ -79,45 +84,37 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void publish(Reading reading) {
-        publish( "d2p/sensor_reading/d/" + client.getClientId() + "/r/" + reading.getRef(), reading);
+        publish(SENSOR_READING + client.getClientId() + "/r/" + reading.getRef(), reading);
     }
 
     @Override
     public void publish(Collection<Reading> readings) {
-        final HashMap<Long, Map<String, String>> payloadByTime = new HashMap<>();
+        final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
         for (Reading reading : readings) {
             if (payloadByTime.containsKey(reading.getUtc())) {
-                final Map<String, String> readingMap = payloadByTime.get(reading.getUtc());
+                final Map<String, Object> readingMap = payloadByTime.get(reading.getUtc());
                 if (!readingMap.containsKey(reading.getRef())) {
                     readingMap.put(reading.getRef(), reading.getValue());
                 }
             } else {
-                final HashMap<String, String> readingMap = new HashMap<>();
+                final HashMap<String, Object> readingMap = new HashMap<>();
+                readingMap.put("utc", reading.getUtc());
                 readingMap.put(reading.getRef(), reading.getValue());
                 payloadByTime.put(reading.getUtc(), readingMap);
             }
         }
 
-        for (Map.Entry<Long, Map<String, String>> entry : payloadByTime.entrySet()) {
-            final HashMap<String, Object> payload = new HashMap<>();
-
-            payload.put("utc", entry.getKey());
-            for (Map.Entry<String, String> groupedReading : entry.getValue().entrySet()) {
-                payload.put(groupedReading.getKey(), groupedReading.getValue());
-            }
-
-            publish( "d2p/sensor_reading/d/" + client.getClientId(), payload);
-        }
+        publish(SENSOR_READING + client.getClientId(), new ArrayList<>(payloadByTime.values()));
     }
 
     @Override
     public void publish(Map<String, String> values) {
         final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
-        publish("d2p/configuration_get/" + client.getClientId(), configurations);
+        publish(CONFIGURATION_GET + client.getClientId(), configurations);
     }
 
     @Override
     public void publish(ActuatorStatus actuatorStatus) {
-        publish("d2p/actuator_status/" + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
+        publish("d2p/actuator_status/d/" + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
     }
 }
