@@ -16,7 +16,10 @@
  */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.*;
+import com.wolkabout.wolk.model.ActuatorCommand;
+import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.ConfigurationCommand;
+import com.wolkabout.wolk.model.Reading;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import com.wolkabout.wolk.util.JsonUtil;
@@ -24,8 +27,7 @@ import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.util.Collection;
-import java.util.Map;
+import java.util.*;
 
 public class JsonSingleReferenceProtocol extends Protocol {
 
@@ -68,8 +70,17 @@ public class JsonSingleReferenceProtocol extends Protocol {
 
     @Override
     public void publish(Collection<Reading> readings) {
+        final Map<String, List<Reading>> readingsByReference = new HashMap<>();
         for (Reading reading : readings) {
-            publish(reading);
+            if (!readingsByReference.containsKey(reading.getRef())) {
+                readingsByReference.put(reading.getRef(), new ArrayList<Reading>());
+            }
+
+            readingsByReference.get(reading.getRef()).add(reading);
+        }
+
+        for (Map.Entry<String, List<Reading>> entry : readingsByReference.entrySet()) {
+            publish("readings/" + client.getClientId() + "/" + entry.getKey(), entry.getValue());
         }
     }
 
