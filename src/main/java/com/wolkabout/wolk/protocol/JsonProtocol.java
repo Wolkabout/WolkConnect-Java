@@ -28,11 +28,14 @@ import java.util.*;
 
 public class JsonProtocol extends Protocol {
 
-    private static final String P2D_ACTUATOR_SET = "p2d/actuator_set/d/";
+    private static final String ACTUATOR_SET = "p2d/actuator_set/d/";
     private static final String ACTUATOR_GET = "p2d/actuator_get/d/";
+    private static final String ACTUATOR_STATUS = "d2p/actuator_status/d/";
 
     private static final String CONFIGURATION_SET = "p2d/configuration_set/d/";
     private static final String CONFIGURATION_GET = "p2d/configuration_get/d/";
+    private static final String CONFIGURATION_SEND = "d2p/configuration_get/d/";
+
     private static final String SENSOR_READING = "d2p/sensor_reading/d/";
 
     public JsonProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
@@ -41,13 +44,13 @@ public class JsonProtocol extends Protocol {
 
     @Override
     protected void subscribe() throws Exception {
-        client.subscribe(P2D_ACTUATOR_SET + client.getClientId() + "/r/#", new IMqttMessageListener() {
+        client.subscribe(ACTUATOR_SET + client.getClientId() + "/r/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> actuation = JsonUtil.deserialize(message, HashMap.class);
                 final Object value = actuation.get("value");
 
-                final String reference = topic.substring((P2D_ACTUATOR_SET + client.getClientId() + "/r/").length());
+                final String reference = topic.substring((ACTUATOR_SET + client.getClientId() + "/r/").length());
                 final ActuatorCommand actuatorCommand = new ActuatorCommand();
                 actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
                 actuatorCommand.setReference(reference);
@@ -110,11 +113,11 @@ public class JsonProtocol extends Protocol {
     @Override
     public void publish(Map<String, String> values) {
         final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
-        publish(CONFIGURATION_GET + client.getClientId(), configurations);
+        publish(CONFIGURATION_SEND + client.getClientId(), configurations);
     }
 
     @Override
     public void publish(ActuatorStatus actuatorStatus) {
-        publish("d2p/actuator_status/d/" + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
+        publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
     }
 }
