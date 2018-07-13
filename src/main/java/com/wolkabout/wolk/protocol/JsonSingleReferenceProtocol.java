@@ -53,7 +53,7 @@ public class JsonSingleReferenceProtocol extends Protocol {
             }
         });
 
-        client.subscribe("configurations/commands/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe("configurations/commands/" + client.getClientId(), new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
