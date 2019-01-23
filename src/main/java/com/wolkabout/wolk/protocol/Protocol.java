@@ -17,6 +17,7 @@
 package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
@@ -61,16 +62,18 @@ public abstract class Protocol {
 
     public void publishCurrentConfig() {
         final Map<String, String> configurations = configurationHandler.getConfigurations();
-        publish(configurations);
+        publishConfiguration(configurations);
     }
 
     public void publishActuatorStatus(String ref) {
         final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
-        publish(actuatorStatus);
+        publishActuatorStatus(actuatorStatus);
     }
 
-    public abstract void publish(Reading reading);
-    public abstract void publish(Collection<Reading> readings);
-    public abstract void publish(Map<String, String> configurations);
-    public abstract void publish(ActuatorStatus actuatorStatus);
+    public abstract void publishReading(Reading reading);
+    public abstract void publishReadings(Collection<Reading> readings);
+    public abstract void publishAlarm(Alarm alarm);
+    public abstract void publishAlarms(Collection<Alarm> alarms);
+    public abstract void publishConfiguration(Map<String, String> configurations);
+    public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
 }

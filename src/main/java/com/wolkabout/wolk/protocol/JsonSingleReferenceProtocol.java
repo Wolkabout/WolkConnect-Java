@@ -16,10 +16,7 @@
  */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.ActuatorCommand;
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.ConfigurationCommand;
-import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import com.wolkabout.wolk.util.JsonUtil;
@@ -31,29 +28,38 @@ import java.util.*;
 
 public class JsonSingleReferenceProtocol extends Protocol {
 
+    private static final String ACTUATOR_COMMANDS = "actuators/commands/";
+    private static final String ACTUATOR_STATUS = "actuators/status/";
+
+    private static final String CONFIGURATION_COMMANDS = "configurations/commands/";
+    private static final String CONFIGURATION_SEND = "configurations/current/";
+
+    private static final String SENSOR_READING = "readings/";
+    private static final String EVENT = "events/";
+
     public JsonSingleReferenceProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
     }
 
     @Override
     protected void subscribe() throws Exception {
-        client.subscribe("actuators/commands/" + client.getClientId() + "/#", new IMqttMessageListener() {
+        client.subscribe(ACTUATOR_COMMANDS + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
                 final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
-                final String reference = topic.substring(("actuators/commands/" + client.getClientId() + "/").length());
+                final String reference = topic.substring((ACTUATOR_COMMANDS + client.getClientId() + "/").length());
                 actuatorCommand.setReference(reference);
                 if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
                     actuatorHandler.onActuationReceived(actuatorCommand);
                 } else {
                     final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
-                    publish(actuatorStatus);
+                    publishActuatorStatus(actuatorStatus);
                 }
             }
         });
 
-        client.subscribe("configurations/commands/" + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe(CONFIGURATION_COMMANDS + client.getClientId(), new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
@@ -64,12 +70,12 @@ public class JsonSingleReferenceProtocol extends Protocol {
     }
 
     @Override
-    public void publish(Reading reading) {
-        publish("readings/" + client.getClientId() + "/" + reading.getRef(), reading);
+    public void publishReading(Reading reading) {
+        publish(SENSOR_READING + client.getClientId() + "/" + reading.getRef(), reading);
     }
 
     @Override
-    public void publish(Collection<Reading> readings) {
+    public void publishReadings(Collection<Reading> readings) {
         final Map<String, List<Reading>> readingsByReference = new HashMap<>();
         for (Reading reading : readings) {
             if (!readingsByReference.containsKey(reading.getRef())) {
@@ -80,18 +86,39 @@ public class JsonSingleReferenceProtocol extends Protocol {
         }
 
         for (Map.Entry<String, List<Reading>> entry : readingsByReference.entrySet()) {
-            publish("readings/" + client.getClientId() + "/" + entry.getKey(), entry.getValue());
+            publish(SENSOR_READING + client.getClientId() + "/" + entry.getKey(), entry.getValue());
         }
     }
 
     @Override
-    public void publish(Map<String, String> values) {
-        final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
-        publish("configurations/current/" + client.getClientId(), configurations);
+    public void publishAlarm(Alarm alarm) {
+        publish(EVENT + client.getClientId() + "/" + alarm.getReference(), alarm);
     }
 
     @Override
-    public void publish(ActuatorStatus actuatorStatus) {
-        publish("actuators/status/" + client.getClientId() + "/" + actuatorStatus.getReference(), actuatorStatus);
+    public void publishAlarms(Collection<Alarm> alarms) {
+        final Map<String, List<Alarm>> alarmsByReference = new HashMap<>();
+        for (Alarm alarm : alarms) {
+            if (!alarmsByReference.containsKey(alarm.getReference())) {
+                alarmsByReference.put(alarm.getReference(), new ArrayList<Alarm>());
+            }
+
+            alarmsByReference.get(alarm.getReference()).add(alarm);
+        }
+
+        for (Map.Entry<String, List<Alarm>> entry : alarmsByReference.entrySet()) {
+            publish(EVENT + client.getClientId() + "/" + entry.getKey(), entry.getValue());
+        }
+    }
+
+    @Override
+    public void publishConfiguration(Map<String, String> values) {
+        final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
+        publish(CONFIGURATION_SEND + client.getClientId(), configurations);
+    }
+
+    @Override
+    public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
+        publish(ACTUATOR_STATUS + client.getClientId() + "/" + actuatorStatus.getReference(), actuatorStatus);
     }
 }

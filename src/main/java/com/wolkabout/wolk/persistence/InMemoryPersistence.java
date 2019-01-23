@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.persistence;
 
+import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class InMemoryPersistence implements Persistence {
 
     private final Queue<Reading> store = new LinkedBlockingQueue<>();
+    private final Queue<Alarm> alarmStore = new LinkedBlockingQueue<>();
 
     @Override
     public void addReading(Reading reading) {
@@ -57,6 +59,33 @@ public class InMemoryPersistence implements Persistence {
 
     @Override
     public void removeAll() {
+        store.clear();
+    }
+
+    @Override
+    public void addAlarm(Alarm alarm) {
+        alarmStore.add(alarm);
+    }
+
+    @Override
+    public Alarm pollAlarms() {
+        return alarmStore.poll();
+    }
+
+    @Override
+    public List<Alarm> getAllAlarms() {
+        final ArrayList<Alarm> alarms = new ArrayList<>(alarmStore);
+        alarmStore.clear();
+        return alarms;
+    }
+
+    @Override
+    public void removeAlarm(Alarm alarm) {
+        alarmStore.remove(alarm);
+    }
+
+    @Override
+    public void removeAllAlarms() {
         store.clear();
     }
 

@@ -155,7 +155,7 @@ public class MqttBuilder {
         return this;
     }
 
-    public MqttBuilder sslCertification(String certificateAuthority) throws Exception {
+    public MqttBuilder sslCertification(String certificateAuthority) {
         if (certificateAuthority == null || certificateAuthority.isEmpty()) {
             throw new IllegalArgumentException("Invalid certification authority.");
         }

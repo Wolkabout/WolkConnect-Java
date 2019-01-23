@@ -22,6 +22,7 @@ import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
 import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -127,7 +128,9 @@ public class Wolk {
             throw new IllegalStateException("Manual publishing requires persistence store.");
         }
 
-        protocol.publish(persistence.getAll());
+        protocol.publishReadings(persistence.getAll());
+
+        protocol.publishAlarms(persistence.getAllAlarms());
     }
 
     /**
@@ -150,7 +153,7 @@ public class Wolk {
      */
     public void addReading(Reading reading) {
         if (persistence == null) {
-            protocol.publish(reading);
+            protocol.publishReading(reading);
         } else {
             persistence.addReading(reading);
         }
@@ -164,9 +167,25 @@ public class Wolk {
      */
     public void addReadings(Collection<Reading> readings) {
         if (persistence == null) {
-            protocol.publish(readings);
+            protocol.publishReadings(readings);
         } else {
             persistence.addReadings(readings);
+        }
+    }
+
+    /**
+     * Adds readings to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+     *
+     * @param reference {@link Alarm#ref}
+     * @param value {@link Alarm#value}
+     */
+    public void addAlarm(String reference, boolean value) {
+        final Alarm alarm = new Alarm(reference, value);
+        if (persistence == null) {
+            protocol.publishAlarm(alarm);
+        } else {
+            persistence.addAlarm(alarm);
         }
     }
 

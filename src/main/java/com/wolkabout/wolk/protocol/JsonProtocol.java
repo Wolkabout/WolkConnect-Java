@@ -37,6 +37,7 @@ public class JsonProtocol extends Protocol {
     private static final String CONFIGURATION_SEND = "d2p/configuration_get/d/";
 
     private static final String SENSOR_READING = "d2p/sensor_reading/d/";
+    private static final String EVENT = "d2p/events/d/";
 
     public JsonProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
@@ -64,7 +65,7 @@ public class JsonProtocol extends Protocol {
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
                 final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(reference);
-                publish(actuatorStatus);
+                publishActuatorStatus(actuatorStatus);
             }
         });
 
@@ -80,18 +81,18 @@ public class JsonProtocol extends Protocol {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final Map<String, String> configurations = configurationHandler.getConfigurations();
-                publish(configurations);
+                publishConfiguration(configurations);
             }
         });
     }
 
     @Override
-    public void publish(Reading reading) {
+    public void publishReading(Reading reading) {
         publish(SENSOR_READING + client.getClientId() + "/r/" + reading.getRef(), reading);
     }
 
     @Override
-    public void publish(Collection<Reading> readings) {
+    public void publishReadings(Collection<Reading> readings) {
         final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
         for (Reading reading : readings) {
             if (payloadByTime.containsKey(reading.getUtc())) {
@@ -111,13 +112,38 @@ public class JsonProtocol extends Protocol {
     }
 
     @Override
-    public void publish(Map<String, String> values) {
+    public void publishAlarm(Alarm alarm) {
+        publish(EVENT + client.getClientId() + "/r/" + alarm.getReference(), alarm);
+    }
+
+    @Override
+    public void publishAlarms(Collection<Alarm> alarms) {
+        final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
+        for (Alarm alarm : alarms) {
+            if (payloadByTime.containsKey(alarm.getUtc())) {
+                final Map<String, Object> alarmMap = payloadByTime.get(alarm.getUtc());
+                if (!alarmMap.containsKey(alarm.getReference())) {
+                    alarmMap.put(alarm.getReference(), alarm.getValue());
+                }
+            } else {
+                final HashMap<String, Object> alarmMap = new HashMap<>();
+                alarmMap.put("utc", alarm.getUtc());
+                alarmMap.put(alarm.getReference(), alarm.getValue());
+                payloadByTime.put(alarm.getUtc(), alarmMap);
+            }
+        }
+
+        publish(EVENT + client.getClientId(), new ArrayList<>(payloadByTime.values()));
+    }
+
+    @Override
+    public void publishConfiguration(Map<String, String> values) {
         final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
         publish(CONFIGURATION_SEND + client.getClientId(), configurations);
     }
 
     @Override
-    public void publish(ActuatorStatus actuatorStatus) {
+    public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
         publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
     }
 }
