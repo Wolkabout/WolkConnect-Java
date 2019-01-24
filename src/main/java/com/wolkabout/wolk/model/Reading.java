@@ -18,39 +18,47 @@ package com.wolkabout.wolk.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.wolkabout.wolk.util.JsonMultivalueSerializer;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class Reading {
 
     @JsonIgnore
-    private final String ref;
+    private final String reference;
 
     @JsonProperty("data")
-    private final String value;
+    @JsonSerialize(using = JsonMultivalueSerializer.class)
+    private final List<String> values;
 
     private final long utc;
 
-    public Reading(String ref, String values) {
-        this.ref = ref;
-        this.value = values;
-        this.utc = System.currentTimeMillis();
+    public Reading(String reference, String value) {
+        this(reference, Arrays.asList(value), System.currentTimeMillis());
     }
 
-    public Reading(String ref, String values, long utc) {
-        this.ref = ref;
-        this.value = values;
+    public Reading(String reference, String value, long utc) {
+        this(reference, Arrays.asList(value), utc);
+    }
+
+    public Reading(String reference, List<String> values) {
+        this(reference, values, System.currentTimeMillis());
+    }
+
+    public Reading(String reference, List<String> values, long utc) {
+        this.reference = reference;
+        this.values = values;
         this.utc = utc;
     }
 
-    String getReference() {
-        return ref;
+    public String getReference() {
+        return reference;
     }
 
-    public String getRef() {
-        return ref;
-    }
-
-    public String getValue() {
-        return value;
+    public List<String> getValues() {
+        return values;
     }
 
     public long getUtc() {
@@ -60,8 +68,8 @@ public class Reading {
     @Override
     public String toString() {
         return "Reading{" +
-                "ref='" + ref + '\'' +
-                ", values=" + value +
+                "ref='" + reference + '\'' +
+                ", values=" + values +
                 ", utc=" + utc +
                 '}';
     }

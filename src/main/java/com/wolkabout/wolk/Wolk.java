@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -134,14 +135,26 @@ public class Wolk {
     }
 
     /**
-     * Adds readings to be published.
+     * Adds reading to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
 
-     * @param reference {@link Reading#ref}
-     * @param value {@link Reading#value}
+     * @param reference {@link Reading#reference}
+     * @param value {@link Reading#values}
      */
     public void addReading(String reference, String value) {
         final Reading reading = new Reading(reference, value);
+        addReading(reading);
+    }
+
+    /**
+     * Adds multivalue reading to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+     *
+     * @param reference {@link Reading#reference}
+     * @param values {@link Reading#values}
+     */
+    public void addReading(String reference, List<String> values) {
+        final Reading reading = new Reading(reference, values);
         addReading(reading);
     }
 
@@ -177,7 +190,7 @@ public class Wolk {
      * Adds readings to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
-     * @param reference {@link Alarm#ref}
+     * @param reference {@link Alarm#reference}
      * @param value {@link Alarm#value}
      */
     public void addAlarm(String reference, boolean value) {

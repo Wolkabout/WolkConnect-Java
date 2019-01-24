@@ -88,7 +88,7 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void publishReading(Reading reading) {
-        publish(SENSOR_READING + client.getClientId() + "/r/" + reading.getRef(), reading);
+        publish(SENSOR_READING + client.getClientId() + "/r/" + reading.getReference(), reading);
     }
 
     @Override
@@ -97,13 +97,13 @@ public class JsonProtocol extends Protocol {
         for (Reading reading : readings) {
             if (payloadByTime.containsKey(reading.getUtc())) {
                 final Map<String, Object> readingMap = payloadByTime.get(reading.getUtc());
-                if (!readingMap.containsKey(reading.getRef())) {
-                    readingMap.put(reading.getRef(), reading.getValue());
+                if (!readingMap.containsKey(reading.getReference())) {
+                    readingMap.put(reading.getReference(), JsonMultivalueSerializer.valuesToString(reading.getValues()));
                 }
             } else {
                 final HashMap<String, Object> readingMap = new HashMap<>();
                 readingMap.put("utc", reading.getUtc());
-                readingMap.put(reading.getRef(), reading.getValue());
+                readingMap.put(reading.getReference(), JsonMultivalueSerializer.valuesToString(reading.getValues()));
                 payloadByTime.put(reading.getUtc(), readingMap);
             }
         }

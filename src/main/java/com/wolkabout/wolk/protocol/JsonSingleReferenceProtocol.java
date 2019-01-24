@@ -71,18 +71,18 @@ public class JsonSingleReferenceProtocol extends Protocol {
 
     @Override
     public void publishReading(Reading reading) {
-        publish(SENSOR_READING + client.getClientId() + "/" + reading.getRef(), reading);
+        publish(SENSOR_READING + client.getClientId() + "/" + reading.getReference(), reading);
     }
 
     @Override
     public void publishReadings(Collection<Reading> readings) {
         final Map<String, List<Reading>> readingsByReference = new HashMap<>();
         for (Reading reading : readings) {
-            if (!readingsByReference.containsKey(reading.getRef())) {
-                readingsByReference.put(reading.getRef(), new ArrayList<Reading>());
+            if (!readingsByReference.containsKey(reading.getReference())) {
+                readingsByReference.put(reading.getReference(), new ArrayList<Reading>());
             }
 
-            readingsByReference.get(reading.getRef()).add(reading);
+            readingsByReference.get(reading.getReference()).add(reading);
         }
 
         for (Map.Entry<String, List<Reading>> entry : readingsByReference.entrySet()) {
