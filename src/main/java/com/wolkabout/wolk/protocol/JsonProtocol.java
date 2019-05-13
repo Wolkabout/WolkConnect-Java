@@ -19,6 +19,7 @@ package com.wolkabout.wolk.protocol;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
