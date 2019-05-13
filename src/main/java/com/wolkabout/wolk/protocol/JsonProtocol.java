@@ -57,6 +57,9 @@ public class JsonProtocol extends Protocol {
                 actuatorCommand.setReference(reference);
                 actuatorCommand.setValue(value.toString());
                 actuatorHandler.onActuationReceived(actuatorCommand);
+
+                final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(reference);
+                publishActuatorStatus(actuatorStatus);
             }
         });
 
@@ -74,6 +77,9 @@ public class JsonProtocol extends Protocol {
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
                 configurationHandler.onConfigurationReceived(config);
+
+                final Map<String, String> configurations = configurationHandler.getConfigurations();
+                publishConfiguration(configurations);
             }
         });
 

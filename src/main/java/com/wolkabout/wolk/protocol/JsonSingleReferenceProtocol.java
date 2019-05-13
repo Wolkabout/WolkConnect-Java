@@ -52,10 +52,10 @@ public class JsonSingleReferenceProtocol extends Protocol {
                 actuatorCommand.setReference(reference);
                 if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
                     actuatorHandler.onActuationReceived(actuatorCommand);
-                } else {
-                    final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
-                    publishActuatorStatus(actuatorStatus);
                 }
+
+                final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
+                publishActuatorStatus(actuatorStatus);
             }
         });
 
