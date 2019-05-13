@@ -42,7 +42,7 @@ public abstract class ConfigurationHandler {
      *
      * @param configuration Key-value pair of references and values.
      */
-    public abstract void onConfigurationReceived(Map<String, Object> configuration);
+    public abstract void onConfigurationReceived(Map<String, String> configuration);
 
     /**
      * Called when configuration is requested by server.

@@ -293,7 +293,7 @@ public class Wolk {
 
         private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
             @Override
-            public void onConfigurationReceived(Map<String, Object> configuration) {
+            public void onConfigurationReceived(Map<String, String> configuration) {
                 LOG.trace("Configuration received: " + configuration);
             }
 
@@ -382,6 +382,8 @@ public class Wolk {
                         for (final String reference : actuatorReferences) {
                             wolk.publishActuatorStatus(reference);
                         }
+
+                        wolk.publishConfiguration();
                     }
 
                     @Override

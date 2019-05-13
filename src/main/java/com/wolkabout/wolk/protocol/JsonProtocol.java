@@ -76,7 +76,7 @@ public class JsonProtocol extends Protocol {
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
+                final HashMap<String, String> config = JsonUtil.deserialize(message, HashMap.class);
                 configurationHandler.onConfigurationReceived(config);
 
                 final Map<String, String> configurations = configurationHandler.getConfigurations();

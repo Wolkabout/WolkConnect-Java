@@ -5,9 +5,12 @@ import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
+import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class Example {
@@ -50,6 +53,19 @@ public class Example {
                         return new ActuatorStatus(ActuatorStatus.Status.ERROR, "", "");
                     }
                 })
+                .configuration(new ConfigurationHandler() {
+                    @Override
+                    public void onConfigurationReceived(Map<String, String> configuration) {
+                        LOG.info("Configuration received " + configuration);
+
+                        Values.configuration = configuration;
+                    }
+
+                    @Override
+                    public Map<String, String> getConfigurations() {
+                        return Values.configuration;
+                    }
+                })
                 .build();
 
         wolk.connect();
@@ -73,6 +89,14 @@ public class Example {
 }
 
 class Values {
-    public static double sliderValue = 0;
-    public static boolean switchValue = false;
+    static double sliderValue = 0;
+    static boolean switchValue = false;
+
+    static Map<String, String> configuration = new HashMap<String, String>();
+    static {
+        configuration.put("configuration_1", "0");
+        configuration.put("configuration_2", "false");
+        configuration.put("configuration_3", "Value");
+        configuration.put("configuration_4", "Value1,Value2,Value3");
+    };
 }

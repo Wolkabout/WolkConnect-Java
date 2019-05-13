@@ -63,7 +63,7 @@ public class JsonSingleReferenceProtocol extends Protocol {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String payload = new String(message.getPayload(), "UTF-8");
-                final Map<String, Object> configuration = JsonUtil.deserialize(payload, Map.class);
+                final Map<String, String> configuration = JsonUtil.deserialize(payload, Map.class);
                 configurationHandler.onConfigurationReceived(configuration);
             }
         });
