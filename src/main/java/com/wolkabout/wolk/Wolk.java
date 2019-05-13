@@ -108,6 +108,7 @@ public class Wolk {
      */
     public void disconnect() {
         try {
+            client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
             client.disconnect();
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
