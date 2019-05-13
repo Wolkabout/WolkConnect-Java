@@ -76,6 +76,10 @@ public class JsonSingleReferenceProtocol extends Protocol {
 
     @Override
     public void publishReadings(Collection<Reading> readings) {
+        if (readings.isEmpty()) {
+            return;
+        }
+
         final Map<String, List<Reading>> readingsByReference = new HashMap<>();
         for (Reading reading : readings) {
             if (!readingsByReference.containsKey(reading.getReference())) {
@@ -97,6 +101,10 @@ public class JsonSingleReferenceProtocol extends Protocol {
 
     @Override
     public void publishAlarms(Collection<Alarm> alarms) {
+        if (alarms.isEmpty()) {
+            return;
+        }
+
         final Map<String, List<Alarm>> alarmsByReference = new HashMap<>();
         for (Alarm alarm : alarms) {
             if (!alarmsByReference.containsKey(alarm.getReference())) {

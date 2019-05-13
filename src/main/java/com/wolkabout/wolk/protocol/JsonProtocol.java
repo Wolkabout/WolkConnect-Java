@@ -93,6 +93,10 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void publishReadings(Collection<Reading> readings) {
+        if (readings.isEmpty()) {
+            return;
+        }
+
         final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
         for (Reading reading : readings) {
             if (payloadByTime.containsKey(reading.getUtc())) {
@@ -118,6 +122,10 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void publishAlarms(Collection<Alarm> alarms) {
+        if (alarms.isEmpty()) {
+            return;
+        }
+
         final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
         for (Alarm alarm : alarms) {
             if (payloadByTime.containsKey(alarm.getUtc())) {
