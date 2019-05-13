@@ -348,6 +348,10 @@ public class Wolk {
         }
 
         public Builder persistence(Persistence persistence) {
+            if (persistence == null) {
+                throw new IllegalStateException("Persistence must be set.");
+            }
+
             this.persistence = persistence;
             return this;
         }
