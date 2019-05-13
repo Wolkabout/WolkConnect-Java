@@ -42,7 +42,7 @@ public class JsonSingleReferenceProtocol extends Protocol {
     }
 
     @Override
-    protected void subscribe() throws Exception {
+    public void subscribe() throws Exception {
         client.subscribe(ACTUATOR_COMMANDS + client.getClientId() + "/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {

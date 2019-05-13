@@ -44,7 +44,7 @@ public class JsonProtocol extends Protocol {
     }
 
     @Override
-    protected void subscribe() throws Exception {
+    public void subscribe() throws Exception {
         client.subscribe(ACTUATOR_SET + client.getClientId() + "/r/#", new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {

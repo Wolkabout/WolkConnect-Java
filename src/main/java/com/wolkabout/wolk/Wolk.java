@@ -30,6 +30,7 @@ import com.wolkabout.wolk.protocol.*;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,9 +65,14 @@ public class Wolk {
     private ScheduledFuture<?> runningTask;
 
     /**
-     * Connected MQTT client.
+     * MQTT client.
      */
     private MqttClient client;
+
+    /**
+     * MQTT connect options
+     */
+    private MqttConnectOptions options;
 
     /**
      * Protocol for sending and receiving data.
@@ -82,6 +88,20 @@ public class Wolk {
      * Persistence mechanism for storing and retrieving data.
      */
     private Persistence persistence;
+
+    public void connect() {
+        try {
+            client.connect(options);
+        } catch (Exception e) {
+            LOG.debug("Could not connect to MQTT broker.", e);
+        }
+
+        try {
+            protocol.subscribe();
+        } catch (Exception e) {
+            LOG.debug("Unable to subscribe to all required topics.", e);
+        }
+    }
 
     /**
      * Disconnects from the MQTT broker.
@@ -342,10 +362,11 @@ public class Wolk {
             return this;
         }
 
-        public Wolk connect() {
+        public Wolk build() {
             try {
                 final Wolk wolk = new Wolk();
-                wolk.client = mqttBuilder.connect();
+                wolk.client = mqttBuilder.client();
+                wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
 

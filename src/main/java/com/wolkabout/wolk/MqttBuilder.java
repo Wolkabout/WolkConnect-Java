@@ -168,7 +168,11 @@ public class MqttBuilder {
         return wolkBuilder.get();
     }
 
-    public MqttClient connect() throws MqttException {
+    public MqttClient client() throws MqttException {
+        return new MqttClient(host, deviceKey, persistence);
+    }
+
+    public MqttConnectOptions options() {
         final MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName(deviceKey);
         options.setPassword(password.toCharArray());
@@ -184,9 +188,7 @@ public class MqttBuilder {
             options.setSocketFactory(getSslSocketFactory());
         }
 
-        final MqttClient client = new MqttClient(host, deviceKey, persistence);
-        client.connect(options);
-        return client;
+        return options;
     }
 
     private SSLSocketFactory getSslSocketFactory() {

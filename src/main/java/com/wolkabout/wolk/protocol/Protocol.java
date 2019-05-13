@@ -41,15 +41,9 @@ public abstract class Protocol {
         this.client = client;
         this.actuatorHandler = actuatorHandler;
         this.configurationHandler = configurationHandler;
-
-        try {
-            subscribe();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
-        }
     }
 
-    protected abstract void subscribe() throws Exception;
+    public abstract void subscribe() throws Exception;
 
     protected void publish(String topic, Object payload) {
         try {
