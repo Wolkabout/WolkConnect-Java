@@ -24,7 +24,7 @@ public class Example {
                 .build()
 //                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
                 .protocol(ProtocolType.JSON)
-                .actuator(new ActuatorHandler() {
+                .actuator(Arrays.asList("SL", "SW"), new ActuatorHandler() {
                     @Override
                     public void onActuationReceived(ActuatorCommand actuatorCommand) {
                         LOG.info("Actuation received " + actuatorCommand.getReference() + " " +

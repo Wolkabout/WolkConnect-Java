@@ -29,9 +29,7 @@ import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.*;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,12 +92,6 @@ public class Wolk {
             client.connect(options);
         } catch (Exception e) {
             LOG.debug("Could not connect to MQTT broker.", e);
-        }
-
-        try {
-            protocol.subscribe();
-        } catch (Exception e) {
-            LOG.debug("Unable to subscribe to all required topics.", e);
         }
     }
 
@@ -285,6 +277,8 @@ public class Wolk {
 
         private ProtocolType protocolType = ProtocolType.JSON;
 
+        private Collection<String> actuatorReferences;
+
         private ActuatorHandler actuatorHandler = new ActuatorHandler() {
             @Override
             public void onActuationReceived(ActuatorCommand actuatorCommand) {
@@ -330,11 +324,16 @@ public class Wolk {
             return this;
         }
 
-        public Builder actuator(ActuatorHandler actuatorHandler) {
-            if (actuatorHandler == null) {
-                throw new IllegalStateException("Actuator handler must be set.");
+        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
+            if (actuatorReferences.isEmpty()) {
+                throw new IllegalArgumentException("Actuator references must be set.");
             }
 
+            if (actuatorHandler == null) {
+                throw new IllegalArgumentException("Actuator handler must be set.");
+            }
+
+            this.actuatorReferences = actuatorReferences;
             this.actuatorHandler = actuatorHandler;
             return this;
         }
@@ -350,7 +349,7 @@ public class Wolk {
 
         public Builder persistence(Persistence persistence) {
             if (persistence == null) {
-                throw new IllegalStateException("Persistence must be set.");
+                throw new IllegalArgumentException("Persistence must be set.");
             }
 
             this.persistence = persistence;
@@ -371,6 +370,30 @@ public class Wolk {
             try {
                 final Wolk wolk = new Wolk();
                 wolk.client = mqttBuilder.client();
+                wolk.client.setCallback(new MqttCallbackExtended() {
+                    @Override
+                    public void connectComplete(boolean reconnect, String serverURI) {
+                        try {
+                            wolk.protocol.subscribe();
+                        } catch (Exception e) {
+                            LOG.debug("Unable to subscribe to all required topics.", e);
+                        }
+
+                        for (final String reference : actuatorReferences) {
+                            wolk.publishActuatorStatus(reference);
+                        }
+                    }
+
+                    @Override
+                    public void connectionLost(Throwable cause) {}
+
+                    @Override
+                    public void messageArrived(String topic, MqttMessage message) throws Exception {}
+
+                    @Override
+                    public void deliveryComplete(IMqttDeliveryToken token) {}
+                });
+
                 wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
