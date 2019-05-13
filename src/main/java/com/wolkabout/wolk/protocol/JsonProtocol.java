@@ -45,7 +45,7 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void subscribe() throws Exception {
-        client.subscribe(ACTUATOR_SET + client.getClientId() + "/r/#", new IMqttMessageListener() {
+        client.subscribe(ACTUATOR_SET + client.getClientId() + "/r/#", QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> actuation = JsonUtil.deserialize(message, HashMap.class);
@@ -60,7 +60,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe(ACTUATOR_GET + client.getClientId() + "/r/#", new IMqttMessageListener() {
+        client.subscribe(ACTUATOR_GET + client.getClientId() + "/r/#", QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
@@ -69,7 +69,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe(CONFIGURATION_SET + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
@@ -77,7 +77,7 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe(CONFIGURATION_GET + client.getClientId(), new IMqttMessageListener() {
+        client.subscribe(CONFIGURATION_GET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final Map<String, String> configurations = configurationHandler.getConfigurations();

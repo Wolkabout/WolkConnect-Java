@@ -37,6 +37,8 @@ public abstract class Protocol {
     protected final ActuatorHandler actuatorHandler;
     protected final ConfigurationHandler configurationHandler;
 
+    protected static final int QOS = 2;
+
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         this.client = client;
         this.actuatorHandler = actuatorHandler;
@@ -48,7 +50,7 @@ public abstract class Protocol {
     protected void publish(String topic, Object payload) {
         try {
             LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
-            client.publish(topic, JsonUtil.serialize(payload), 1, false);
+            client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
         }
