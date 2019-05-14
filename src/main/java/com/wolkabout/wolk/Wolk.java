@@ -91,8 +91,10 @@ public class Wolk {
         try {
             client.connect(options);
         } catch (Exception e) {
-            LOG.debug("Could not connect to MQTT broker.", e);
+            LOG.info("Could not connect to MQTT broker.", e);
         }
+
+        subscribe();
     }
 
     /**
@@ -267,6 +269,18 @@ public class Wolk {
         firmwareUpdateProtocol.publishFlowStatus(error);
     }
 
+    private void subscribe() {
+        try {
+            protocol.subscribe();
+
+            if (firmwareUpdateProtocol != null) {
+                firmwareUpdateProtocol.subscribe();
+            }
+        } catch (Exception e) {
+            LOG.debug("Unable to subscribe to all required topics.", e);
+        }
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -320,6 +334,10 @@ public class Wolk {
                 throw new IllegalArgumentException("Protocol type cannot be null.");
             }
 
+            if (firmwareUpdateEnabled && protocolType == ProtocolType.JSON) {
+                throw new IllegalStateException("JSON protocol does not support firmware update.");
+            }
+
             this.protocolType = protocolType;
             return this;
         }
@@ -361,6 +379,10 @@ public class Wolk {
                 throw new IllegalArgumentException("CommandReceivedProcessor is required to enable firmware updates.");
             }
 
+            if (protocolType == ProtocolType.JSON) {
+                throw new IllegalStateException("JSON protocol does not support firmware update.");
+            }
+
             firmwareUpdateEnabled = true;
             this.commandReceivedProcessor = commandReceivedProcessor;
             return this;
@@ -373,10 +395,8 @@ public class Wolk {
                 wolk.client.setCallback(new MqttCallbackExtended() {
                     @Override
                     public void connectComplete(boolean reconnect, String serverURI) {
-                        try {
-                            wolk.protocol.subscribe();
-                        } catch (Exception e) {
-                            LOG.debug("Unable to subscribe to all required topics.", e);
+                        if (reconnect) {
+                            wolk.subscribe();
                         }
 
                         for (final String reference : actuatorReferences) {

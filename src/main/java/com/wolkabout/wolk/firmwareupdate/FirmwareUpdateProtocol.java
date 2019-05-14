@@ -45,6 +45,8 @@ public class FirmwareUpdateProtocol {
     private final FileDownloader fileDownloader;
     private final CommandReceivedProcessor commandReceivedProcessor;
 
+    protected static final int QOS = 2;
+
     public FirmwareUpdateProtocol(MqttClient client, final CommandReceivedProcessor commandReceivedProcessor) {
         this.client = client;
         this.commandReceivedProcessor = commandReceivedProcessor;
@@ -70,13 +72,11 @@ public class FirmwareUpdateProtocol {
                 commandReceivedProcessor.onFileReady(fileName, autoInstall, bytes);
             }
         });
-
-        subscribe();
     }
 
-    private void subscribe() {
+    public void subscribe() {
         try {
-            client.subscribe("service/commands/firmware/" + client.getClientId(), new IMqttMessageListener() {
+            client.subscribe("service/commands/firmware/" + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     final Command command = JsonUtil.deserialize(message, Command.class);
@@ -105,6 +105,8 @@ public class FirmwareUpdateProtocol {
 
                 }
             });
+
+            fileDownloader.subscribe();
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
         }
@@ -146,7 +148,7 @@ public class FirmwareUpdateProtocol {
     private void publish(String topic, Object payload) {
         try {
             LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
-            client.publish(topic, JsonUtil.serialize(payload), 2, false);
+            client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
         }
