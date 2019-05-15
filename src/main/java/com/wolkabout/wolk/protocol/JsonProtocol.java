@@ -25,7 +25,9 @@ import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.lang.reflect.Array;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class JsonProtocol extends Protocol {
 
@@ -76,10 +78,10 @@ public class JsonProtocol extends Protocol {
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, String> config = JsonUtil.deserialize(message, HashMap.class);
+                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
                 configurationHandler.onConfigurationReceived(config);
 
-                final Map<String, String> configurations = configurationHandler.getConfigurations();
+                final Map<String, Object> configurations = configurationHandler.getConfigurations();
                 publishConfiguration(configurations);
             }
         });
@@ -87,7 +89,7 @@ public class JsonProtocol extends Protocol {
         client.subscribe(CONFIGURATION_GET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final Map<String, String> configurations = configurationHandler.getConfigurations();
+                final Map<String, Object> configurations = configurationHandler.getConfigurations();
                 publishConfiguration(configurations);
             }
         });
@@ -152,9 +154,40 @@ public class JsonProtocol extends Protocol {
     }
 
     @Override
-    public void publishConfiguration(Map<String, String> values) {
-        final ConfigurationCommand configurations = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, values);
-        publish(CONFIGURATION_SEND + client.getClientId(), configurations);
+    public void publishConfiguration(Map<String, Object> configuration) {
+        final HashMap<String, Map<String, String>> payload = new HashMap<>();
+        final HashMap<String, String> values = new HashMap<>();
+
+        try {
+            for (Map.Entry<String, Object> entry : configuration.entrySet()) {
+                if (entry.getValue() != null && entry.getValue().getClass().isArray()) {
+
+                    List<String> multivalue = new ArrayList<String>();
+
+                    int length = Array.getLength(entry.getValue());
+                    for (int i = 0; i < length; ++i) {
+                        multivalue.add(Objects.toString(Array.get(entry.getValue(), i), null));
+                    }
+
+                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
+                } else if (entry.getValue() != null && entry.getValue() instanceof List) {
+
+                    List<String> multivalue = ((List<Object>) entry.getValue()).stream()
+                            .map(object -> Objects.toString(object, null))
+                            .collect(Collectors.toList());
+
+                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
+                } else {
+                    values.put(entry.getKey(), Objects.toString(entry.getValue(), null));
+                }
+            }
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Could not serialize configuration", e);
+        }
+
+        payload.put("values", values);
+
+        publish(CONFIGURATION_SEND + client.getClientId(), payload);
     }
 
     @Override

@@ -57,7 +57,7 @@ public abstract class Protocol {
     }
 
     public void publishCurrentConfig() {
-        final Map<String, String> configurations = configurationHandler.getConfigurations();
+        final Map<String, Object> configurations = configurationHandler.getConfigurations();
         publishConfiguration(configurations);
     }
 
@@ -70,6 +70,6 @@ public abstract class Protocol {
     public abstract void publishReadings(Collection<Reading> readings);
     public abstract void publishAlarm(Alarm alarm);
     public abstract void publishAlarms(Collection<Alarm> alarms);
-    public abstract void publishConfiguration(Map<String, String> configurations);
+    public abstract void publishConfiguration(Map<String, Object> configurations);
     public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
 }

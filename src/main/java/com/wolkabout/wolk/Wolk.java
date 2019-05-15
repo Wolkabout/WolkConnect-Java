@@ -221,7 +221,11 @@ public class Wolk {
      * Publishes current configuration.
      */
     public void publishConfiguration() {
-        protocol.publishCurrentConfig();
+        try {
+            protocol.publishCurrentConfig();
+        } catch (Exception e) {
+            LOG.info("Could not publish configuration", e);
+        }
     }
 
     /**
@@ -229,7 +233,11 @@ public class Wolk {
      * @param ref actuator reference.
      */
     public void publishActuatorStatus(String ref) {
-        protocol.publishActuatorStatus(ref);
+        try {
+            protocol.publishActuatorStatus(ref);
+        } catch (Exception e) {
+            LOG.info("Could not publish actuator status for actuator: " + ref, e);
+        }
     }
 
     /**
@@ -307,12 +315,12 @@ public class Wolk {
 
         private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
             @Override
-            public void onConfigurationReceived(Map<String, String> configuration) {
+            public void onConfigurationReceived(Map<String, Object> configuration) {
                 LOG.trace("Configuration received: " + configuration);
             }
 
             @Override
-            public Map<String, String> getConfigurations() {
+            public Map<String, Object> getConfigurations() {
                 return new HashMap<>();
             }
         };

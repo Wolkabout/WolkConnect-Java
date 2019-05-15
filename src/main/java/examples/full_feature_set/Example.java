@@ -71,14 +71,14 @@ public class Example {
                 })
                 .configuration(new ConfigurationHandler() {
                     @Override
-                    public void onConfigurationReceived(Map<String, String> configuration) {
+                    public void onConfigurationReceived(Map<String, Object> configuration) {
                         LOG.info("Configuration received " + configuration);
 
                         Values.configuration = configuration;
                     }
 
                     @Override
-                    public Map<String, String> getConfigurations() {
+                    public Map<String, Object> getConfigurations() {
                         return Values.configuration;
                     }
                 })
@@ -110,9 +110,9 @@ class Values {
 
     static Map<String, String> configuration = new HashMap<String, String>();
     static {
-        configuration.put("configuration_1", "0");
-        configuration.put("configuration_2", "false");
-        configuration.put("configuration_3", "Value");
-        configuration.put("configuration_4", "Value1,Value2,Value3");
+        configuration.put("config_1", "0");
+        configuration.put("config_2", "false");
+        configuration.put("config_3", "Value");
+        configuration.put("config_4", Arrays.asList("Value1", "Value2", "Value3"));
     };
 }
