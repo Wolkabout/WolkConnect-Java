@@ -24,27 +24,34 @@ public class ConfigurationCommand {
         UNKNOWN, SET, CURRENT
     }
 
-    private final CommandType commandType;
+    private CommandType command;
+    private Map<String, Object> values;
 
-    private final Map<String, String> values;
+    public ConfigurationCommand() {}
 
-    public ConfigurationCommand(CommandType commandType, Map<String, String> values) {
-        this.commandType = commandType;
+    public ConfigurationCommand(CommandType commandType, Map<String, Object> values) {
+        this.command = commandType;
         this.values = values;
     }
 
     public CommandType getType() {
-       return commandType;
+       return command;
     }
 
-    public Map<String, String> getValues() {
+    public void setCommand(CommandType command) {
+        this.command = command;
+    }
+
+    public Map<String, Object> getValues() {
         return values;
     }
+
+    public void setValues(Map<String, Object> values) { this.values = values; }
 
     @Override
     public String toString() {
         return "ConfigurationCommand{" +
-                "commandType='" + commandType + '\'' +
+                "commandType='" + command + '\'' +
                 ", values='" + values + '\'' +
                 '}';
     }
