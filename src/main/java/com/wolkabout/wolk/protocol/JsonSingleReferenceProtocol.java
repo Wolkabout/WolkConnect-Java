@@ -53,12 +53,12 @@ public class JsonSingleReferenceProtocol extends Protocol {
                 final ActuatorCommand actuatorCommand = JsonUtil.deserialize(payload, ActuatorCommand.class);
                 final String reference = topic.substring((ACTUATOR_COMMANDS + client.getClientId() + "/").length());
                 actuatorCommand.setReference(reference);
+
                 if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
                     actuatorHandler.onActuationReceived(actuatorCommand);
                 }
 
-                final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(actuatorCommand.getReference());
-                publishActuatorStatus(actuatorStatus);
+                publishActuatorStatus(reference);
             }
         });
 
@@ -72,8 +72,7 @@ public class JsonSingleReferenceProtocol extends Protocol {
                     configurationHandler.onConfigurationReceived(configurationCommand.getValues());
                 }
 
-                final Map<String, Object> configuration = configurationHandler.getConfigurations();
-                publishConfiguration(configuration);
+                publishCurrentConfig();
             }
         });
     }
@@ -129,35 +128,12 @@ public class JsonSingleReferenceProtocol extends Protocol {
     }
 
     @Override
-    public void publishConfiguration(Map<String, Object> configuration) {
+    public void publishConfiguration(Collection<Configuration> configurations) {
         final HashMap<String, Map<String, String>> payload = new HashMap<>();
         final HashMap<String, String> values = new HashMap<>();
 
-        try {
-            for (Map.Entry<String, Object> entry : configuration.entrySet()) {
-                if (entry.getValue() != null && entry.getValue().getClass().isArray()) {
-
-                    List<String> multivalue = new ArrayList<String>();
-
-                    int length = Array.getLength(entry.getValue());
-                    for (int i = 0; i < length; ++i) {
-                        multivalue.add(Objects.toString(Array.get(entry.getValue(), i), null));
-                    }
-
-                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
-                } else if (entry.getValue() != null && entry.getValue() instanceof List) {
-
-                    List<String> multivalue = ((List<Object>) entry.getValue()).stream()
-                            .map(object -> Objects.toString(object, null))
-                            .collect(Collectors.toList());
-
-                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
-                } else {
-                    values.put(entry.getKey(), Objects.toString(entry.getValue(), null));
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not serialize configuration", e);
+        for (Configuration conf : configurations) {
+            values.put(conf.getReference(), conf.getValue());
         }
 
         payload.put("values", values);

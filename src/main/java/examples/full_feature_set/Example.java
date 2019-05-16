@@ -17,16 +17,17 @@
 package examples.full_feature_set;
 
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Configuration;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class Example {
@@ -71,15 +72,15 @@ public class Example {
                 })
                 .configuration(new ConfigurationHandler() {
                     @Override
-                    public void onConfigurationReceived(Map<String, Object> configuration) {
-                        LOG.info("Configuration received " + configuration);
+                    public void onConfigurationReceived(Collection<Configuration> configurations) {
+                        LOG.info("Configuration received " + configurations);
 
-                        Values.configuration = configuration;
+                        Values.configurations = configurations;
                     }
 
                     @Override
-                    public Map<String, Object> getConfigurations() {
-                        return Values.configuration;
+                    public Collection<Configuration> getConfigurations() {
+                        return Values.configurations;
                     }
                 })
                 .build();
@@ -108,11 +109,13 @@ class Values {
     static double sliderValue = 0;
     static boolean switchValue = false;
 
-    static Map<String, String> configuration = new HashMap<String, String>();
+
+    static Collection<Configuration> configurations = new ArrayList<>();
+
     static {
-        configuration.put("config_1", "0");
-        configuration.put("config_2", "false");
-        configuration.put("config_3", "Value");
-        configuration.put("config_4", Arrays.asList("Value1", "Value2", "Value3"));
+        configurations.add(new Configuration("config_1", "0"));
+        configurations.add(new Configuration("config_2", "false"));
+        configurations.add(new Configuration("config_3", "Value, test"));
+        configurations.add(new Configuration("config_4", Arrays.asList("Value1", "Value2", "Value3")));
     };
 }

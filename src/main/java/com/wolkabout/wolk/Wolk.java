@@ -20,10 +20,7 @@ import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
 import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
-import com.wolkabout.wolk.model.ActuatorCommand;
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.*;
@@ -33,10 +30,7 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -315,13 +309,13 @@ public class Wolk {
 
         private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
             @Override
-            public void onConfigurationReceived(Map<String, Object> configuration) {
+            public void onConfigurationReceived(Collection<Configuration> configuration) {
                 LOG.trace("Configuration received: " + configuration);
             }
 
             @Override
-            public Map<String, Object> getConfigurations() {
-                return new HashMap<>();
+            public Collection<Configuration> getConfigurations() {
+                return new ArrayList<>();
             }
         };
 

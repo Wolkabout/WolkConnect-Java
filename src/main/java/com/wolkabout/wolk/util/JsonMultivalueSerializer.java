@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class JsonMultivalueSerializer extends StdSerializer<List<String>> {
+    private static final String MULTIVALUE_DELIMITER = ",";
+
     public JsonMultivalueSerializer() {
         this(null);
     }
@@ -21,11 +25,15 @@ public class JsonMultivalueSerializer extends StdSerializer<List<String>> {
         for (int i = 0; i < values.size(); ++i) {
             multival += values.get(i);
             if (i != values.size() - 1) {
-                multival += ',';
+                multival += MULTIVALUE_DELIMITER;
             }
         }
 
         return multival;
+    }
+
+    public static List<String> valuesFromString(String value) {
+        return new ArrayList<String>(Arrays.asList(value.split(MULTIVALUE_DELIMITER)));
     }
 
     @Override

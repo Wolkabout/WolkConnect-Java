@@ -17,9 +17,10 @@
 package com.wolkabout.wolk.protocol.handler;
 
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.model.Configuration;
 
 import java.lang.ref.WeakReference;
-import java.util.Map;
+import java.util.Collection;
 
 public abstract class ConfigurationHandler {
 
@@ -40,14 +41,14 @@ public abstract class ConfigurationHandler {
     /**
      * Called when configuration is received.
      *
-     * @param configuration Key-value pair of references and values.
+     * @param configuration Collection of key-value pair of references and values.
      */
-    public abstract void onConfigurationReceived(Map<String, Object> configuration);
+    public abstract void onConfigurationReceived(Collection<Configuration> configuration);
 
     /**
      * Called when configuration is requested by server.
      *
-     * @return Key-value pairs of references and values.
+     * @return Collection of key-value pairs of references and values.
      */
-    public abstract Map<String, Object> getConfigurations();
+    public abstract Collection<Configuration> getConfigurations();
 }

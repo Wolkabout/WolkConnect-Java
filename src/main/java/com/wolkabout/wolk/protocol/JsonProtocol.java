@@ -61,8 +61,7 @@ public class JsonProtocol extends Protocol {
                 actuatorCommand.setValue(value.toString());
                 actuatorHandler.onActuationReceived(actuatorCommand);
 
-                final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(reference);
-                publishActuatorStatus(actuatorStatus);
+                publishActuatorStatus(reference);
             }
         });
 
@@ -70,8 +69,8 @@ public class JsonProtocol extends Protocol {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
-                final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(reference);
-                publishActuatorStatus(actuatorStatus);
+
+                publishActuatorStatus(reference);
             }
         });
 
@@ -79,18 +78,18 @@ public class JsonProtocol extends Protocol {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
-                configurationHandler.onConfigurationReceived(config);
+                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
 
-                final Map<String, Object> configurations = configurationHandler.getConfigurations();
-                publishConfiguration(configurations);
+                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
+
+                publishCurrentConfig();
             }
         });
 
         client.subscribe(CONFIGURATION_GET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final Map<String, Object> configurations = configurationHandler.getConfigurations();
-                publishConfiguration(configurations);
+                publishCurrentConfig();
             }
         });
     }
@@ -154,35 +153,12 @@ public class JsonProtocol extends Protocol {
     }
 
     @Override
-    public void publishConfiguration(Map<String, Object> configuration) {
+    public void publishConfiguration(Collection<Configuration> configurations) {
         final HashMap<String, Map<String, String>> payload = new HashMap<>();
         final HashMap<String, String> values = new HashMap<>();
 
-        try {
-            for (Map.Entry<String, Object> entry : configuration.entrySet()) {
-                if (entry.getValue() != null && entry.getValue().getClass().isArray()) {
-
-                    List<String> multivalue = new ArrayList<String>();
-
-                    int length = Array.getLength(entry.getValue());
-                    for (int i = 0; i < length; ++i) {
-                        multivalue.add(Objects.toString(Array.get(entry.getValue(), i), null));
-                    }
-
-                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
-                } else if (entry.getValue() != null && entry.getValue() instanceof List) {
-
-                    List<String> multivalue = ((List<Object>) entry.getValue()).stream()
-                            .map(object -> Objects.toString(object, null))
-                            .collect(Collectors.toList());
-
-                    values.put(entry.getKey(), JsonMultivalueSerializer.valuesToString(multivalue));
-                } else {
-                    values.put(entry.getKey(), Objects.toString(entry.getValue(), null));
-                }
-            }
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not serialize configuration", e);
+        for (Configuration conf : configurations) {
+            values.put(conf.getReference(), conf.getValue());
         }
 
         payload.put("values", values);

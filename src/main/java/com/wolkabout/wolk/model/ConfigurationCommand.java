@@ -16,6 +16,11 @@
  */
 package com.wolkabout.wolk.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 
 public class ConfigurationCommand {
@@ -25,13 +30,17 @@ public class ConfigurationCommand {
     }
 
     private CommandType command;
+    @JsonProperty
     private Map<String, Object> values;
+
+    @JsonIgnore
+    private Collection<Configuration> parsedValues = new HashSet<>();
 
     public ConfigurationCommand() {}
 
     public ConfigurationCommand(CommandType commandType, Map<String, Object> values) {
         this.command = commandType;
-        this.values = values;
+        setValues(values);
     }
 
     public CommandType getType() {
@@ -42,11 +51,16 @@ public class ConfigurationCommand {
         this.command = command;
     }
 
-    public Map<String, Object> getValues() {
-        return values;
-    }
+    @JsonIgnore
+    public Collection<Configuration> getValues() { return parsedValues; }
 
-    public void setValues(Map<String, Object> values) { this.values = values; }
+    public void setValues(Map<String, Object> values) {
+        this.values = values;
+
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            parsedValues.add(new Configuration(entry.getKey(), entry.getValue().toString()));
+        }
+    }
 
     @Override
     public String toString() {
