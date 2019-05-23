@@ -170,4 +170,9 @@ public class JsonProtocol extends Protocol {
     public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
         publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
     }
+
+    @Override
+    public void publishPing() {
+        // Ping is not defined for json protocol
+    }
 }

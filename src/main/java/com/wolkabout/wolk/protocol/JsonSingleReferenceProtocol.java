@@ -40,6 +40,8 @@ public class JsonSingleReferenceProtocol extends Protocol {
     private static final String SENSOR_READING = "readings/";
     private static final String EVENT = "events/";
 
+    private static final String PING = "ping/";
+
     public JsonSingleReferenceProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
     }
@@ -144,5 +146,10 @@ public class JsonSingleReferenceProtocol extends Protocol {
     @Override
     public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
         publish(ACTUATOR_STATUS + client.getClientId() + "/" + actuatorStatus.getReference(), actuatorStatus);
+    }
+
+    @Override
+    public void publishPing() {
+        publish(PING + client.getClientId(), "");
     }
 }

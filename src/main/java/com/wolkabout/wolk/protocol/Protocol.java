@@ -73,4 +73,6 @@ public abstract class Protocol {
     public abstract void publishAlarms(Collection<Alarm> alarms);
     public abstract void publishConfiguration(Collection<Configuration> configurations);
     public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
+
+    public abstract void publishPing();
 }

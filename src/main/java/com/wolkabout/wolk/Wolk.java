@@ -46,7 +46,9 @@ public class Wolk {
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
-    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private static final int KEEP_ALIVE_INTERVAL_MIN = 10;
+
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private final Runnable publishTask = new Runnable() {
         @Override
         public void run() {
@@ -54,7 +56,16 @@ public class Wolk {
         }
     };
 
-    private ScheduledFuture<?> runningTask;
+    private ScheduledFuture<?> runningPublishTask;
+
+    private final Runnable keepAliveTask = new Runnable() {
+        @Override
+        public void run() {
+            protocol.publishPing();
+        }
+    };
+
+    private ScheduledFuture<?> runningKeepAliveTask;
 
     /**
      * MQTT client.
@@ -81,14 +92,24 @@ public class Wolk {
      */
     private Persistence persistence;
 
+    /**
+     * Flag for keep alive mechanism
+     */
+    private boolean keepAliveEnabled;
+
     public void connect() {
         try {
             client.connect(options);
         } catch (Exception e) {
             LOG.info("Could not connect to MQTT broker.", e);
+            return;
         }
 
         subscribe();
+
+        if (keepAliveEnabled) {
+            startKeepAlive();
+        }
     }
 
     /**
@@ -101,6 +122,8 @@ public class Wolk {
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
+
+        stopKeepAlive();
     }
 
     /**
@@ -115,18 +138,22 @@ public class Wolk {
             throw new IllegalStateException("Automatic publishing requires persistence store.");
         }
 
-        runningTask = executor.scheduleAtFixedRate(publishTask, 0, seconds, TimeUnit.SECONDS);
+        if (runningPublishTask != null && !runningPublishTask.isDone()) {
+            return;
+        }
+
+        runningPublishTask = executor.scheduleAtFixedRate(publishTask, 0, seconds, TimeUnit.SECONDS);
     }
 
     /**
      * Stop automatic reading publishing
      */
     public void stopPublishing() {
-        if (runningTask == null) {
+        if (runningPublishTask == null || runningPublishTask.isDone()) {
             return;
         }
 
-        runningTask.cancel(true);
+        runningPublishTask.cancel(true);
     }
 
     /**
@@ -283,6 +310,22 @@ public class Wolk {
         }
     }
 
+    private void startKeepAlive() {
+        if (runningKeepAliveTask != null && !runningKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningKeepAliveTask = executor.scheduleAtFixedRate(keepAliveTask, 0, KEEP_ALIVE_INTERVAL_MIN, TimeUnit.MINUTES);
+    }
+
+    private void stopKeepAlive() {
+        if (runningKeepAliveTask == null || runningKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningKeepAliveTask.cancel(true);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -324,6 +367,8 @@ public class Wolk {
         private boolean firmwareUpdateEnabled = false;
 
         private CommandReceivedProcessor commandReceivedProcessor = null;
+
+        private boolean keepAliveEnabled = true;
 
         private Builder() {}
 
@@ -390,6 +435,11 @@ public class Wolk {
             return this;
         }
 
+        public Builder disableKeepAlive() {
+            keepAliveEnabled = false;
+            return this;
+        }
+
         public Wolk build() {
             try {
                 final Wolk wolk = new Wolk();
@@ -421,6 +471,7 @@ public class Wolk {
                 wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
+                wolk.keepAliveEnabled = keepAliveEnabled;
 
                 if (firmwareUpdateEnabled) {
                     wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
