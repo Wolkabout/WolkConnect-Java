@@ -17,7 +17,8 @@
 package examples.full_feature_set;
 
 import com.wolkabout.wolk.Wolk;
-import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Configuration;
@@ -42,8 +43,8 @@ public class Example {
                 .deviceKey("device_key")
                 .password("some_password")
                 .build()
-//                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
-                .protocol(ProtocolType.JSON)
+                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+//                .protocol(ProtocolType.JSON)
                 .actuator(Arrays.asList("SL", "SW"), new ActuatorHandler() {
                     @Override
                     public void onActuationReceived(ActuatorCommand actuatorCommand) {
@@ -83,6 +84,44 @@ public class Example {
                         return Values.configurations;
                     }
                 })
+                .enableFirmwareUpdate(new FirmwareInstaller() {
+                    @Override
+                    public void onFileReady(String fileName, boolean autoInstall, byte[] bytes) {
+                        LOG.info("Firmware file ready, autoinstall: " + autoInstall);
+
+                        if (autoInstall) {
+                            getWolk().publishFirmwareUpdateStatus(FirmwareStatus.INSTALLATION);
+
+                            try {
+                                TimeUnit.MILLISECONDS.sleep(2000);
+                            } catch (Exception e) {}
+
+                            getWolk().publishFirmwareUpdateStatus(FirmwareStatus.COMPLETED);
+
+                            getWolk().publishFirmwareVersion(Integer.toString(++Values.firmwareVersion) + ".0.0");
+                        }
+                    }
+
+                    @Override
+                    public void onInstallCommandReceived() {
+                        LOG.info("Firmware install");
+                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.INSTALLATION);
+
+                        try {
+                            TimeUnit.MILLISECONDS.sleep(2000);
+                        } catch (Exception e) {}
+
+                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.COMPLETED);
+
+                        getWolk().publishFirmwareVersion(Integer.toString(++Values.firmwareVersion) + ".0.0");
+                    }
+
+                    @Override
+                    public void onAbortCommandReceived() {
+                        LOG.info("Firmware installation abort");
+                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.ABORTED);
+                    }
+                })
                 .build();
 
         wolk.connect();
@@ -109,6 +148,7 @@ class Values {
     static double sliderValue = 0;
     static boolean switchValue = false;
 
+    static int firmwareVersion = 1;
 
     static Collection<Configuration> configurations = new ArrayList<>();
 

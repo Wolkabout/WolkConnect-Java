@@ -16,8 +16,9 @@
  */
 package com.wolkabout.wolk;
 
-import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
 import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
 import com.wolkabout.wolk.model.*;
@@ -366,7 +367,9 @@ public class Wolk {
 
         private boolean firmwareUpdateEnabled = false;
 
-        private CommandReceivedProcessor commandReceivedProcessor = null;
+        private FirmwareInstaller firmwareInstaller = null;
+
+        private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
 
         private boolean keepAliveEnabled = true;
 
@@ -421,9 +424,9 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(CommandReceivedProcessor commandReceivedProcessor) {
-            if (commandReceivedProcessor == null) {
-                throw new IllegalArgumentException("CommandReceivedProcessor is required to enable firmware updates.");
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
             if (protocolType == ProtocolType.JSON) {
@@ -431,7 +434,22 @@ public class Wolk {
             }
 
             firmwareUpdateEnabled = true;
-            this.commandReceivedProcessor = commandReceivedProcessor;
+            this.firmwareInstaller = firmwareInstaller;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloader urlFileDownloader) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            if (protocolType == ProtocolType.JSON) {
+                throw new IllegalStateException("JSON protocol does not support firmware update.");
+            }
+
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.urlFileDownloader = urlFileDownloader;
             return this;
         }
 
@@ -474,8 +492,8 @@ public class Wolk {
                 wolk.keepAliveEnabled = keepAliveEnabled;
 
                 if (firmwareUpdateEnabled) {
-                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
-                    commandReceivedProcessor.setWolk(wolk);
+                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, firmwareInstaller, urlFileDownloader);
+                    firmwareInstaller.setWolk(wolk);
                 }
 
                 actuatorHandler.setWolk(wolk);

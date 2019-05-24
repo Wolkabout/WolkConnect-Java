@@ -99,8 +99,8 @@ public class FileDownloader {
                         final byte[] actualHash = DigestUtils.sha256(allBytes);
                         final byte[] expectedHash = Base64.decodeBase64(fileInfo.getFileHash());
                         if (Arrays.equals(expectedHash, actualHash)) {
-                            callback.onFileReceived(fileInfo.getFileName(), fileInfo.isAutoInstall(), allBytes);
                             callback.onStatusUpdate(FirmwareStatus.FILE_READY);
+                            callback.onFileReceived(fileInfo.getFileName(), fileInfo.isAutoInstall(), allBytes);
                         } else {
                             restart();
                         }
