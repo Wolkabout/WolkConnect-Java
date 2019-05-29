@@ -181,6 +181,7 @@ public class MqttBuilder {
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(connectionTimeout);
         options.setMaxInflight(maxInflight);
+        options.setHttpsHostnameVerificationEnabled(false);
 
         options.setWill("lastwill/" + deviceKey, "Gone offline".getBytes(), 2, false);
 
