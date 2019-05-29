@@ -166,9 +166,17 @@ public class Wolk {
             throw new IllegalStateException("Manual publishing requires persistence store.");
         }
 
-        protocol.publishReadings(persistence.getAll());
+        try {
+            protocol.publishReadings(persistence.getAll());
+        } catch (Exception e) {
+            LOG.info("Could not publish readings", e);
+        }
 
-        protocol.publishAlarms(persistence.getAllAlarms());
+        try {
+            protocol.publishAlarms(persistence.getAllAlarms());
+        } catch (Exception e) {
+            LOG.info("Could not publish alarms", e);
+        }
     }
 
     /**
@@ -203,7 +211,11 @@ public class Wolk {
      */
     public void addReading(Reading reading) {
         if (persistence == null) {
-            protocol.publishReading(reading);
+            try {
+                protocol.publishReading(reading);
+            } catch (Exception e) {
+                LOG.info("Could not publish reading: " + reading.getReference(), e);
+            }
         } else {
             persistence.addReading(reading);
         }
@@ -217,7 +229,11 @@ public class Wolk {
      */
     public void addReadings(Collection<Reading> readings) {
         if (persistence == null) {
-            protocol.publishReadings(readings);
+            try {
+                protocol.publishReadings(readings);
+            } catch (Exception e) {
+                LOG.info("Could not publish readings", e);
+            }
         } else {
             persistence.addReadings(readings);
         }
@@ -233,7 +249,11 @@ public class Wolk {
     public void addAlarm(String reference, boolean value) {
         final Alarm alarm = new Alarm(reference, value);
         if (persistence == null) {
-            protocol.publishAlarm(alarm);
+            try {
+                protocol.publishAlarm(alarm);
+            } catch (Exception e) {
+                LOG.info("Could not publish alarm: " + reference, e);
+            }
         } else {
             persistence.addAlarm(alarm);
         }
@@ -271,7 +291,11 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFirmwareVersion(version);
+        try {
+            firmwareUpdateProtocol.publishFirmwareVersion(version);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware version", e);
+        }
     }
 
     /**
@@ -284,7 +308,11 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFlowStatus(status);
+        try {
+            firmwareUpdateProtocol.publishFlowStatus(status);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware update status", e);
+        }
     }
 
     /**
@@ -296,7 +324,11 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFlowStatus(error);
+        try {
+            firmwareUpdateProtocol.publishFlowStatus(error);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware update status", e);
+        }
     }
 
     private void subscribe() {
