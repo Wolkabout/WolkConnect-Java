@@ -29,9 +29,6 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.net.URL;
-
 public class FirmwareUpdateProtocol {
 
     private static final String FILE_INFO_COMMAND = "FILE_UPLOAD";
@@ -171,7 +168,7 @@ public class FirmwareUpdateProtocol {
 
     private void publish(String topic, Object payload) {
         try {
-            LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
+            LOG.debug("Publishing to \'" + topic + "\' payload: " + payload);
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
