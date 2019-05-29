@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.Map;
 
 public abstract class Protocol {
 
@@ -50,7 +49,7 @@ public abstract class Protocol {
 
     protected void publish(String topic, Object payload) {
         try {
-            LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
+            LOG.debug("Publishing to \'" + topic + "\' payload: " + payload);
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
