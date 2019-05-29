@@ -29,7 +29,7 @@ public class UrlFileDownloader {
     };
 
     private Future<?> runningDownloadTask;
-    
+
     public void downloadFile(String url, Callback callback) {
         stopDownload();
 
