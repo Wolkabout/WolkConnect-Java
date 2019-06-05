@@ -44,7 +44,6 @@ public class Example {
                 .password("some_password")
                 .build()
                 .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
-//                .protocol(ProtocolType.JSON)
                 .actuator(Arrays.asList("SL", "SW"), new ActuatorHandler() {
                     @Override
                     public void onActuationReceived(ActuatorCommand actuatorCommand) {

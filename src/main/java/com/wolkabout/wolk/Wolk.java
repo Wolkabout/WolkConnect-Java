@@ -210,14 +210,15 @@ public class Wolk {
      * @param reading {@link Reading}
      */
     public void addReading(Reading reading) {
-        if (persistence == null) {
-            try {
-                protocol.publishReading(reading);
-            } catch (Exception e) {
-                LOG.info("Could not publish reading: " + reading.getReference(), e);
-            }
-        } else {
+        if (persistence != null) {
             persistence.addReading(reading);
+            return;
+        }
+
+        try {
+            protocol.publishReading(reading);
+        } catch (Exception e) {
+            LOG.info("Could not publish reading: " + reading.getReference(), e);
         }
     }
 
@@ -228,14 +229,15 @@ public class Wolk {
      * @param readings A collection of {@link Reading}
      */
     public void addReadings(Collection<Reading> readings) {
-        if (persistence == null) {
-            try {
-                protocol.publishReadings(readings);
-            } catch (Exception e) {
-                LOG.info("Could not publish readings", e);
-            }
-        } else {
+        if (persistence != null) {
             persistence.addReadings(readings);
+            return;
+        }
+
+        try {
+            protocol.publishReadings(readings);
+        } catch (Exception e) {
+            LOG.info("Could not publish readings", e);
         }
     }
 
@@ -248,14 +250,16 @@ public class Wolk {
      */
     public void addAlarm(String reference, boolean value) {
         final Alarm alarm = new Alarm(reference, value);
-        if (persistence == null) {
-            try {
-                protocol.publishAlarm(alarm);
-            } catch (Exception e) {
-                LOG.info("Could not publish alarm: " + reference, e);
-            }
-        } else {
+
+        if (persistence != null) {
             persistence.addAlarm(alarm);
+            return;
+        }
+
+        try {
+            protocol.publishAlarm(alarm);
+        } catch (Exception e) {
+            LOG.info("Could not publish alarm: " + reference, e);
         }
     }
 
@@ -416,10 +420,6 @@ public class Wolk {
                 throw new IllegalArgumentException("Protocol type cannot be null.");
             }
 
-            if (firmwareUpdateEnabled && protocolType == ProtocolType.JSON) {
-                throw new IllegalStateException("JSON protocol does not support firmware update.");
-            }
-
             this.protocolType = protocolType;
             return this;
         }
@@ -461,10 +461,6 @@ public class Wolk {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            if (protocolType == ProtocolType.JSON) {
-                throw new IllegalStateException("JSON protocol does not support firmware update.");
-            }
-
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
             return this;
@@ -473,10 +469,6 @@ public class Wolk {
         public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloader urlFileDownloader) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
-            }
-
-            if (protocolType == ProtocolType.JSON) {
-                throw new IllegalStateException("JSON protocol does not support firmware update.");
             }
 
             firmwareUpdateEnabled = true;
@@ -491,6 +483,10 @@ public class Wolk {
         }
 
         public Wolk build() {
+            if (firmwareUpdateEnabled && protocolType == ProtocolType.JSON) {
+                throw new IllegalStateException("JSON protocol does not support firmware update.");
+            }
+
             try {
                 final Wolk wolk = new Wolk();
                 wolk.client = mqttBuilder.client();
