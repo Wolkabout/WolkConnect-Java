@@ -51,45 +51,51 @@ Maven
 <dependency>
   <groupId>com.wolkabout</groupId>
   <artifactId>wolk</artifactId>
-  <version>2.6.10</version>
+  <version>3.0.0</version>
   <type>pom</type>
 </dependency>
 ```
 
 Example Usage
 -------------
+
+Create a device on WolkAbout IoT platform by importing template file simple-example-manifest.json located in examples/simple/ This template fits simple example and demonstrates the sending of a temperature sensor reading.
+
 **Establishing mqtt connection with the platform:**
 ```java
-import com.wolkabout.wolk.protocol.ProtocolType;
+final Wolk wolk = Wolk.builder()
+    .mqtt()
+        .host("ssl://api-demo.wolkabout.com:8883")
+        .sslCertification("ca.crt")
+        .deviceKey("devicekey")
+        .password("password")
+        .build()
+    .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+    .build();
 
-public class Example {
-
-    public static void main(String... args) {
-        final Wolk wolk = Wolk.builder()
-                .mqtt()
-                    .host("tcp://localhost")
-                    .deviceKey("devicekey")
-                    .password("password")
-                    .build()
-                .protocol(ProtocolType.JSON)
-                .connect();
-
-        wolk.addReading("T", "24.5");
-        wolk.addReading("P", "956");
-        wolk.addReading("H", "67.3");
-        wolk.publish();
-    }
-}
+wolk.connect();
 ```
 
 This will establish the connection to platform and subscribe to channels
  used for actuation and configuration commands.
  
+**Publishing sensor readings:**
+```java
+wolk.addReading("T", "24.5");
 
-**Publishing data:**
+wolk.publish();
+```
+
+**Data publish strategy:**
 If data persistence is disabled, sensor data will be sent immediatelly.
-If data persistence is enabled, sensor data can be sent by calling wolk.publish(),
-or enabling automatic publishing by calling wolk.startPublishing(intervalInSeconds).
+If data persistence is enabled, sensor data can be sent by calling
+```java
+wolk.publish(),
+```
+or enabling automatic publishing by calling
+```java
+wolk.startPublishing(intervalInSeconds).
+```
 
 **Disconnecting from the platform:**
 ```java
