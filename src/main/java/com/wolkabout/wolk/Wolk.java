@@ -373,7 +373,7 @@ public class Wolk {
 
         private ProtocolType protocolType = ProtocolType.JSON;
 
-        private Collection<String> actuatorReferences;
+        private Collection<String> actuatorReferences = new ArrayList<>();
 
         private ActuatorHandler actuatorHandler = new ActuatorHandler() {
             @Override
