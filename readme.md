@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    compile 'com.wolkabout:wolk:2.6.10'
+    compile 'com.wolkabout:wolk:3.0.0'
 }
 ```
 
