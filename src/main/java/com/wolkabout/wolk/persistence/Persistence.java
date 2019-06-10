@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.persistence;
 
+import com.wolkabout.wolk.model.Alarm;
 import com.wolkabout.wolk.model.Reading;
 
 import java.util.Collection;
@@ -35,4 +36,13 @@ public interface Persistence {
 
     void removeAll();
 
+    void addAlarm(Alarm alarm);
+
+    Alarm pollAlarms();
+
+    List<Alarm> getAllAlarms();
+
+    void removeAlarm(Alarm alarm);
+
+    void removeAllAlarms();
 }

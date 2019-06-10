@@ -16,26 +16,22 @@
  */
 package com.wolkabout.wolk;
 
-import com.wolkabout.wolk.firmwareupdate.CommandReceivedProcessor;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
 import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
-import com.wolkabout.wolk.model.ActuatorCommand;
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.*;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -51,7 +47,9 @@ public class Wolk {
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
-    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private static final int KEEP_ALIVE_INTERVAL_MIN = 10;
+
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private final Runnable publishTask = new Runnable() {
         @Override
         public void run() {
@@ -59,12 +57,26 @@ public class Wolk {
         }
     };
 
-    private ScheduledFuture<?> runningTask;
+    private ScheduledFuture<?> runningPublishTask;
+
+    private final Runnable keepAliveTask = new Runnable() {
+        @Override
+        public void run() {
+            protocol.publishPing();
+        }
+    };
+
+    private ScheduledFuture<?> runningKeepAliveTask;
 
     /**
-     * Connected MQTT client.
+     * MQTT client.
      */
     private MqttClient client;
+
+    /**
+     * MQTT connect options
+     */
+    private MqttConnectOptions options;
 
     /**
      * Protocol for sending and receiving data.
@@ -82,14 +94,37 @@ public class Wolk {
     private Persistence persistence;
 
     /**
+     * Flag for keep alive mechanism
+     */
+    private boolean keepAliveEnabled;
+
+    public void connect() {
+        try {
+            client.connect(options);
+        } catch (Exception e) {
+            LOG.info("Could not connect to MQTT broker.", e);
+            return;
+        }
+
+        subscribe();
+
+        if (keepAliveEnabled) {
+            startKeepAlive();
+        }
+    }
+
+    /**
      * Disconnects from the MQTT broker.
      */
     public void disconnect() {
         try {
+            client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
             client.disconnect();
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
+
+        stopKeepAlive();
     }
 
     /**
@@ -104,18 +139,22 @@ public class Wolk {
             throw new IllegalStateException("Automatic publishing requires persistence store.");
         }
 
-        runningTask = executor.scheduleAtFixedRate(publishTask, 0, seconds, TimeUnit.SECONDS);
+        if (runningPublishTask != null && !runningPublishTask.isDone()) {
+            return;
+        }
+
+        runningPublishTask = executor.scheduleAtFixedRate(publishTask, 0, seconds, TimeUnit.SECONDS);
     }
 
     /**
      * Stop automatic reading publishing
      */
     public void stopPublishing() {
-        if (runningTask == null) {
+        if (runningPublishTask == null || runningPublishTask.isDone()) {
             return;
         }
 
-        runningTask.cancel(true);
+        runningPublishTask.cancel(true);
     }
 
     /**
@@ -127,18 +166,40 @@ public class Wolk {
             throw new IllegalStateException("Manual publishing requires persistence store.");
         }
 
-        protocol.publish(persistence.getAll());
+        try {
+            protocol.publishReadings(persistence.getAll());
+        } catch (Exception e) {
+            LOG.info("Could not publish readings", e);
+        }
+
+        try {
+            protocol.publishAlarms(persistence.getAllAlarms());
+        } catch (Exception e) {
+            LOG.info("Could not publish alarms", e);
+        }
     }
 
     /**
-     * Adds readings to be published.
+     * Adds reading to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
 
-     * @param reference {@link Reading#ref}
-     * @param value {@link Reading#value}
+     * @param reference {@link Reading#reference}
+     * @param value {@link Reading#values}
      */
     public void addReading(String reference, String value) {
         final Reading reading = new Reading(reference, value);
+        addReading(reading);
+    }
+
+    /**
+     * Adds multivalue reading to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+     *
+     * @param reference {@link Reading#reference}
+     * @param values {@link Reading#values}
+     */
+    public void addReading(String reference, List<String> values) {
+        final Reading reading = new Reading(reference, values);
         addReading(reading);
     }
 
@@ -149,10 +210,15 @@ public class Wolk {
      * @param reading {@link Reading}
      */
     public void addReading(Reading reading) {
-        if (persistence == null) {
-            protocol.publish(reading);
-        } else {
+        if (persistence != null) {
             persistence.addReading(reading);
+            return;
+        }
+
+        try {
+            protocol.publishReading(reading);
+        } catch (Exception e) {
+            LOG.info("Could not publish reading: " + reading.getReference(), e);
         }
     }
 
@@ -163,10 +229,37 @@ public class Wolk {
      * @param readings A collection of {@link Reading}
      */
     public void addReadings(Collection<Reading> readings) {
-        if (persistence == null) {
-            protocol.publish(readings);
-        } else {
+        if (persistence != null) {
             persistence.addReadings(readings);
+            return;
+        }
+
+        try {
+            protocol.publishReadings(readings);
+        } catch (Exception e) {
+            LOG.info("Could not publish readings", e);
+        }
+    }
+
+    /**
+     * Adds readings to be published.
+     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+     *
+     * @param reference {@link Alarm#reference}
+     * @param value {@link Alarm#value}
+     */
+    public void addAlarm(String reference, boolean value) {
+        final Alarm alarm = new Alarm(reference, value);
+
+        if (persistence != null) {
+            persistence.addAlarm(alarm);
+            return;
+        }
+
+        try {
+            protocol.publishAlarm(alarm);
+        } catch (Exception e) {
+            LOG.info("Could not publish alarm: " + reference, e);
         }
     }
 
@@ -174,7 +267,11 @@ public class Wolk {
      * Publishes current configuration.
      */
     public void publishConfiguration() {
-        protocol.publishCurrentConfig();
+        try {
+            protocol.publishCurrentConfig();
+        } catch (Exception e) {
+            LOG.info("Could not publish configuration", e);
+        }
     }
 
     /**
@@ -182,7 +279,11 @@ public class Wolk {
      * @param ref actuator reference.
      */
     public void publishActuatorStatus(String ref) {
-        protocol.publishActuatorStatus(ref);
+        try {
+            protocol.publishActuatorStatus(ref);
+        } catch (Exception e) {
+            LOG.info("Could not publish actuator status for actuator: " + ref, e);
+        }
     }
 
     /**
@@ -194,7 +295,11 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFirmwareVersion(version);
+        try {
+            firmwareUpdateProtocol.publishFirmwareVersion(version);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware version", e);
+        }
     }
 
     /**
@@ -207,7 +312,11 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFlowStatus(status);
+        try {
+            firmwareUpdateProtocol.publishFlowStatus(status);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware update status", e);
+        }
     }
 
     /**
@@ -219,7 +328,39 @@ public class Wolk {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
-        firmwareUpdateProtocol.publishFlowStatus(error);
+        try {
+            firmwareUpdateProtocol.publishFlowStatus(error);
+        } catch (Exception e) {
+            LOG.info("Could not publish firmware update status", e);
+        }
+    }
+
+    private void subscribe() {
+        try {
+            protocol.subscribe();
+
+            if (firmwareUpdateProtocol != null) {
+                firmwareUpdateProtocol.subscribe();
+            }
+        } catch (Exception e) {
+            LOG.debug("Unable to subscribe to all required topics.", e);
+        }
+    }
+
+    private void startKeepAlive() {
+        if (runningKeepAliveTask != null && !runningKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningKeepAliveTask = executor.scheduleAtFixedRate(keepAliveTask, 0, KEEP_ALIVE_INTERVAL_MIN, TimeUnit.MINUTES);
+    }
+
+    private void stopKeepAlive() {
+        if (runningKeepAliveTask == null || runningKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningKeepAliveTask.cancel(true);
     }
 
     public static Builder builder() {
@@ -231,6 +372,8 @@ public class Wolk {
         private MqttBuilder mqttBuilder = new MqttBuilder(this);
 
         private ProtocolType protocolType = ProtocolType.JSON;
+
+        private Collection<String> actuatorReferences = new ArrayList<>();
 
         private ActuatorHandler actuatorHandler = new ActuatorHandler() {
             @Override
@@ -246,13 +389,13 @@ public class Wolk {
 
         private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
             @Override
-            public void onConfigurationReceived(Map<String, Object> configuration) {
+            public void onConfigurationReceived(Collection<Configuration> configuration) {
                 LOG.trace("Configuration received: " + configuration);
             }
 
             @Override
-            public Map<String, String> getConfigurations() {
-                return new HashMap<>();
+            public Collection<Configuration> getConfigurations() {
+                return new ArrayList<>();
             }
         };
 
@@ -260,7 +403,11 @@ public class Wolk {
 
         private boolean firmwareUpdateEnabled = false;
 
-        private CommandReceivedProcessor commandReceivedProcessor = null;
+        private FirmwareInstaller firmwareInstaller = null;
+
+        private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
+
+        private boolean keepAliveEnabled = true;
 
         private Builder() {}
 
@@ -277,11 +424,16 @@ public class Wolk {
             return this;
         }
 
-        public Builder actuator(ActuatorHandler actuatorHandler) {
-            if (actuatorHandler == null) {
-                throw new IllegalStateException("Actuator handler must be set.");
+        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
+            if (actuatorReferences.isEmpty()) {
+                throw new IllegalArgumentException("Actuator references must be set.");
             }
 
+            if (actuatorHandler == null) {
+                throw new IllegalArgumentException("Actuator handler must be set.");
+            }
+
+            this.actuatorReferences = actuatorReferences;
             this.actuatorHandler = actuatorHandler;
             return this;
         }
@@ -296,30 +448,80 @@ public class Wolk {
         }
 
         public Builder persistence(Persistence persistence) {
+            if (persistence == null) {
+                throw new IllegalArgumentException("Persistence must be set.");
+            }
+
             this.persistence = persistence;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(CommandReceivedProcessor commandReceivedProcessor) {
-            if (commandReceivedProcessor == null) {
-                throw new IllegalArgumentException("CommandReceivedProcessor is required to enable firmware updates.");
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
             firmwareUpdateEnabled = true;
-            this.commandReceivedProcessor = commandReceivedProcessor;
+            this.firmwareInstaller = firmwareInstaller;
             return this;
         }
 
-        public Wolk connect() {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloader urlFileDownloader) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.urlFileDownloader = urlFileDownloader;
+            return this;
+        }
+
+        public Builder disableKeepAlive() {
+            keepAliveEnabled = false;
+            return this;
+        }
+
+        public Wolk build() {
+            if (firmwareUpdateEnabled && protocolType == ProtocolType.JSON) {
+                throw new IllegalStateException("JSON protocol does not support firmware update.");
+            }
+
             try {
                 final Wolk wolk = new Wolk();
-                wolk.client = mqttBuilder.connect();
+                wolk.client = mqttBuilder.client();
+                wolk.client.setCallback(new MqttCallbackExtended() {
+                    @Override
+                    public void connectComplete(boolean reconnect, String serverURI) {
+                        if (reconnect) {
+                            wolk.subscribe();
+                        }
+
+                        for (final String reference : actuatorReferences) {
+                            wolk.publishActuatorStatus(reference);
+                        }
+
+                        wolk.publishConfiguration();
+                    }
+
+                    @Override
+                    public void connectionLost(Throwable cause) {}
+
+                    @Override
+                    public void messageArrived(String topic, MqttMessage message) throws Exception {}
+
+                    @Override
+                    public void deliveryComplete(IMqttDeliveryToken token) {}
+                });
+
+                wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
+                wolk.keepAliveEnabled = keepAliveEnabled;
 
                 if (firmwareUpdateEnabled) {
-                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, commandReceivedProcessor);
-                    commandReceivedProcessor.setWolk(wolk);
+                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, firmwareInstaller, urlFileDownloader);
+                    firmwareInstaller.setWolk(wolk);
                 }
 
                 actuatorHandler.setWolk(wolk);

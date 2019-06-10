@@ -155,7 +155,7 @@ public class MqttBuilder {
         return this;
     }
 
-    public MqttBuilder sslCertification(String certificateAuthority) throws Exception {
+    public MqttBuilder sslCertification(String certificateAuthority) {
         if (certificateAuthority == null || certificateAuthority.isEmpty()) {
             throw new IllegalArgumentException("Invalid certification authority.");
         }
@@ -168,7 +168,11 @@ public class MqttBuilder {
         return wolkBuilder.get();
     }
 
-    public MqttClient connect() throws MqttException {
+    public MqttClient client() throws MqttException {
+        return new MqttClient(host, deviceKey, persistence);
+    }
+
+    public MqttConnectOptions options() {
         final MqttConnectOptions options = new MqttConnectOptions();
         options.setUserName(deviceKey);
         options.setPassword(password.toCharArray());
@@ -177,6 +181,7 @@ public class MqttBuilder {
         options.setAutomaticReconnect(true);
         options.setConnectionTimeout(connectionTimeout);
         options.setMaxInflight(maxInflight);
+        options.setHttpsHostnameVerificationEnabled(false);
 
         options.setWill("lastwill/" + deviceKey, "Gone offline".getBytes(), 2, false);
 
@@ -184,9 +189,7 @@ public class MqttBuilder {
             options.setSocketFactory(getSslSocketFactory());
         }
 
-        final MqttClient client = new MqttClient(host, deviceKey, persistence);
-        client.connect(options);
-        return client;
+        return options;
     }
 
     private SSLSocketFactory getSslSocketFactory() {

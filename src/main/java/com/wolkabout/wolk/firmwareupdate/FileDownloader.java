@@ -55,10 +55,11 @@ public class FileDownloader {
     private int currentChunk = 0;
     private int currentRetry = 0;
 
+    protected static final int QOS = 2;
+
     FileDownloader(MqttClient client, Callback callback) {
         this.client = client;
         this.callback = callback;
-        subscribe();
     }
 
     public void download(FileInfo fileInfo) {
@@ -76,9 +77,9 @@ public class FileDownloader {
         callback.onStatusUpdate(FirmwareStatus.ABORTED);
     }
 
-    private void subscribe() {
+    public void subscribe() {
         try {
-            client.subscribe("service/binary/" + client.getClientId(), new IMqttMessageListener() {
+            client.subscribe("service/binary/" + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     if (aborted || fileInfo == null) {
@@ -98,8 +99,8 @@ public class FileDownloader {
                         final byte[] actualHash = DigestUtils.sha256(allBytes);
                         final byte[] expectedHash = Base64.decodeBase64(fileInfo.getFileHash());
                         if (Arrays.equals(expectedHash, actualHash)) {
-                            callback.onFileReceived(fileInfo.getFileName(), fileInfo.isAutoInstall(), allBytes);
                             callback.onStatusUpdate(FirmwareStatus.FILE_READY);
+                            callback.onFileReceived(fileInfo.getFileName(), fileInfo.isAutoInstall(), allBytes);
                         } else {
                             restart();
                         }
@@ -172,7 +173,7 @@ public class FileDownloader {
     private void publish(String topic, Object payload) {
         try {
             LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
-            client.publish(topic, JsonUtil.serialize(payload), 2, false);
+            client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
         }

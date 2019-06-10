@@ -20,7 +20,7 @@ import com.wolkabout.wolk.Wolk;
 
 import java.lang.ref.WeakReference;
 
-public abstract class CommandReceivedProcessor {
+public abstract class FirmwareInstaller {
 
     private WeakReference<Wolk> wolk;
 

@@ -16,6 +16,11 @@
  */
 package com.wolkabout.wolk.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 
 public class ConfigurationCommand {
@@ -24,27 +29,43 @@ public class ConfigurationCommand {
         UNKNOWN, SET, CURRENT
     }
 
-    private final CommandType commandType;
+    private CommandType command;
+    @JsonProperty
+    private Map<String, Object> values;
 
-    private final Map<String, String> values;
+    @JsonIgnore
+    private Collection<Configuration> parsedValues = new HashSet<>();
 
-    public ConfigurationCommand(CommandType commandType, Map<String, String> values) {
-        this.commandType = commandType;
-        this.values = values;
+    public ConfigurationCommand() {}
+
+    public ConfigurationCommand(CommandType commandType, Map<String, Object> values) {
+        this.command = commandType;
+        setValues(values);
     }
 
     public CommandType getType() {
-       return commandType;
+       return command;
     }
 
-    public Map<String, String> getValues() {
-        return values;
+    public void setCommand(CommandType command) {
+        this.command = command;
+    }
+
+    @JsonIgnore
+    public Collection<Configuration> getValues() { return parsedValues; }
+
+    public void setValues(Map<String, Object> values) {
+        this.values = values;
+
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            parsedValues.add(new Configuration(entry.getKey(), entry.getValue().toString()));
+        }
     }
 
     @Override
     public String toString() {
         return "ConfigurationCommand{" +
-                "commandType='" + commandType + '\'' +
+                "commandType='" + command + '\'' +
                 ", values='" + values + '\'' +
                 '}';
     }

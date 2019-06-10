@@ -17,6 +17,8 @@
 package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Alarm;
+import com.wolkabout.wolk.model.Configuration;
 import com.wolkabout.wolk.model.Reading;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
@@ -26,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.Map;
 
 public abstract class Protocol {
 
@@ -36,41 +37,41 @@ public abstract class Protocol {
     protected final ActuatorHandler actuatorHandler;
     protected final ConfigurationHandler configurationHandler;
 
+    protected static final int QOS = 2;
+
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         this.client = client;
         this.actuatorHandler = actuatorHandler;
         this.configurationHandler = configurationHandler;
-
-        try {
-            subscribe();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
-        }
     }
 
-    protected abstract void subscribe() throws Exception;
+    public abstract void subscribe() throws Exception;
 
     protected void publish(String topic, Object payload) {
         try {
-            LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
-            client.publish(topic, JsonUtil.serialize(payload), 1, false);
+            LOG.debug("Publishing to \'" + topic + "\' payload: " + payload);
+            client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
         }
     }
 
     public void publishCurrentConfig() {
-        final Map<String, String> configurations = configurationHandler.getConfigurations();
-        publish(configurations);
+        final Collection<Configuration> configurations = configurationHandler.getConfigurations();
+        publishConfiguration(configurations);
     }
 
     public void publishActuatorStatus(String ref) {
         final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
-        publish(actuatorStatus);
+        publishActuatorStatus(actuatorStatus);
     }
 
-    public abstract void publish(Reading reading);
-    public abstract void publish(Collection<Reading> readings);
-    public abstract void publish(Map<String, String> configurations);
-    public abstract void publish(ActuatorStatus actuatorStatus);
+    public abstract void publishReading(Reading reading);
+    public abstract void publishReadings(Collection<Reading> readings);
+    public abstract void publishAlarm(Alarm alarm);
+    public abstract void publishAlarms(Collection<Alarm> alarms);
+    public abstract void publishConfiguration(Collection<Configuration> configurations);
+    public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
+
+    public abstract void publishPing();
 }
