@@ -28,18 +28,18 @@ public class ActuatorStatus {
     }
 
     @JsonIgnore
-    private String ref;
+    private final String reference;
     private final Status status;
     private final String value;
 
-    public ActuatorStatus(Status status, String value, String ref) {
+    public ActuatorStatus(Status status, String value, String reference) {
         this.status = status;
         this.value = value;
-        this.ref = ref;
+        this.reference = reference;
     }
 
     public String getReference() {
-        return ref;
+        return reference;
     }
 
     public Status getStatus() {
@@ -53,7 +53,7 @@ public class ActuatorStatus {
     @Override
     public String toString() {
         return "ActuatorStatus {" +
-                "ref='" + ref + '\'' +
+                "reference='" + reference + '\'' +
                 ", status='" + status + '\'' +
                 ", value='" + value + '\'' +
                 '}';

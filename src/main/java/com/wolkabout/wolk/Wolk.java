@@ -47,9 +47,8 @@ public class Wolk {
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
 
-    private static final int KEEP_ALIVE_INTERVAL_MIN = 10;
 
-    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
     private final Runnable publishTask = new Runnable() {
         @Override
         public void run() {
@@ -59,14 +58,6 @@ public class Wolk {
 
     private ScheduledFuture<?> runningPublishTask;
 
-    private final Runnable keepAliveTask = new Runnable() {
-        @Override
-        public void run() {
-            protocol.publishPing();
-        }
-    };
-
-    private ScheduledFuture<?> runningKeepAliveTask;
 
     /**
      * MQTT client.
@@ -93,10 +84,6 @@ public class Wolk {
      */
     private Persistence persistence;
 
-    /**
-     * Flag for keep alive mechanism
-     */
-    private boolean keepAliveEnabled;
 
     public void connect() {
         try {
@@ -107,10 +94,6 @@ public class Wolk {
         }
 
         subscribe();
-
-        if (keepAliveEnabled) {
-            startKeepAlive();
-        }
     }
 
     /**
@@ -118,13 +101,13 @@ public class Wolk {
      */
     public void disconnect() {
         try {
-            client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
-            client.disconnect();
+            if (client.isConnected()) {
+                client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
+                client.disconnect();
+            }
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
-
-        stopKeepAlive();
     }
 
     /**
@@ -182,9 +165,9 @@ public class Wolk {
     /**
      * Adds reading to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-
-     * @param reference {@link Reading#reference}
-     * @param value {@link Reading#values}
+     *
+     * @param reference Reference of the sensor
+     * @param value Value obtained by the reading
      */
     public void addReading(String reference, String value) {
         final Reading reading = new Reading(reference, value);
@@ -195,8 +178,8 @@ public class Wolk {
      * Adds multivalue reading to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
-     * @param reference {@link Reading#reference}
-     * @param values {@link Reading#values}
+     * @param reference Reference of the sensor
+     * @param values Values obtained by the reading
      */
     public void addReading(String reference, List<String> values) {
         final Reading reading = new Reading(reference, values);
@@ -206,7 +189,7 @@ public class Wolk {
     /**
      * Adds readings to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-
+     *
      * @param reading {@link Reading}
      */
     public void addReading(Reading reading) {
@@ -242,14 +225,15 @@ public class Wolk {
     }
 
     /**
-     * Adds readings to be published.
+     * Adds alarm to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
+     * TODO: code parameter
      *
-     * @param reference {@link Alarm#reference}
-     * @param value {@link Alarm#value}
+     * @param reference Reference of the alarm
+     * @param active Current state of the alarm
      */
-    public void addAlarm(String reference, boolean value) {
-        final Alarm alarm = new Alarm(reference, value);
+    public void addAlarm(String reference, boolean active) {
+        final Alarm alarm = new Alarm(reference, active, "");
 
         if (persistence != null) {
             persistence.addAlarm(alarm);
@@ -276,6 +260,7 @@ public class Wolk {
 
     /**
      * Publishes current actuator status for the given reference.
+     *
      * @param ref actuator reference.
      */
     public void publishActuatorStatus(String ref) {
@@ -288,6 +273,7 @@ public class Wolk {
 
     /**
      * Publishes the new version of the firmware.
+     *
      * @param version current firmware version.
      */
     public void publishFirmwareVersion(String version) {
@@ -305,6 +291,7 @@ public class Wolk {
     /**
      * Publishes the progress of firmware update.
      * To publish an error state use {link {@link #publishFirmwareUpdateStatus(UpdateError)}}
+     *
      * @param status Status of the firmware update.
      */
     public void publishFirmwareUpdateStatus(FirmwareStatus status) {
@@ -321,6 +308,7 @@ public class Wolk {
 
     /**
      * Publishes an error that occurred during firmware update.
+     *
      * @param error Error that terminated firmware update.
      */
     public void publishFirmwareUpdateStatus(UpdateError error) {
@@ -347,22 +335,6 @@ public class Wolk {
         }
     }
 
-    private void startKeepAlive() {
-        if (runningKeepAliveTask != null && !runningKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningKeepAliveTask = executor.scheduleAtFixedRate(keepAliveTask, 0, KEEP_ALIVE_INTERVAL_MIN, TimeUnit.MINUTES);
-    }
-
-    private void stopKeepAlive() {
-        if (runningKeepAliveTask == null || runningKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningKeepAliveTask.cancel(true);
-    }
-
     public static Builder builder() {
         return new Builder();
     }
@@ -371,7 +343,7 @@ public class Wolk {
 
         private MqttBuilder mqttBuilder = new MqttBuilder(this);
 
-        private ProtocolType protocolType = ProtocolType.JSON;
+        private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
 
         private Collection<String> actuatorReferences = new ArrayList<>();
 
@@ -407,9 +379,8 @@ public class Wolk {
 
         private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
 
-        private boolean keepAliveEnabled = true;
-
-        private Builder() {}
+        private Builder() {
+        }
 
         public MqttBuilder mqtt() {
             return mqttBuilder;
@@ -477,15 +448,7 @@ public class Wolk {
             return this;
         }
 
-        public Builder disableKeepAlive() {
-            keepAliveEnabled = false;
-            return this;
-        }
-
         public Wolk build() {
-            if (firmwareUpdateEnabled && protocolType == ProtocolType.JSON) {
-                throw new IllegalStateException("JSON protocol does not support firmware update.");
-            }
 
             try {
                 final Wolk wolk = new Wolk();
@@ -505,19 +468,21 @@ public class Wolk {
                     }
 
                     @Override
-                    public void connectionLost(Throwable cause) {}
+                    public void connectionLost(Throwable cause) {
+                    }
 
                     @Override
-                    public void messageArrived(String topic, MqttMessage message) throws Exception {}
+                    public void messageArrived(String topic, MqttMessage message) throws Exception {
+                    }
 
                     @Override
-                    public void deliveryComplete(IMqttDeliveryToken token) {}
+                    public void deliveryComplete(IMqttDeliveryToken token) {
+                    }
                 });
 
                 wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
-                wolk.keepAliveEnabled = keepAliveEnabled;
 
                 if (firmwareUpdateEnabled) {
                     wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, firmwareInstaller, urlFileDownloader);
@@ -535,10 +500,8 @@ public class Wolk {
 
         private Protocol getProtocol(MqttClient client) {
             switch (protocolType) {
-                case JSON_SINGLE_REFERENCE:
-                    return new JsonSingleReferenceProtocol(client, actuatorHandler, configurationHandler);
-                case JSON:
-                    return new JsonProtocol(client, actuatorHandler, configurationHandler);
+                case WOLKABOUT_PROTOCOL:
+                    return new WolkaboutProtocol(client, actuatorHandler, configurationHandler);
                 default:
                     throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
             }

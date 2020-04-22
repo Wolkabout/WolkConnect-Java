@@ -68,7 +68,7 @@ public class Reading {
     @Override
     public String toString() {
         return "Reading{" +
-                "ref='" + reference + '\'' +
+                "reference='" + reference + '\'' +
                 ", values=" + values +
                 ", utc=" + utc +
                 '}';

@@ -43,7 +43,7 @@ public class Example {
                 .deviceKey("device_key")
                 .password("some_password")
                 .build()
-                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+                .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
                 .actuator(Arrays.asList("SL", "SW"), new ActuatorHandler() {
                     @Override
                     public void onActuationReceived(ActuatorCommand actuatorCommand) {
@@ -137,7 +137,7 @@ public class Example {
 
         while (true) {
             try {
-                TimeUnit.MILLISECONDS.sleep(200);
+                TimeUnit.SECONDS.sleep(5);
             } catch (Exception e) {}
         }
     }

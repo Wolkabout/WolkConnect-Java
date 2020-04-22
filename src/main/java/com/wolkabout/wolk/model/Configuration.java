@@ -55,7 +55,7 @@ public class Configuration {
     @Override
     public String toString() {
         return "Configuration{" +
-                "ref='" + reference + '\'' +
+                "reference='" + reference + '\'' +
                 ", value=" + value +
                 '}';
     }

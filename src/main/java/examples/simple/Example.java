@@ -17,7 +17,6 @@
 package examples.simple;
 
 import com.wolkabout.wolk.Wolk;
-import com.wolkabout.wolk.protocol.ProtocolType;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +30,6 @@ public class Example {
                 .deviceKey("device_key")
                 .password("some_password")
                 .build()
-                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
                 .build();
 
         wolk.connect();
@@ -44,7 +42,7 @@ public class Example {
 
                 wolk.publish();
 
-                TimeUnit.MILLISECONDS.sleep(200);
+                TimeUnit.SECONDS.sleep(5);
             } catch (Exception e) {}
         }
     }

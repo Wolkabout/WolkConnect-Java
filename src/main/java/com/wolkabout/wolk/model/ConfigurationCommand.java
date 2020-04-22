@@ -26,7 +26,7 @@ import java.util.Map;
 public class ConfigurationCommand {
 
     public enum CommandType {
-        UNKNOWN, SET, CURRENT
+        UNKNOWN, SET, GET
     }
 
     private CommandType command;
