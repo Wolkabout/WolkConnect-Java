@@ -35,6 +35,10 @@ public class FileDownloader {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileDownloader.class);
 
+    private static final String FILE_UPLOAD_INITIATE = "p2d/file_upload_initiate/d/";
+    private static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
+    private static final String FILE_BINARY_RESPONSE = "p2d/file_binary_response/d/";
+
     private static final int MINIMUM_PACKET_SIZE = 65;
     private static final int CHUNK_SIZE = 1000000;
     private static final int MAX_RETRY = 3;
@@ -79,7 +83,7 @@ public class FileDownloader {
 
     public void subscribe() {
         try {
-            client.subscribe("service/binary/" + client.getClientId(), QOS, new IMqttMessageListener() {
+            client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     if (aborted || fileInfo == null) {

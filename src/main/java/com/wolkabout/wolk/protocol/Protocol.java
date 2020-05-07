@@ -37,7 +37,7 @@ public abstract class Protocol {
     protected final ActuatorHandler actuatorHandler;
     protected final ConfigurationHandler configurationHandler;
 
-    protected static final int QOS = 2;
+    protected static final int QOS = 0;
 
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         this.client = client;

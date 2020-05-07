@@ -5,18 +5,15 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class Alarm {
     @JsonIgnore
     private final String reference;
-
     private final boolean active;
-
     private final String code;
-
-    private final long utc;
+    private final Long utc;
 
     public Alarm(String reference, boolean active, String code) {
         this(reference, active, code, System.currentTimeMillis());
     }
 
-    public Alarm(String reference, boolean active, String code, long utc) {
+    public Alarm(String reference, boolean active, String code, Long utc) {
         this.reference = reference;
         this.active = active;
         this.code = code;
@@ -43,7 +40,7 @@ public class Alarm {
     public String toString() {
         return "Alarm{" +
                 "reference='" + reference + '\'' +
-                ", active=" + active +
+                ", active=" + active + '\'' +
                 ", code='" + code + '\'' +
                 ", utc=" + utc +
                 '}';
