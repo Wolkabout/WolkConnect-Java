@@ -31,7 +31,7 @@ public class Example {
                 .deviceKey("device_key")
                 .password("some_password")
                 .build()
-                .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+                .protocol(ProtocolType.JAVA)
                 .build();
 
         wolk.connect();

@@ -72,7 +72,7 @@ final Wolk wolk = Wolk.builder()
         .deviceKey("devicekey")
         .password("password")
         .build()
-    .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+    .protocol(ProtocolType.JSON)
     .build();
 
 wolk.connect();
