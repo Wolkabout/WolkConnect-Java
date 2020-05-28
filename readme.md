@@ -103,3 +103,5 @@ wolk.startPublishing(intervalInSeconds).
 ```java
 wolk.disconnect();
 ```
+
+*Note:* `ProtocolType.JSON` does not currently have support for firmware update and file management.
