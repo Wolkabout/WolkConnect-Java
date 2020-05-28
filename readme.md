@@ -59,7 +59,9 @@ Maven
 Example Usage
 -------------
 
-Create a device on WolkAbout IoT platform by importing template file simple-example-manifest.json located in examples/simple/ This template fits simple example and demonstrates the sending of a temperature sensor reading.
+Create a device on WolkAbout IoT platform by importing template file [simple-example-manifest.json](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/resources/simple-example-manifest.json).  
+This template fits simple example and demonstrates the sending of a temperature sensor reading.  
+After creating the device on the Platform, copy the provided credentials into `deviceKey` and `password`.
 
 **Establishing mqtt connection with the platform:**
 ```java
@@ -101,3 +103,5 @@ wolk.startPublishing(intervalInSeconds).
 ```java
 wolk.disconnect();
 ```
+
+*Note:* `ProtocolType.JSON` does not currently have support for firmware update and file management.
