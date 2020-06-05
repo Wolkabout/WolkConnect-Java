@@ -49,7 +49,7 @@ public abstract class Protocol {
 
     protected void publish(String topic, Object payload) {
         try {
-            LOG.debug("Publishing to \'" + topic + "\' payload: " + payload);
+            LOG.debug("Publishing to '" + topic + "' payload: " + payload);
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
@@ -72,6 +72,4 @@ public abstract class Protocol {
     public abstract void publishAlarms(Collection<Alarm> alarms);
     public abstract void publishConfiguration(Collection<Configuration> configurations);
     public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
-
-    public abstract void publishPing();
 }

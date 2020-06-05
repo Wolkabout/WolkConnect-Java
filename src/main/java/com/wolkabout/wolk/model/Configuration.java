@@ -18,60 +18,36 @@ package com.wolkabout.wolk.model;
 
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class Configuration {
 
-    public enum Status {
-        READY, BUSY, ERROR
-    }
 
     private final String reference;
-    private final Status status;
     private final List<String> values;
     private final String value;
-    private final Long utc;
 
-    public Configuration(String reference, Status status, String value) {
+    public Configuration(String reference, String value) {
         this.reference = reference;
-        this.status = status;
         this.value = value;
         this.values = JsonMultivalueSerializer.valuesFromString(value);
-        this.utc = System.currentTimeMillis();
     }
 
-    public Configuration(String reference, Status status, String value, Long utc) {
+    public Configuration(String reference, String value, Long utc) {
         this.reference = reference;
-        this.status = status;
         this.value = value;
         this.values = JsonMultivalueSerializer.valuesFromString(value);
-        this.utc = utc;
     }
 
-    public Configuration(String reference, Status status, List<String> values) {
+    public Configuration(String reference, List<String> values) {
         this.reference = reference;
-        this.status = status;
         this.value = JsonMultivalueSerializer.valuesToString(values);
         this.values = values;
-        this.utc = System.currentTimeMillis();
-    }
-
-    public Configuration(String reference, Status status, List<String> values, Long utc) {
-        this.reference = reference;
-        this.status = status;
-        this.value = JsonMultivalueSerializer.valuesToString(values);
-        this.values = values;
-        this.utc = utc;
     }
 
     public String getReference() {
         return reference;
     }
-
-    public Status getStatus() { return status; }
 
     public List<String> getValues() {
         return values;
@@ -81,17 +57,11 @@ public class Configuration {
         return value;
     }
 
-    public Long getUtc() {
-        return utc;
-    }
-
     @Override
     public String toString() {
         return "Configuration{" +
                 "reference='" + reference + '\'' +
-                ", status='" + status + '\'' +
                 ", value='" + value + '\'' +
-                ", utc=" + utc +
                 '}';
     }
 }

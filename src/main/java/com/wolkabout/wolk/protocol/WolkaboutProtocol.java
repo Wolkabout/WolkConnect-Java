@@ -30,15 +30,13 @@ import java.util.*;
 public class WolkaboutProtocol extends Protocol {
 
     private static final String ACTUATOR_SET = "p2d/actuator_set/d/";
-    private static final String ACTUATOR_GET = "p2d/actuator_get/d/";
     private static final String ACTUATOR_STATUS = "d2p/actuator_status/d/";
 
     private static final String CONFIGURATION_SET = "p2d/configuration_set/d/";
-    private static final String CONFIGURATION_GET = "p2d/configuration_get/d/";
-    private static final String CONFIGURATION_STATUS = "d2p/configuration_status/d/";
+    private static final String CONFIGURATION_STATUS = "d2p/configuration_get/d/";
 
-    private static final String SENSOR_READING = "d2p/sensor_readings/d/";
-    private static final String ALARM = "d2p/alarms/d/";
+    private static final String SENSOR_READING = "d2p/sensor_reading/d/";
+    private static final String ALARM = "d2p/events/d/";
 
     public WolkaboutProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
@@ -63,15 +61,6 @@ public class WolkaboutProtocol extends Protocol {
             }
         });
 
-        client.subscribe(ACTUATOR_GET + client.getClientId() + "/r/#", QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
-
-                publishActuatorStatus(reference);
-            }
-        });
-
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
@@ -80,13 +69,6 @@ public class WolkaboutProtocol extends Protocol {
 
                 configurationHandler.onConfigurationReceived(configurationCommand.getValues());
 
-                publishCurrentConfig();
-            }
-        });
-
-        client.subscribe(CONFIGURATION_GET + client.getClientId(), QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
                 publishCurrentConfig();
             }
         });
@@ -167,10 +149,5 @@ public class WolkaboutProtocol extends Protocol {
     @Override
     public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
         publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
-    }
-
-    @Override
-    public void publishPing() {
-        // Ping is not defined for json protocol
     }
 }

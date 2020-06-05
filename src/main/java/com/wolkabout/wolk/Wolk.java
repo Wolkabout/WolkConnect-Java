@@ -463,8 +463,9 @@ public class Wolk {
                         for (final String reference : actuatorReferences) {
                             wolk.publishActuatorStatus(reference);
                         }
-
-                        wolk.publishConfiguration();
+                        if (configurationHandler.getConfigurations().size() != 0) {
+                            wolk.publishConfiguration();
+                        }
                     }
 
                     @Override
