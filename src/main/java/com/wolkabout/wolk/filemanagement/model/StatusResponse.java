@@ -15,28 +15,28 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.filemanagement.model;
 
 import java.util.Objects;
 
 public class StatusResponse {
 
-    private FirmwareStatus status;
-    private UpdateError error;
+    private FileTransferStatus status;
+    private FileTransferError error;
 
-    public FirmwareStatus getStatus() {
+    public FileTransferStatus getStatus() {
         return status;
     }
 
-    public void setStatus(FirmwareStatus status) {
+    public void setStatus(FileTransferStatus status) {
         this.status = status;
     }
 
-    public UpdateError getError() {
+    public FileTransferError getError() {
         return error;
     }
 
-    public void setError(UpdateError error) {
+    public void setError(FileTransferError error) {
         this.error = error;
     }
 

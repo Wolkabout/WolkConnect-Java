@@ -15,19 +15,13 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model.command;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
+package com.wolkabout.wolk.filemanagement.model.command;
 
 public class FileInfo {
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private final String command = "FILE_UPLOAD";
 
     private String fileName;
     private long fileSize;
     private String fileHash;
-    private boolean autoInstall;
 
     public String getFileName() {
         return fileName;
@@ -53,26 +47,12 @@ public class FileInfo {
         this.fileHash = fileHash;
     }
 
-    public boolean isAutoInstall() {
-        return autoInstall;
-    }
-
-    public void setAutoInstall(boolean autoInstall) {
-        this.autoInstall = autoInstall;
-    }
-
-    public String getCommand() {
-        return command;
-    }
-
     @Override
     public String toString() {
         return "FileInfo{" +
-                "command='" + command + '\'' +
-                ", fileName='" + fileName + '\'' +
+                "fileName='" + fileName + '\'' +
                 ", fileSize=" + fileSize +
                 ", fileHash='" + fileHash + '\'' +
-                ", autoInstall=" + autoInstall +
                 '}';
     }
 }

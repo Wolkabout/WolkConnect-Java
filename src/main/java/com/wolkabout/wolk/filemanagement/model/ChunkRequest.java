@@ -15,7 +15,7 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.filemanagement.model;
 
 
 public class ChunkRequest {

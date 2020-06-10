@@ -1,6 +1,6 @@
-package com.wolkabout.wolk.firmwareupdate;
+package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -13,7 +13,7 @@ import java.util.concurrent.Future;
 public class UrlFileDownloader {
 
     public interface Callback {
-        void onError(UpdateError error);
+        void onError(FileTransferError error);
         void onFileReceived(String fileName, byte[] bytes);
     }
 
@@ -63,9 +63,9 @@ public class UrlFileDownloader {
 
             callback.onFileReceived(fileName, buffer.toByteArray());
         } catch (MalformedURLException e) {
-            callback.onError(UpdateError.MALFORMED_URL);
+            callback.onError(FileTransferError.MALFORMED_URL);
         } catch (Exception e) {
-            callback.onError(UpdateError.UNSPECIFIED_ERROR);
+            callback.onError(FileTransferError.UNSPECIFIED_ERROR);
         }
     }
 

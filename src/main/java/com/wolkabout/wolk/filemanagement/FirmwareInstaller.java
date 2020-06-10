@@ -14,28 +14,29 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement;
 
-package com.wolkabout.wolk.firmwareupdate.model.command;
+import com.wolkabout.wolk.Wolk;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import java.lang.ref.WeakReference;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class Command {
+public abstract class FirmwareInstaller {
 
-    private String command;
+    private WeakReference<Wolk> wolk;
 
-    public String getCommand() {
-        return command;
+    protected Wolk getWolk() {
+        return wolk.get();
     }
 
-    public void setCommand(String command) {
-        this.command = command;
+    public void setWolk(Wolk wolk) {
+        if (this.wolk != null) {
+            throw new IllegalStateException("Wolk instance already set.");
+        }
+
+        this.wolk = new WeakReference<>(wolk);
     }
 
-    @Override
-    public String toString() {
-        return "Command{" +
-                "command='" + command + '\'' +
-                '}';
-    }
+    public abstract void onInstallCommandReceived();
+
+    public abstract void onAbortCommandReceived();
 }

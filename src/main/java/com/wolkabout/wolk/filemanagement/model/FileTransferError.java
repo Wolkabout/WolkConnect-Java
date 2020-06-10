@@ -15,9 +15,9 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.filemanagement.model;
 
-public enum UpdateError {
+public enum FileTransferError {
 
     /**
      * An error not predicted by the protocol.
@@ -56,7 +56,7 @@ public enum UpdateError {
 
     private int code;
 
-    UpdateError(int code) {
+    FileTransferError(int code) {
         this.code = code;
     }
 
