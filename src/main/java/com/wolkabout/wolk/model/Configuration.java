@@ -33,12 +33,6 @@ public class Configuration {
         this.values = JsonMultivalueSerializer.valuesFromString(value);
     }
 
-    public Configuration(String reference, String value, Long utc) {
-        this.reference = reference;
-        this.value = value;
-        this.values = JsonMultivalueSerializer.valuesFromString(value);
-    }
-
     public Configuration(String reference, List<String> values) {
         this.reference = reference;
         this.value = JsonMultivalueSerializer.valuesToString(values);

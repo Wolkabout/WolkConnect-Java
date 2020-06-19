@@ -31,21 +31,13 @@ public class ActuatorStatus {
     private final String reference;
     private final Status status;
     private final String value;
-    private final Long utc;
 
     public ActuatorStatus(Status status, String value, String reference) {
         this.status = status;
         this.value = value;
         this.reference = reference;
-        this.utc = System.currentTimeMillis();
     }
 
-    public ActuatorStatus(Status status, String value, String reference, Long utc) {
-        this.status = status;
-        this.value = value;
-        this.reference = reference;
-        this.utc = utc;
-    }
 
     public String getReference() {
         return reference;
@@ -59,15 +51,12 @@ public class ActuatorStatus {
         return value;
     }
 
-    public Long getUtc() { return utc; }
-
     @Override
     public String toString() {
         return "ActuatorStatus {" +
                 "reference='" + reference + '\'' +
                 ", status='" + status + '\'' +
                 ", value='" + value + '\'' +
-                ", utc='" + utc + '\'' +
                 '}';
     }
 }

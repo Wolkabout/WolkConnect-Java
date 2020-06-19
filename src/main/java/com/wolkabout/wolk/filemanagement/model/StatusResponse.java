@@ -23,6 +23,8 @@ public class StatusResponse {
 
     private FileTransferStatus status;
     private FileTransferError error;
+    private String fileName;
+    private String fileUrl;
 
     public FileTransferStatus getStatus() {
         return status;
@@ -40,11 +42,29 @@ public class StatusResponse {
         this.error = error;
     }
 
+    public String getFileUrl() {
+        return fileUrl;
+    }
+
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
     @Override
     public String toString() {
         return "StatusResponse{" +
                 "status=" + status +
                 ", error=" + error +
+                ", fileName='" + fileName +
+                "', fileUrl='" + fileUrl +
                 '}';
     }
 
@@ -54,7 +74,7 @@ public class StatusResponse {
         if (!(o instanceof StatusResponse)) return false;
         StatusResponse that = (StatusResponse) o;
         return error == that.error &&
-                status == that.status;
+                status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
     }
 
     @Override

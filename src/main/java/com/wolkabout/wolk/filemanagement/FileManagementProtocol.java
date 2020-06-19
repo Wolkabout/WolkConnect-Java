@@ -37,6 +37,7 @@ public class FileManagementProtocol {
     private static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
     private static final String FILE_URL_DOWNLOAD_ABORT = "p2d/file_url_download_abort/d/";
     private static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";
+    private static final String FILE_URL_UPLOAD_STATUS = "d2p/file_url_download_status/d/";
 
     private final MqttClient client;
     private final FileDownloader fileDownloader;
@@ -66,6 +67,7 @@ public class FileManagementProtocol {
 
             @Override
             public void onFileReceived(String fileName, byte[] bytes) {
+                publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
                 // TODO: callback for reporting file list
             }
         });
@@ -94,13 +96,13 @@ public class FileManagementProtocol {
             client.subscribe(FILE_URL_DOWNLOAD_INITIATE + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
+                    final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
                     if (urlDownloader == null) {
                         publishFlowStatus(FileTransferError.FILE_UPLOAD_DISABLED);
                         return;
                     }
-                    final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
 
-                    publishFlowStatus(FileTransferStatus.FILE_TRANSFER);
+                    publishFlowStatus(FileTransferStatus.FILE_TRANSFER, urlInfo.getFileUrl());
 
                     urlDownloader.downloadFile(urlInfo.getFileUrl(), new UrlFileDownloader.Callback() {
                         @Override
@@ -110,7 +112,7 @@ public class FileManagementProtocol {
 
                         @Override
                         public void onFileReceived(String fileName, byte[] bytes) {
-                            publishFlowStatus(FileTransferStatus.FILE_READY);
+                            publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
                             // TODO: publish file list
                         }
                     });
@@ -123,6 +125,12 @@ public class FileManagementProtocol {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     if (urlDownloader != null) {
+                        final StatusResponse status = new StatusResponse();
+                        status.setStatus(FileTransferStatus.ABORTED);
+                        if (urlDownloader.getUrl() != null) {
+                            status.setFileUrl(urlDownloader.getUrl());
+                        }
+                        publishFlowStatus(status);
                         urlDownloader.abort();
                     }
                 }
@@ -133,7 +141,7 @@ public class FileManagementProtocol {
         }
     }
 
-    public void publishFlowStatus(FileTransferStatus status) {
+    public void publishFlowStatus(FileTransferStatus status, String fileName) {
         if (status == null) {
             throw new IllegalArgumentException("Status must be set.");
         }
@@ -144,6 +152,12 @@ public class FileManagementProtocol {
 
         final StatusResponse statusResponse = new StatusResponse();
         statusResponse.setStatus(status);
+        if (fileName.contains("/")) { // File names can't contain slashes, meaning it is a URL
+            statusResponse.setFileUrl(fileName);
+        }
+        else {
+            statusResponse.setFileName(fileName);
+        }
         publishFlowStatus(statusResponse);
     }
 
@@ -158,8 +172,14 @@ public class FileManagementProtocol {
         publishFlowStatus(statusResponse);
     }
 
+
     private void publishFlowStatus(StatusResponse statusResponse) {
-        publish(FILE_UPLOAD_STATUS + client.getClientId(), statusResponse);
+        if (statusResponse.getFileUrl() == null) {
+            publish(FILE_UPLOAD_STATUS + client.getClientId(), statusResponse);
+        }
+        else {
+            publish(FILE_URL_UPLOAD_STATUS + client.getClientId(), statusResponse);
+        }
     }
 
     private void publish(String topic, Object payload) {

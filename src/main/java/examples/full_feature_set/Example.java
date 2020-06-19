@@ -17,8 +17,8 @@
 package examples.full_feature_set;
 
 import com.wolkabout.wolk.Wolk;
-import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
+import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
+//import com.wolkabout.wolk.filemanagement.model.FirmwareStatus;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Configuration;
@@ -85,32 +85,16 @@ public class Example {
                 })
                 .enableFirmwareUpdate(new FirmwareInstaller() {
                     @Override
-                    public void onFileReady(String fileName, boolean autoInstall, byte[] bytes) {
-                        LOG.info("Firmware file ready, autoinstall: " + autoInstall);
-
-                        if (autoInstall) {
-                            getWolk().publishFirmwareUpdateStatus(FirmwareStatus.INSTALLATION);
-
-                            try {
-                                TimeUnit.MILLISECONDS.sleep(2000);
-                            } catch (Exception e) {}
-
-                            getWolk().publishFirmwareUpdateStatus(FirmwareStatus.COMPLETED);
-
-                            getWolk().publishFirmwareVersion(Integer.toString(++Values.firmwareVersion) + ".0.0");
-                        }
-                    }
-
-                    @Override
                     public void onInstallCommandReceived() {
                         LOG.info("Firmware install");
-                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.INSTALLATION);
+                        // TODO: FirmwareStatus model
+//                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.INSTALLATION);
 
                         try {
                             TimeUnit.MILLISECONDS.sleep(2000);
                         } catch (Exception e) {}
 
-                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.COMPLETED);
+//                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.COMPLETED);
 
                         getWolk().publishFirmwareVersion(Integer.toString(++Values.firmwareVersion) + ".0.0");
                     }
@@ -118,7 +102,7 @@ public class Example {
                     @Override
                     public void onAbortCommandReceived() {
                         LOG.info("Firmware installation abort");
-                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.ABORTED);
+//                        getWolk().publishFirmwareUpdateStatus(FirmwareStatus.ABORTED);
                     }
                 })
                 .build();

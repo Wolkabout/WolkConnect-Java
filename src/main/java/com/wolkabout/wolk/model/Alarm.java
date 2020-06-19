@@ -6,17 +6,15 @@ public class Alarm {
     @JsonIgnore
     private final String reference;
     private final boolean active;
-    private final String code;
     private final Long utc;
 
-    public Alarm(String reference, boolean active, String code) {
-        this(reference, active, code, System.currentTimeMillis());
+    public Alarm(String reference, boolean active) {
+        this(reference, active, System.currentTimeMillis());
     }
 
-    public Alarm(String reference, boolean active, String code, Long utc) {
+    public Alarm(String reference, boolean active, Long utc) {
         this.reference = reference;
         this.active = active;
-        this.code = code;
         this.utc = utc;
     }
 
@@ -28,10 +26,6 @@ public class Alarm {
         return String.valueOf(active);
     }
 
-    public String getCode() {
-        return code;
-    }
-
     public long getUtc() {
         return utc;
     }
@@ -41,7 +35,6 @@ public class Alarm {
         return "Alarm{" +
                 "reference='" + reference + '\'' +
                 ", active=" + active + '\'' +
-                ", code='" + code + '\'' +
                 ", utc=" + utc +
                 '}';
     }

@@ -14,12 +14,12 @@
  * limitations under the License.
  *
  */
-
 package com.wolkabout.wolk.filemanagement.model.command;
 
-public class UrlInfo extends Command {
+public class UrlInfo{
 
     private String fileUrl;
+    private boolean autoInstall;
 
     public String getFileUrl() {
         return fileUrl;
@@ -29,10 +29,19 @@ public class UrlInfo extends Command {
         this.fileUrl = fileUrl;
     }
 
+    public boolean isAutoInstall() {
+        return autoInstall;
+    }
+
+    public void setAutoInstall(boolean autoInstall) {
+        this.autoInstall = autoInstall;
+    }
+
     @Override
     public String toString() {
         return "UrlInfo{" +
                 "fileUrl='" + fileUrl + '\'' +
+                ", autoInstall=" + autoInstall +
                 "} " + super.toString();
     }
 }

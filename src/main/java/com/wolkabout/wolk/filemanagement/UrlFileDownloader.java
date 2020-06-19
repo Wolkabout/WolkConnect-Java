@@ -20,6 +20,10 @@ public class UrlFileDownloader {
     private Callback callback;
     private String url;
 
+    public String getUrl() {
+        return url;
+    }
+
     private static final ExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     private final Runnable downloadTask = new Runnable() {
         @Override
@@ -41,6 +45,7 @@ public class UrlFileDownloader {
 
     public void abort() {
         stopDownload();
+        this.url = null;
     }
 
     private void download() {

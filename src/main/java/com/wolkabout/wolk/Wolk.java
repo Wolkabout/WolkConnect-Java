@@ -16,11 +16,11 @@
  */
 package com.wolkabout.wolk;
 
-import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
-import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
-import com.wolkabout.wolk.firmwareupdate.UrlFileDownloader;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
-import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
+import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
+import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
+import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -77,7 +77,7 @@ public class Wolk {
     /**
      * Protocol for receiving firmware updates.
      */
-    private FirmwareUpdateProtocol firmwareUpdateProtocol;
+    private FileManagementProtocol fileManagementProtocol;
 
     /**
      * Persistence mechanism for storing and retrieving data.
@@ -233,7 +233,7 @@ public class Wolk {
      * @param active Current state of the alarm
      */
     public void addAlarm(String reference, boolean active) {
-        final Alarm alarm = new Alarm(reference, active, "");
+        final Alarm alarm = new Alarm(reference, active);
 
         if (persistence != null) {
             persistence.addAlarm(alarm);
@@ -277,30 +277,30 @@ public class Wolk {
      * @param version current firmware version.
      */
     public void publishFirmwareVersion(String version) {
-        if (firmwareUpdateProtocol == null) {
+        if (fileManagementProtocol == null) {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
         try {
-            firmwareUpdateProtocol.publishFirmwareVersion(version);
+//            fileManagementProtocol.publishFirmwareVersion(version);
         } catch (Exception e) {
             LOG.info("Could not publish firmware version", e);
         }
     }
 
     /**
-     * Publishes the progress of firmware update.
-     * To publish an error state use {link {@link #publishFirmwareUpdateStatus(UpdateError)}}
+     * Publishes the progress of file transfer.
+     * To publish an error state use {link {@link #publishFileTransferStatus(FileTransferError)}}
      *
-     * @param status Status of the firmware update.
+     * @param status Status of the file transfer.
      */
-    public void publishFirmwareUpdateStatus(FirmwareStatus status) {
-        if (firmwareUpdateProtocol == null) {
+    public void publishFileTransferStatus(FileTransferStatus status) {
+        if (fileManagementProtocol == null) {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
         try {
-            firmwareUpdateProtocol.publishFlowStatus(status);
+//            fileManagementProtocol.publishFlowStatus(status);
         } catch (Exception e) {
             LOG.info("Could not publish firmware update status", e);
         }
@@ -311,13 +311,13 @@ public class Wolk {
      *
      * @param error Error that terminated firmware update.
      */
-    public void publishFirmwareUpdateStatus(UpdateError error) {
-        if (firmwareUpdateProtocol == null) {
+    public void publishFileTransferStatus(FileTransferError error) {
+        if (fileManagementProtocol == null) {
             throw new IllegalStateException("Firmware update protocol not configured.");
         }
 
         try {
-            firmwareUpdateProtocol.publishFlowStatus(error);
+            fileManagementProtocol.publishFlowStatus(error);
         } catch (Exception e) {
             LOG.info("Could not publish firmware update status", e);
         }
@@ -327,8 +327,8 @@ public class Wolk {
         try {
             protocol.subscribe();
 
-            if (firmwareUpdateProtocol != null) {
-                firmwareUpdateProtocol.subscribe();
+            if (fileManagementProtocol != null) {
+                fileManagementProtocol.subscribe();
             }
         } catch (Exception e) {
             LOG.debug("Unable to subscribe to all required topics.", e);
@@ -486,7 +486,7 @@ public class Wolk {
                 wolk.persistence = persistence;
 
                 if (firmwareUpdateEnabled) {
-                    wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, firmwareInstaller, urlFileDownloader);
+                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, urlFileDownloader);
                     firmwareInstaller.setWolk(wolk);
                 }
 
