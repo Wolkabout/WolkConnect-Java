@@ -94,6 +94,8 @@ public class Wolk {
         }
 
         subscribe();
+
+
     }
 
     /**
@@ -167,7 +169,7 @@ public class Wolk {
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
      * @param reference Reference of the sensor
-     * @param value Value obtained by the reading
+     * @param value     Value obtained by the reading
      */
     public void addReading(String reference, String value) {
         final Reading reading = new Reading(reference, value);
@@ -179,7 +181,7 @@ public class Wolk {
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
      * @param reference Reference of the sensor
-     * @param values Values obtained by the reading
+     * @param values    Values obtained by the reading
      */
     public void addReading(String reference, List<String> values) {
         final Reading reading = new Reading(reference, values);
@@ -230,7 +232,7 @@ public class Wolk {
      * TODO: code parameter
      *
      * @param reference Reference of the alarm
-     * @param active Current state of the alarm
+     * @param active    Current state of the alarm
      */
     public void addAlarm(String reference, boolean active) {
         final Alarm alarm = new Alarm(reference, active);
@@ -458,13 +460,6 @@ public class Wolk {
                     public void connectComplete(boolean reconnect, String serverURI) {
                         if (reconnect) {
                             wolk.subscribe();
-                        }
-
-                        for (final String reference : actuatorReferences) {
-                            wolk.publishActuatorStatus(reference);
-                        }
-                        if (configurationHandler.getConfigurations().size() != 0) {
-                            wolk.publishConfiguration();
                         }
                     }
 

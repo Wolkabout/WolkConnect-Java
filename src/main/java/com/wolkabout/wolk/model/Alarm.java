@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 public class Alarm {
     @JsonIgnore
     private final String reference;
-    private final boolean active;
+    private final String active;
     private final Long utc;
 
     public Alarm(String reference, boolean active) {
@@ -14,7 +14,7 @@ public class Alarm {
 
     public Alarm(String reference, boolean active, Long utc) {
         this.reference = reference;
-        this.active = active;
+        this.active = String.valueOf(active);
         this.utc = utc;
     }
 
@@ -23,7 +23,7 @@ public class Alarm {
     }
 
     public String getActive() {
-        return String.valueOf(active);
+        return active;
     }
 
     public long getUtc() {

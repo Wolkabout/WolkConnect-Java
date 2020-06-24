@@ -27,8 +27,8 @@ public class Example {
                 .mqtt()
                 .host("ssl://api-demo.wolkabout.com:8883")
                 .sslCertification("ca.crt")
-                .deviceKey("5d9vo9e1z02fdmgb")
-                .password("b7987236-712b-4cf5-8a50-c58c9cfc715e")
+                .deviceKey("device_key")
+                .password("some_password")
                 .build()
                 .build();
 
