@@ -18,14 +18,17 @@
 ```
 ----
 
-Connector library written in Java for WolkAbout platform.
+WolkAbout Java Connector for connecting devices to  [WolkAbout IoT Platform](https://demo.wolkabout.com/#/login).
 
-You can import it in your project using gradle or maven configurations below.
+Supported device communication protocols:
+* WolkAbout Protocol
+
 
 Prerequisite
 ------
 
-Include WolkAbout Java connector to project.
+You can import it in your project using gradle or maven configurations below.  
+Include WolkConnect-Java library to project.
 
 Gradle
 
@@ -59,9 +62,10 @@ Maven
 Example Usage
 -------------
 
-Create a device on WolkAbout IoT platform by importing template file simple-example-manifest.json located in examples/simple/ This template fits simple example and demonstrates the sending of a temperature sensor reading.
+Create a device on WolkAbout IoT platform by using the provided *Simple example* device type.  
+This template fits the [Simple example](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/simple/Example.java) and demonstrates the sending of a temperature sensor reading.
 
-**Establishing mqtt connection with the platform:**
+**Establishing MQTT connection with the platform:**
 ```java
 final Wolk wolk = Wolk.builder()
     .mqtt()
@@ -70,7 +74,7 @@ final Wolk wolk = Wolk.builder()
         .deviceKey("devicekey")
         .password("password")
         .build()
-    .protocol(ProtocolType.JSON_SINGLE_REFERENCE)
+    .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
     .build();
 
 wolk.connect();
@@ -87,17 +91,21 @@ wolk.publish();
 ```
 
 **Data publish strategy:**
-If data persistence is disabled, sensor data will be sent immediatelly.
-If data persistence is enabled, sensor data can be sent by calling
+If data persistence is disabled, sensor data will be sent immediately.
+If data persistence is enabled, sensor data can be sent by calling:
 ```java
-wolk.publish(),
+wolk.publish();
 ```
 or enabling automatic publishing by calling
 ```java
-wolk.startPublishing(intervalInSeconds).
+wolk.startPublishing(intervalInSeconds);
 ```
 
 **Disconnecting from the platform:**
 ```java
 wolk.disconnect();
 ```
+
+**Additional functionality:**
+
+WolkConnect-Java library has integrated additional features which can perform full WolkAbout IoT platform potential. Read more about full feature set example [HERE](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/full_feature_set/Example.java).
