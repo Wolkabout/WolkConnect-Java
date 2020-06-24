@@ -138,27 +138,41 @@ public class Example {
         wolk.publishActuatorStatus("SW");
         wolk.publishActuatorStatus("SL");
         wolk.publishConfiguration();
-
-
-        if (configurations.getEnabledFeeds().contains("T")) {
-            wolk.addReading("T", "25.6");
-        }
-        if (configurations.getEnabledFeeds().contains("P")) {
-            wolk.addReading("P", "1024");
-        }
-        if (configurations.getEnabledFeeds().contains("H")) {
-            wolk.addReading("H", "52");
-            wolk.addAlarm("HH", true);
-        }
-        if (configurations.getEnabledFeeds().contains("ACL")) {
-            wolk.addReading("ACL", Arrays.asList("1", "0", "0"));
-        }
-
-
         wolk.publish();
 
         while (true) {
             try {
+                if (configurations.getEnabledFeeds().size() > 0) {
+                    System.out.println("Sending sensor readings:");
+                }
+                if (configurations.getEnabledFeeds().contains("T")) {
+                    double temperature = (Math.random() * (85 + 1)) + 0;
+                    wolk.addReading("T", Double.toString(temperature));
+                    System.out.printf("\tTemperature: %s °C%n", temperature);
+                }
+                if (configurations.getEnabledFeeds().contains("P")) {
+                    double pressure = (Math.random() * ((1030 - 975) + 1)) + 975;
+                    wolk.addReading("P", Double.toString(pressure));
+                    System.out.printf("\tPressure: %s  mbar%n", pressure);
+                }
+                if (configurations.getEnabledFeeds().contains("H")) {
+                    double humidity = (Math.random() * (100 + 1)) + 0;
+                    wolk.addReading("H", Double.toString(humidity));
+                    System.out.printf("\tHumidity: %s  %%%n", humidity);
+                    if (humidity > 90.0) {
+                        wolk.addAlarm("HH", true);
+                    } else {
+                        wolk.addAlarm("HH", false);
+                    }
+                }
+                if (configurations.getEnabledFeeds().contains("ACL")) {
+                    double xAxis = (Math.random() * (5 + 1)) + 0;
+                    double yAxis = (Math.random() * (5 + 1)) + 0;
+                    double zAxis = (Math.random() * (5 + 1)) + 0;
+                    System.out.printf("\tHumidity: %s g, %s g, %s g%n", xAxis, yAxis, zAxis);
+                    wolk.addReading("ACL", Arrays.asList(Double.toString(xAxis), Double.toString(yAxis), Double.toString(zAxis)));
+                }
+                wolk.publish();
                 TimeUnit.SECONDS.sleep(configurations.getHeartBeat());
             } catch (Exception e) {
             }
