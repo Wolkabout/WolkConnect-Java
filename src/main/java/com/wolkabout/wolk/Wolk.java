@@ -229,7 +229,7 @@ public class Wolk {
     /**
      * Adds alarm to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-     * TODO: code parameter
+     *
      *
      * @param reference Reference of the alarm
      * @param active    Current state of the alarm
