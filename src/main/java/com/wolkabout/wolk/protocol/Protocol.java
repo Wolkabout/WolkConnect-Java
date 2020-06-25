@@ -38,6 +38,8 @@ public abstract class Protocol {
     protected final ActuatorHandler actuatorHandler;
     protected final ConfigurationHandler configurationHandler;
 
+    protected long platformTimestamp;
+
     protected static final int QOS = 0;
 
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
@@ -80,4 +82,6 @@ public abstract class Protocol {
     public abstract void publishConfiguration(Collection<Configuration> configurations);
 
     public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
+
+    public abstract void publishKeepAlive();
 }

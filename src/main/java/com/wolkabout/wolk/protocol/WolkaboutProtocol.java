@@ -38,6 +38,18 @@ public class WolkaboutProtocol extends Protocol {
     private static final String SENSOR_READING = "d2p/sensor_reading/d/";
     private static final String ALARM = "d2p/events/d/";
 
+    private static final String KEEP_ALIVE_REQUEST = "ping/";
+    private static final String KEEP_ALIVE_RESPONSE = "pong/";
+
+    public long getPlatformTimestamp() {
+        return platformTimestamp;
+    }
+
+    public void setPlatformTimestamp(long platformTimestamp) {
+        this.platformTimestamp = platformTimestamp;
+    }
+
+
     public WolkaboutProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
     }
@@ -64,12 +76,16 @@ public class WolkaboutProtocol extends Protocol {
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
+                final HashMap<String, Object> response = JsonUtil.deserialize(message, HashMap.class);
+                setPlatformTimestamp((long) response.get("value"));
+            }
+        });
+
+        client.subscribe(KEEP_ALIVE_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
+            @Override
+            public void messageArrived(String topic, MqttMessage message) throws Exception {
                 final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
-                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
 
-                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
-
-                publishCurrentConfig();
             }
         });
     }
@@ -149,5 +165,10 @@ public class WolkaboutProtocol extends Protocol {
     @Override
     public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
         publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
+    }
+
+    @Override
+    public void publishKeepAlive() {
+        publish(KEEP_ALIVE_REQUEST + client.getClientId(), null);
     }
 }

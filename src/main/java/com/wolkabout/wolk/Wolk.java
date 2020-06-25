@@ -48,7 +48,7 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "ca.crt";
 
 
-    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+    private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private final Runnable publishTask = new Runnable() {
         @Override
         public void run() {
@@ -56,7 +56,14 @@ public class Wolk {
         }
     };
 
+    private final Runnable publishKeepAlive = new Runnable() {
+        @Override
+        public void run() {
+            protocol.publishKeepAlive();
+        }
+    };
     private ScheduledFuture<?> runningPublishTask;
+    private ScheduledFuture<?> runningPublishKeepAliveTask;
 
 
     /**
@@ -94,7 +101,7 @@ public class Wolk {
         }
 
         subscribe();
-
+        startPublishingKeepAlive(60);
 
     }
 
@@ -107,6 +114,7 @@ public class Wolk {
                 client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
                 client.disconnect();
             }
+            stopPublishingKeepAlive();
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
@@ -140,6 +148,31 @@ public class Wolk {
         }
 
         runningPublishTask.cancel(true);
+    }
+
+    /**
+     * Start automatic reading publishing keep alive messages.
+     * Messages are published every X seconds.
+     *
+     * @param seconds Time in seconds between 2 publishes.
+     */
+    public void startPublishingKeepAlive(int seconds) {
+        if (runningPublishKeepAliveTask != null && !runningPublishKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningPublishKeepAliveTask = executor.scheduleAtFixedRate(publishKeepAlive, 0, seconds, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Stop publishing keep alive messages.
+     */
+    public void stopPublishingKeepAlive() {
+        if (runningPublishKeepAliveTask == null || runningPublishKeepAliveTask.isDone()) {
+            return;
+        }
+
+        runningPublishKeepAliveTask.cancel(true);
     }
 
     /**
