@@ -142,6 +142,8 @@ public class Example {
 
         while (true) {
             try {
+                int heartBeat = configurations.getHeartBeat();
+                System.out.println("Heart beat: " + heartBeat);
                 if (configurations.getEnabledFeeds().size() > 0) {
                     System.out.println("Sending sensor readings:");
                 }
@@ -173,8 +175,9 @@ public class Example {
                     wolk.addReading("ACL", Arrays.asList(Double.toString(xAxis), Double.toString(yAxis), Double.toString(zAxis)));
                 }
                 wolk.publish();
-                TimeUnit.SECONDS.sleep(configurations.getHeartBeat());
+                TimeUnit.SECONDS.sleep(heartBeat);
             } catch (Exception e) {
+                System.out.println(e.getLocalizedMessage());
             }
         }
     }
