@@ -40,6 +40,10 @@ public abstract class Protocol {
 
     protected long platformTimestamp;
 
+    public abstract long getPlatformTimestamp();
+
+    public abstract void setPlatformTimestamp(long platformTimestamp);
+
     protected static final int QOS = 0;
 
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {

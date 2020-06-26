@@ -25,7 +25,10 @@ import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
 public class WolkaboutProtocol extends Protocol {
 
@@ -76,15 +79,20 @@ public class WolkaboutProtocol extends Protocol {
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> response = JsonUtil.deserialize(message, HashMap.class);
-                setPlatformTimestamp((long) response.get("value"));
+                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
+                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
+
+                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
+
+                publishCurrentConfig();
             }
         });
 
         client.subscribe(KEEP_ALIVE_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
+                final HashMap<String, Object> response = JsonUtil.deserialize(message, HashMap.class);
+                setPlatformTimestamp((long) response.get("value"));
 
             }
         });

@@ -32,12 +32,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 public class Example {
     private static final Logger LOG = LoggerFactory.getLogger(Example.class);
-    private final static ArrayList<String> VALID_LEVELS = new ArrayList<String>(Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
+    private final static ArrayList<String> VALID_LEVELS = new ArrayList<>(Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
     private final static String CONFIGURATION_FILE_PATH = "src/main/resources/configuration.json";
 
     public static void setLogLevel(String logLevel, String packageName) {
@@ -72,6 +74,7 @@ public class Example {
                 .password("some_password")
                 .build()
                 .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
+                .enableKeepAliveService(true)
                 .actuator(Arrays.asList("SW", "SL"), new ActuatorHandler() {
                     @Override
                     public void onActuationReceived(ActuatorCommand actuatorCommand) {
@@ -143,7 +146,6 @@ public class Example {
         while (true) {
             try {
                 int heartBeat = configurations.getHeartBeat();
-                System.out.println("Heart beat: " + heartBeat);
                 if (configurations.getEnabledFeeds().size() > 0) {
                     System.out.println("Sending sensor readings:");
                 }
@@ -161,11 +163,7 @@ public class Example {
                     double humidity = (Math.random() * (100 + 1)) + 0;
                     wolk.addReading("H", Double.toString(humidity));
                     System.out.printf("\tHumidity: %s  %%%n", humidity);
-                    if (humidity > 90.0) {
-                        wolk.addAlarm("HH", true);
-                    } else {
-                        wolk.addAlarm("HH", false);
-                    }
+                    wolk.addAlarm("HH", humidity > 90.0);
                 }
                 if (configurations.getEnabledFeeds().contains("ACL")) {
                     double xAxis = (Math.random() * (5 + 1)) + 0;
@@ -176,6 +174,8 @@ public class Example {
                 }
                 wolk.publish();
                 TimeUnit.SECONDS.sleep(heartBeat);
+                long platformTimestamp = wolk.getPlatformTimestamp();
+                System.out.println("Last Platform timestamp received: " + platformTimestamp);
             } catch (Exception e) {
                 System.out.println(e.getLocalizedMessage());
             }

@@ -16,22 +16,26 @@
  */
 package com.wolkabout.wolk;
 
-import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
+import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
 import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
-import com.wolkabout.wolk.protocol.*;
+import com.wolkabout.wolk.protocol.Protocol;
+import com.wolkabout.wolk.protocol.ProtocolType;
+import com.wolkabout.wolk.protocol.WolkaboutProtocol;
 import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
 import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -48,6 +52,7 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "ca.crt";
 
 
+    private boolean keepAliveServiceEnabled = true;
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private final Runnable publishTask = new Runnable() {
         @Override
@@ -120,6 +125,10 @@ public class Wolk {
         }
     }
 
+    public long getPlatformTimestamp() {
+        return this.protocol.getPlatformTimestamp();
+    }
+
     /**
      * Start automatic reading publishing.
      * Readings are published every X seconds.
@@ -157,6 +166,9 @@ public class Wolk {
      * @param seconds Time in seconds between 2 publishes.
      */
     public void startPublishingKeepAlive(int seconds) {
+        if (!keepAliveServiceEnabled) {
+            return;
+        }
         if (runningPublishKeepAliveTask != null && !runningPublishKeepAliveTask.isDone()) {
             return;
         }
@@ -414,6 +426,8 @@ public class Wolk {
 
         private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
 
+        private boolean keepAliveServiceEnabled = true;
+
         private Builder() {
         }
 
@@ -483,6 +497,11 @@ public class Wolk {
             return this;
         }
 
+        public Builder enableKeepAliveService(boolean enable) {
+            this.keepAliveServiceEnabled = enable;
+            return this;
+        }
+
         public Wolk build() {
 
             try {
@@ -521,6 +540,8 @@ public class Wolk {
                 actuatorHandler.setWolk(wolk);
                 configurationHandler.setWolk(wolk);
 
+                wolk.keepAliveServiceEnabled = keepAliveServiceEnabled;
+
                 return wolk;
             } catch (MqttException mqttException) {
                 throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);
@@ -528,12 +549,10 @@ public class Wolk {
         }
 
         private Protocol getProtocol(MqttClient client) {
-            switch (protocolType) {
-                case WOLKABOUT_PROTOCOL:
-                    return new WolkaboutProtocol(client, actuatorHandler, configurationHandler);
-                default:
-                    throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
+            if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
+                return new WolkaboutProtocol(client, actuatorHandler, configurationHandler);
             }
+            throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
 
         }
     }
