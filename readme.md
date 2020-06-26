@@ -64,6 +64,7 @@ Example Usage
 
 Create a device on WolkAbout IoT platform by using the provided *Simple example* device type.  
 This template fits the [Simple example](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/simple/Example.java) and demonstrates the sending of a temperature sensor reading.
+After creating the device on the Platform, copy the provided credentials into `deviceKey` and `password`.
 
 ####Establishing MQTT connection with the platform:
 ```java
@@ -245,4 +246,4 @@ long platformTimestamp = wolk.getPlatformTimestamp();
 ```
 ####File management & firmware update
 
-These features will be available in a later release.
+*Note:* These features will be available in a later release.
