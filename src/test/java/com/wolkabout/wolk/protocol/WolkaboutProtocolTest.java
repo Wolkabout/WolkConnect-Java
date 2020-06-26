@@ -38,7 +38,7 @@ public class WolkaboutProtocolTest {
     public void subscribe() throws Exception {
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
         wolkaboutProtocol.subscribe();
-        verify(clientMock, times(2)).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
+        verify(clientMock, times(3)).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
     }
 
     @Test
