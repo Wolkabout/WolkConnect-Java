@@ -24,7 +24,7 @@ Supported device communication protocols:
 * WolkAbout Protocol
 
 
-##Prerequisite
+## Prerequisite
 
 
 You can import it in your project using gradle or maven configurations below.  
@@ -59,14 +59,14 @@ Maven
 </dependency>
 ```
 
-##Example Usage
+## Example Usage
 
 
 Create a device on WolkAbout IoT platform by using the provided *Simple example* device type.  
 This template fits the [Simple example](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/simple/Example.java) and demonstrates the sending of a temperature sensor reading.
 After creating the device on the Platform, copy the provided credentials into `deviceKey` and `password`.
 
-###Establishing MQTT connection with the platform:
+### Establishing MQTT connection with the platform:
 ```java
 final Wolk wolk = Wolk.builder()
     .mqtt()
@@ -83,7 +83,7 @@ wolk.connect();
 This will establish the connection to platform and subscribe to channels
  used for actuation and configuration commands.
  
-###Publishing sensor readings:
+### Publishing sensor readings:
 ```java
 wolk.addReading("T", "24.5");
 
@@ -93,14 +93,14 @@ wolk.addReading("ACL", Arrays.asList("0.4", "0.2", "0.0"));
 wolk.publish();
 ```
 
-###Publishing alarm events:
+### Publishing alarm events:
 ```java
 wolk.addAlarm("HH", true);
 
 wolk.publish();
 ```
 
-###Data publish strategy:
+### Data publish strategy:
 If data persistence is disabled, sensor data and alarms will be sent immediately.
 If data persistence is enabled, sensor data and alarms can be sent by calling:
 ```java
@@ -111,7 +111,7 @@ or enabling automatic publishing by calling
 wolk.startPublishing(intervalInSeconds);
 ```
 
-###Disconnecting from the platform:
+### Disconnecting from the platform:
 ```java
 wolk.disconnect();
 ```
@@ -120,7 +120,7 @@ wolk.disconnect();
 
 WolkConnect-Java library has integrated additional features which can perform full WolkAbout IoT platform potential. See the full feature set example [HERE](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/full_feature_set/Example.java).
 
-###Enabling device actuators:
+### Enabling device actuators:
 Provide an implementation of `onActuationReceived` and `getActuatorStatus`:
 ```java
 final Wolk wolk = Wolk.builder()
@@ -165,7 +165,7 @@ wolk.publishActuatorStatus("SW")
 ```
 This will call `getActuatorStatus` and immediately try to publish to the Platform.
 
-###Enabling device configuration:
+### Enabling device configuration:
 Provide an implementation of `onConfigurationReceived` and `getConfigurations`:
 ```java
 final Wolk wolk = Wolk.builder()
@@ -220,7 +220,7 @@ wolk.publishConfiguration()
 ```
 This will call `getConfigurations` and immediately try to publish to the Platform.
 
-###Ping keep-alive service
+### Ping keep-alive service
 
 By default, the library publishes a keep alive message every 60 seconds to the Platform, to update the device's last report for cases when the device doesn't publish data often.
 This service can be disabled to reduce bandwidth or battery usage:
@@ -244,6 +244,6 @@ This timestamp will be saved and updated for each response, and can be accessed 
 ```java
 long platformTimestamp = wolk.getPlatformTimestamp();
 ```
-###File management & firmware update
+### File management & firmware update
 
 *Note:* These features will be available in a later release.
