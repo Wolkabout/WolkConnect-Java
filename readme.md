@@ -74,7 +74,6 @@ final Wolk wolk = Wolk.builder()
         .deviceKey("devicekey")
         .password("password")
         .build()
-    .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
     .build();
 
 wolk.connect();
@@ -220,6 +219,30 @@ wolk.publishConfiguration()
 ```
 This will call `getConfigurations` and immediately try to publish to the Platform.
 
+#### Ping keep-alive service
+
+By default, the library publishes a keep alive message every 60 seconds to the Platform, to update the device's last report for cases when the device doesn't publish data often.
+This service can be disabled to reduce bandwidth or battery usage:
+
+```java
+final Wolk wolk = Wolk.builder()
+        .mqtt()
+        .host("ssl://api-demo.wolkabout.com:8883")
+        .sslCertification("ca.crt")
+        .deviceKey("device_key")
+        .password("some_password")
+        .build()
+        .enableKeepAliveService(false)
+        .build();
+```
+
+Additionally, if this service is enabled and the device establishes connection to the Platform, then each keep alive message sent will be responded with the current UTC timestamp on the Platform.
+
+This timestamp will be saved and updated for each response, and can be accessed with:
+
+```java
+long platformTimestamp = wolk.getPlatformTimestamp();
+```
 ####File management & firmware update
 
 These features will be available in a later release.
