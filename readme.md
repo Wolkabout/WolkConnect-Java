@@ -219,3 +219,7 @@ Publish configurations by calling:
 wolk.publishConfiguration()
 ```
 This will call `getConfigurations` and immediately try to publish to the Platform.
+
+####File management & firmware update
+
+These features will be available in a later release.
