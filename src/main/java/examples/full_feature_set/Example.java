@@ -151,17 +151,17 @@ public class Example {
                 }
                 if (configurations.getEnabledFeeds().contains("T")) {
                     double temperature = (Math.random() * (85 + 1)) + 0;
-                    wolk.addReading("T", Double.toString(temperature));
+                    wolk.addReading("T", temperature);
                     System.out.printf("\tTemperature: %s °C%n", temperature);
                 }
                 if (configurations.getEnabledFeeds().contains("P")) {
                     double pressure = (Math.random() * ((1030 - 975) + 1)) + 975;
-                    wolk.addReading("P", Double.toString(pressure));
+                    wolk.addReading("P", pressure);
                     System.out.printf("\tPressure: %s  mbar%n", pressure);
                 }
                 if (configurations.getEnabledFeeds().contains("H")) {
                     double humidity = (Math.random() * (100 + 1)) + 0;
-                    wolk.addReading("H", Double.toString(humidity));
+                    wolk.addReading("H", humidity);
                     System.out.printf("\tHumidity: %s  %%%n", humidity);
                     wolk.addAlarm("HH", humidity > 90.0);
                 }
@@ -170,7 +170,7 @@ public class Example {
                     double yAxis = (Math.random() * (5 + 1)) + 0;
                     double zAxis = (Math.random() * (5 + 1)) + 0;
                     System.out.printf("\tHumidity: %s g, %s g, %s g%n", xAxis, yAxis, zAxis);
-                    wolk.addReading("ACL", Arrays.asList(Double.toString(xAxis), Double.toString(yAxis), Double.toString(zAxis)));
+                    wolk.addReading("ACL", Arrays.asList(xAxis, yAxis, zAxis));
                 }
                 wolk.publish();
                 TimeUnit.SECONDS.sleep(heartBeat);

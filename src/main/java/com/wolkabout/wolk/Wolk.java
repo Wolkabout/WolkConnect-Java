@@ -40,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -216,8 +217,43 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param value     Value obtained by the reading
      */
+    public void addReading(String reference, boolean value) {
+        final Reading reading = new Reading(reference, Boolean.toString(value));
+        addReading(reading);
+    }
+
+    public void addReading(String reference, boolean value, long timestamp) {
+        final Reading reading = new Reading(reference, Boolean.toString(value), timestamp);
+        addReading(reading);
+    }
+
+    public void addReading(String reference, long value) {
+        final Reading reading = new Reading(reference, Long.toString(value));
+        addReading(reading);
+    }
+
+    public void addReading(String reference, long value, long timestamp) {
+        final Reading reading = new Reading(reference, Long.toString(value), timestamp);
+        addReading(reading);
+    }
+
+    public void addReading(String reference, double value) {
+        final Reading reading = new Reading(reference, Double.toString(value));
+        addReading(reading);
+    }
+
+    public void addReading(String reference, double value, long timestamp) {
+        final Reading reading = new Reading(reference, Double.toString(value), timestamp);
+        addReading(reading);
+    }
+
     public void addReading(String reference, String value) {
         final Reading reading = new Reading(reference, value);
+        addReading(reading);
+    }
+
+    public void addReading(String reference, String value, long timestamp) {
+        final Reading reading = new Reading(reference, value, timestamp);
         addReading(reading);
     }
 
@@ -228,8 +264,13 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param values    Values obtained by the reading
      */
-    public void addReading(String reference, List<String> values) {
-        final Reading reading = new Reading(reference, values);
+    public void addReading(String reference, List<Object> values) {
+        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()));
+        addReading(reading);
+    }
+
+    public void addReading(String reference, List<Object> values, long timestamp) {
+        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()), timestamp);
         addReading(reading);
     }
 
@@ -274,7 +315,6 @@ public class Wolk {
     /**
      * Adds alarm to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-     *
      *
      * @param reference Reference of the alarm
      * @param active    Current state of the alarm
