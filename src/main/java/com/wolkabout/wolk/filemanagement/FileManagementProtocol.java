@@ -43,7 +43,7 @@ public class FileManagementProtocol {
     private final FileDownloader fileDownloader;
     private final UrlFileDownloader urlDownloader;
 
-    protected static final int QOS = 2;
+    protected static final int QOS = 0;
 
     public FileManagementProtocol(MqttClient client, UrlFileDownloader urlDownloader) {
         this.client = client;
