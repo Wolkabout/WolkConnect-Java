@@ -14,12 +14,12 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.firmwareupdate;
+package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.firmwareupdate.model.ChunkRequest;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareStatus;
-import com.wolkabout.wolk.firmwareupdate.model.UpdateError;
-import com.wolkabout.wolk.firmwareupdate.model.command.FileInfo;
+import com.wolkabout.wolk.filemanagement.model.ChunkRequest;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.command.FileInfo;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -34,6 +34,8 @@ import java.util.*;
 public class FileDownloader {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileDownloader.class);
+
+    private static final String FILE_BINARY_RESPONSE = "p2d/file_binary_response/d/";
 
     private static final int MINIMUM_PACKET_SIZE = 65;
     private static final int CHUNK_SIZE = 1000000;
@@ -69,17 +71,17 @@ public class FileDownloader {
         expectedChunkCount = fileInfo.getFileSize() / CHUNK_SIZE;
 
         requestChunk(0);
-        this.callback.onStatusUpdate(FirmwareStatus.FILE_TRANSFER);
+        this.callback.onStatusUpdate(FileTransferStatus.FILE_TRANSFER);
     }
 
     public void abort() {
         aborted = true;
-        callback.onStatusUpdate(FirmwareStatus.ABORTED);
+        callback.onStatusUpdate(FileTransferStatus.ABORTED);
     }
 
     public void subscribe() {
         try {
-            client.subscribe("service/binary/" + client.getClientId(), QOS, new IMqttMessageListener() {
+            client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
                     if (aborted || fileInfo == null) {
@@ -99,8 +101,8 @@ public class FileDownloader {
                         final byte[] actualHash = DigestUtils.sha256(allBytes);
                         final byte[] expectedHash = Base64.decodeBase64(fileInfo.getFileHash());
                         if (Arrays.equals(expectedHash, actualHash)) {
-                            callback.onStatusUpdate(FirmwareStatus.FILE_READY);
-                            callback.onFileReceived(fileInfo.getFileName(), fileInfo.isAutoInstall(), allBytes);
+                            callback.onStatusUpdate(FileTransferStatus.FILE_READY);
+                            callback.onFileReceived(fileInfo.getFileName(), allBytes);
                         } else {
                             restart();
                         }
@@ -154,7 +156,7 @@ public class FileDownloader {
         currentRetry++;
 
         if (currentRetry > MAX_RETRY) {
-            callback.onError(UpdateError.RETRY_COUNT_EXCEEDED);
+            callback.onError(FileTransferError.RETRY_COUNT_EXCEEDED);
             return;
         }
 
@@ -172,7 +174,7 @@ public class FileDownloader {
 
     private void publish(String topic, Object payload) {
         try {
-            LOG.trace("Publishing to \'" + topic + "\' payload: " + payload);
+            LOG.trace("Publishing to '" + topic + "' payload: " + payload);
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
@@ -182,7 +184,7 @@ public class FileDownloader {
     private void restart() {
         currentAttempt++;
         if (currentAttempt > MAX_RESTART) {
-            callback.onError(UpdateError.RETRY_COUNT_EXCEEDED);
+            callback.onError(FileTransferError.RETRY_COUNT_EXCEEDED);
         }
 
         reset();
@@ -218,8 +220,8 @@ public class FileDownloader {
     }
 
     public interface Callback {
-        void onStatusUpdate(FirmwareStatus status);
-        void onError(UpdateError error);
-        void onFileReceived(String fileName, boolean autoInstall, byte[] bytes);
+        void onStatusUpdate(FileTransferStatus status);
+        void onError(FileTransferError error);
+        void onFileReceived(String fileName, byte[] bytes);
     }
 }

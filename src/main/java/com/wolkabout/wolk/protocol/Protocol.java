@@ -27,6 +27,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 
 public abstract class Protocol {
@@ -37,7 +38,13 @@ public abstract class Protocol {
     protected final ActuatorHandler actuatorHandler;
     protected final ConfigurationHandler configurationHandler;
 
-    protected static final int QOS = 2;
+    protected long platformTimestamp;
+
+    public abstract long getPlatformTimestamp();
+
+    public abstract void setPlatformTimestamp(long platformTimestamp);
+
+    protected static final int QOS = 0;
 
     public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         this.client = client;
@@ -49,7 +56,7 @@ public abstract class Protocol {
 
     protected void publish(String topic, Object payload) {
         try {
-            LOG.debug("Publishing to \'" + topic + "\' payload: " + payload);
+            LOG.debug("Publishing to '" + topic + "' payload: " + new String(JsonUtil.serialize(payload), StandardCharsets.UTF_8));
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
@@ -58,7 +65,9 @@ public abstract class Protocol {
 
     public void publishCurrentConfig() {
         final Collection<Configuration> configurations = configurationHandler.getConfigurations();
-        publishConfiguration(configurations);
+        if (configurations.size() != 0) {
+            publishConfiguration(configurations);
+        }
     }
 
     public void publishActuatorStatus(String ref) {
@@ -67,11 +76,16 @@ public abstract class Protocol {
     }
 
     public abstract void publishReading(Reading reading);
+
     public abstract void publishReadings(Collection<Reading> readings);
+
     public abstract void publishAlarm(Alarm alarm);
+
     public abstract void publishAlarms(Collection<Alarm> alarms);
+
     public abstract void publishConfiguration(Collection<Configuration> configurations);
+
     public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
 
-    public abstract void publishPing();
+    public abstract void publishKeepAlive();
 }

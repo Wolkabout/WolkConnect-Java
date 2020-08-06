@@ -18,12 +18,11 @@ package com.wolkabout.wolk.model;
 
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class Configuration {
+
+
     private final String reference;
     private final List<String> values;
     private final String value;
@@ -55,8 +54,8 @@ public class Configuration {
     @Override
     public String toString() {
         return "Configuration{" +
-                "ref='" + reference + '\'' +
-                ", value=" + value +
+                "reference='" + reference + '\'' +
+                ", value='" + value + '\'' +
                 '}';
     }
 }

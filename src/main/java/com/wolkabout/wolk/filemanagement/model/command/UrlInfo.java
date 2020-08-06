@@ -14,28 +14,34 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement.model.command;
 
-package com.wolkabout.wolk.firmwareupdate.model.command;
+public class UrlInfo{
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+    private String fileUrl;
+    private boolean autoInstall;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class Command {
-
-    private String command;
-
-    public String getCommand() {
-        return command;
+    public String getFileUrl() {
+        return fileUrl;
     }
 
-    public void setCommand(String command) {
-        this.command = command;
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
+
+    public boolean isAutoInstall() {
+        return autoInstall;
+    }
+
+    public void setAutoInstall(boolean autoInstall) {
+        this.autoInstall = autoInstall;
     }
 
     @Override
     public String toString() {
-        return "Command{" +
-                "command='" + command + '\'' +
-                '}';
+        return "UrlInfo{" +
+                "fileUrl='" + fileUrl + '\'' +
+                ", autoInstall=" + autoInstall +
+                "} " + super.toString();
     }
 }

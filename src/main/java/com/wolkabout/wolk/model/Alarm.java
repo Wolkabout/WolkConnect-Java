@@ -1,33 +1,29 @@
 package com.wolkabout.wolk.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class Alarm {
     @JsonIgnore
-    private final String ref;
+    private final String reference;
+    private final String active;
+    private final Long utc;
 
-    @JsonProperty("data")
-    private final boolean value;
-
-    private final long utc;
-
-    public Alarm(String ref, boolean value) {
-        this(ref, value, System.currentTimeMillis());
+    public Alarm(String reference, boolean active) {
+        this(reference, active, System.currentTimeMillis());
     }
 
-    public Alarm(String ref, boolean value, long utc) {
-        this.ref = ref;
-        this.value = value;
+    public Alarm(String reference, boolean active, Long utc) {
+        this.reference = reference;
+        this.active = String.valueOf(active);
         this.utc = utc;
     }
 
     public String getReference() {
-        return ref;
+        return reference;
     }
 
-    public String getValue() {
-        return String.valueOf(value);
+    public String getActive() {
+        return active;
     }
 
     public long getUtc() {
@@ -37,9 +33,11 @@ public class Alarm {
     @Override
     public String toString() {
         return "Alarm{" +
-                "ref='" + ref + '\'' +
-                ", value=" + value +
+                "reference='" + reference + '\'' +
+                ", active=" + active + '\'' +
                 ", utc=" + utc +
                 '}';
     }
+
+
 }

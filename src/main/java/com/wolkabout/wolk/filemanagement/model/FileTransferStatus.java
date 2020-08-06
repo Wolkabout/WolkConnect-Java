@@ -15,12 +15,12 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.filemanagement.model;
 
 /**
  * Possible statuses for firmware update.
  */
-public enum FirmwareStatus {
+public enum FileTransferStatus {
 
     /**
      * File transfer in progress.
@@ -31,11 +31,6 @@ public enum FirmwareStatus {
      * File transfer completed.
      */
     FILE_READY,
-
-    /**
-     * Firmware installation in progress.
-     */
-    INSTALLATION,
 
     /**
      * Firmware update completed successfully.
@@ -57,8 +52,8 @@ public enum FirmwareStatus {
      */
     UNKNOWN;
 
-    public static FirmwareStatus fromString(String value) {
-        for (FirmwareStatus status : values()) {
+    public static FileTransferStatus fromString(String value) {
+        for (FileTransferStatus status : values()) {
             if (status.name().equalsIgnoreCase(value)) {
                 return status;
             }

@@ -25,24 +25,35 @@ import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.lang.reflect.Array;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 
-public class JsonProtocol extends Protocol {
+public class WolkaboutProtocol extends Protocol {
 
     private static final String ACTUATOR_SET = "p2d/actuator_set/d/";
-    private static final String ACTUATOR_GET = "p2d/actuator_get/d/";
     private static final String ACTUATOR_STATUS = "d2p/actuator_status/d/";
 
     private static final String CONFIGURATION_SET = "p2d/configuration_set/d/";
-    private static final String CONFIGURATION_GET = "p2d/configuration_get/d/";
-    private static final String CONFIGURATION_SEND = "d2p/configuration_get/d/";
+    private static final String CONFIGURATION_STATUS = "d2p/configuration_get/d/";
 
     private static final String SENSOR_READING = "d2p/sensor_reading/d/";
-    private static final String EVENT = "d2p/events/d/";
+    private static final String ALARM = "d2p/events/d/";
 
-    public JsonProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
+    private static final String KEEP_ALIVE_REQUEST = "ping/";
+    private static final String KEEP_ALIVE_RESPONSE = "pong/";
+
+    public long getPlatformTimestamp() {
+        return platformTimestamp;
+    }
+
+    public void setPlatformTimestamp(long platformTimestamp) {
+        this.platformTimestamp = platformTimestamp;
+    }
+
+
+    public WolkaboutProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
         super(client, actuatorHandler, configurationHandler);
     }
 
@@ -65,15 +76,6 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe(ACTUATOR_GET + client.getClientId() + "/r/#", QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final String reference = topic.substring((ACTUATOR_GET + client.getClientId() + "/r/").length());
-
-                publishActuatorStatus(reference);
-            }
-        });
-
         client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
@@ -86,10 +88,12 @@ public class JsonProtocol extends Protocol {
             }
         });
 
-        client.subscribe(CONFIGURATION_GET + client.getClientId(), QOS, new IMqttMessageListener() {
+        client.subscribe(KEEP_ALIVE_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                publishCurrentConfig();
+                final HashMap<String, Object> response = JsonUtil.deserialize(message, HashMap.class);
+                setPlatformTimestamp((long) response.get("value"));
+
             }
         });
     }
@@ -125,7 +129,7 @@ public class JsonProtocol extends Protocol {
 
     @Override
     public void publishAlarm(Alarm alarm) {
-        publish(EVENT + client.getClientId() + "/r/" + alarm.getReference(), alarm);
+        publish(ALARM + client.getClientId() + "/r/" + alarm.getReference(), alarm);
     }
 
     @Override
@@ -139,17 +143,17 @@ public class JsonProtocol extends Protocol {
             if (payloadByTime.containsKey(alarm.getUtc())) {
                 final Map<String, Object> alarmMap = payloadByTime.get(alarm.getUtc());
                 if (!alarmMap.containsKey(alarm.getReference())) {
-                    alarmMap.put(alarm.getReference(), alarm.getValue());
+                    alarmMap.put(alarm.getReference(), alarm.getActive());
                 }
             } else {
                 final HashMap<String, Object> alarmMap = new HashMap<>();
                 alarmMap.put("utc", alarm.getUtc());
-                alarmMap.put(alarm.getReference(), alarm.getValue());
+                alarmMap.put(alarm.getReference(), alarm.getActive());
                 payloadByTime.put(alarm.getUtc(), alarmMap);
             }
         }
 
-        publish(EVENT + client.getClientId(), new ArrayList<>(payloadByTime.values()));
+        publish(ALARM + client.getClientId(), new ArrayList<>(payloadByTime.values()));
     }
 
     @Override
@@ -163,7 +167,7 @@ public class JsonProtocol extends Protocol {
 
         payload.put("values", values);
 
-        publish(CONFIGURATION_SEND + client.getClientId(), payload);
+        publish(CONFIGURATION_STATUS + client.getClientId(), payload);
     }
 
     @Override
@@ -172,7 +176,7 @@ public class JsonProtocol extends Protocol {
     }
 
     @Override
-    public void publishPing() {
-        // Ping is not defined for json protocol
+    public void publishKeepAlive() {
+        publish(KEEP_ALIVE_REQUEST + client.getClientId(), null);
     }
 }

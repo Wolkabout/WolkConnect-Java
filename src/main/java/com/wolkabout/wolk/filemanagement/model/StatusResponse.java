@@ -15,29 +15,47 @@
  *
  */
 
-package com.wolkabout.wolk.firmwareupdate.model;
+package com.wolkabout.wolk.filemanagement.model;
 
 import java.util.Objects;
 
 public class StatusResponse {
 
-    private FirmwareStatus status;
-    private UpdateError error;
+    private FileTransferStatus status;
+    private FileTransferError error;
+    private String fileName;
+    private String fileUrl;
 
-    public FirmwareStatus getStatus() {
+    public FileTransferStatus getStatus() {
         return status;
     }
 
-    public void setStatus(FirmwareStatus status) {
+    public void setStatus(FileTransferStatus status) {
         this.status = status;
     }
 
-    public UpdateError getError() {
+    public FileTransferError getError() {
         return error;
     }
 
-    public void setError(UpdateError error) {
+    public void setError(FileTransferError error) {
         this.error = error;
+    }
+
+    public String getFileUrl() {
+        return fileUrl;
+    }
+
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     @Override
@@ -45,6 +63,8 @@ public class StatusResponse {
         return "StatusResponse{" +
                 "status=" + status +
                 ", error=" + error +
+                ", fileName='" + fileName +
+                "', fileUrl='" + fileUrl +
                 '}';
     }
 
@@ -54,7 +74,7 @@ public class StatusResponse {
         if (!(o instanceof StatusResponse)) return false;
         StatusResponse that = (StatusResponse) o;
         return error == that.error &&
-                status == that.status;
+                status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
     }
 
     @Override

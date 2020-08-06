@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.firmwareupdate;
+package com.wolkabout.wolk.filemanagement;
 
 import com.wolkabout.wolk.Wolk;
 
@@ -35,8 +35,6 @@ public abstract class FirmwareInstaller {
 
         this.wolk = new WeakReference<>(wolk);
     }
-
-    public abstract void onFileReady(String fileName, boolean autoInstall, byte[] bytes);
 
     public abstract void onInstallCommandReceived();
 

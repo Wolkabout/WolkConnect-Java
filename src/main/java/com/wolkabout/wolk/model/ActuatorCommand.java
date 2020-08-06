@@ -19,7 +19,7 @@ package com.wolkabout.wolk.model;
 public class ActuatorCommand {
 
     public enum CommandType {
-        UNKNOWN, SET, STATUS
+        UNKNOWN, SET
     }
 
     private CommandType command;
