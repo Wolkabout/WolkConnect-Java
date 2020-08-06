@@ -116,7 +116,7 @@ wolk.startPublishing(intervalInSeconds);
 wolk.disconnect();
 ```
 
-##Additional functionality:
+## Additional functionality:
 
 WolkConnect-Java library has integrated additional features which can perform full WolkAbout IoT platform potential. See the full feature set example [HERE](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/full_feature_set/Example.java).
 
