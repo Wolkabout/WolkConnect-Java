@@ -148,7 +148,7 @@ public class FileManagementProtocol {
                     }
                 }
             });
-            fileDownloader.subscribe();
+            fileDownloader.prepareSubscription();
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
         }
