@@ -76,6 +76,6 @@ public class FileStatus {
         return "FileStatus={" +
                 "fileName='" + fileName + '\'' +
                 ", status='" + status.name() + '\'' +
-                (error != null ? (", error='" + error.name() + '\'') : "") + "}";
+                (error != null ? (", error='" + error.name() + '\'') : "") + '}';
     }
 }

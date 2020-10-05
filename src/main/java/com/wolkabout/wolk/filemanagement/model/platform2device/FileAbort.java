@@ -35,6 +35,6 @@ public class FileAbort {
     @Override
     public String toString() {
         return "FileAbort={" +
-                "fileName='" + fileName + '\'' + "}";
+                "fileName='" + fileName + '\'' + '}';
     }
 }

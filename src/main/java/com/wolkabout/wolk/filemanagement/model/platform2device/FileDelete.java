@@ -18,23 +18,23 @@ package com.wolkabout.wolk.filemanagement.model.platform2device;
 
 /**
  * This class represents the payload sent by the platform to the device
- * to the `p2d/file_upload_initiate/d/` endpoint to receive a new uploaded file.
+ * to the `p2d/file_delete/d/` endpoint to receive a new uploaded file.
  */
-public class UrlInfo {
+public class FileDelete {
 
-    private String fileUrl;
+    private String fileName;
 
-    public String getFileUrl() {
-        return fileUrl;
+    public String getFileName() {
+        return fileName;
     }
 
-    public void setFileUrl(String fileUrl) {
-        this.fileUrl = fileUrl;
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     @Override
     public String toString() {
-        return "UrlInfo{" +
-                "fileUrl='" + fileUrl + '\'' + '}';
+        return "FileDelete{" +
+                "fileName='" + fileName + '\'' + '}';
     }
 }

@@ -35,6 +35,6 @@ public class UrlAbort {
     @Override
     public String toString() {
         return "UrlAbort{" +
-                "fileUrl='" + fileUrl + '\'' + "}";
+                "fileUrl='" + fileUrl + '\'' + '}';
     }
 }
