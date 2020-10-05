@@ -16,11 +16,11 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.StatusResponse;
-import com.wolkabout.wolk.filemanagement.model.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.command.FileInfo;
-import com.wolkabout.wolk.filemanagement.model.command.UrlInfo;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.device2platform.UrlStatus;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -32,12 +32,25 @@ public class FileManagementProtocol {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocol.class);
 
+    // File upload initiation and input/output topics
     private static final String FILE_UPLOAD_INITIATE = "p2d/file_upload_initiate/d/";
-    private static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
-    private static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
-    private static final String FILE_URL_DOWNLOAD_ABORT = "p2d/file_url_download_abort/d/";
     private static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";
-    private static final String FILE_URL_UPLOAD_STATUS = "d2p/file_url_download_status/d/";
+    private static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
+
+    // File URL download initiation and input/output topics
+    private static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
+    private static final String FILE_URL_DOWNLOAD_STATUS = "d2p/file_url_download_status/d/";
+    private static final String FILE_URL_DOWNLOAD_ABORT = "p2d/file_url_download_abort/d/";
+
+    // File removal topics
+    private static final String FILE_DELETE = "p2d/file_delete/d/";
+    private static final String FILE_PURGE = "p2d/file_purge/d/";
+
+    // File list input/output topics
+    private static final String FILE_LIST_REQUEST = "p2d/file_list_request/d/";
+    private static final String FILE_LIST_RESPONSE = "d2p/file_list_response/d/";
+    private static final String FILE_LIST_UPDATE = "d2p/file_list_update/d/";
+    private static final String FILE_LIST_CONFIRM = "p2d/file_list_confirm/d/";
 
     private final MqttClient client;
     private final FileDownloader fileDownloader;
@@ -52,14 +65,14 @@ public class FileManagementProtocol {
         this.fileDownloader = new FileDownloader(client, new FileDownloader.Callback() {
             @Override
             public void onStatusUpdate(FileTransferStatus status) {
-                final StatusResponse statusResponse = new StatusResponse();
-                statusResponse.setStatus(status);
-                publishFlowStatus(statusResponse);
+                final UrlStatus urlStatus = new UrlStatus();
+                urlStatus.setStatus(status);
+                publishFlowStatus(urlStatus);
             }
 
             @Override
             public void onError(FileTransferError error) {
-                final StatusResponse errorStatus = new StatusResponse();
+                final UrlStatus errorStatus = new UrlStatus();
                 errorStatus.setStatus(FileTransferStatus.ERROR);
                 errorStatus.setError(error);
                 publishFlowStatus(errorStatus);
@@ -78,8 +91,8 @@ public class FileManagementProtocol {
             client.subscribe(FILE_UPLOAD_INITIATE + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    final FileInfo fileInfo = JsonUtil.deserialize(message, FileInfo.class);
-                    fileDownloader.download(fileInfo);
+                    final FileInit fileInit = JsonUtil.deserialize(message, FileInit.class);
+                    fileDownloader.download(fileInit);
                     // TODO: Move to firmware update
                     //                  firmwareInstaller.onInstallCommandReceived();
                     //                  firmwareInstaller.onAbortCommandReceived();
@@ -98,7 +111,7 @@ public class FileManagementProtocol {
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
                     if (urlDownloader == null) {
-                        publishFlowStatus(FileTransferError.FILE_UPLOAD_DISABLED);
+                        publishFlowStatus(FileTransferError.TRANSFER_PROTOCOL_DISABLED);
                         return;
                     }
 
@@ -125,7 +138,7 @@ public class FileManagementProtocol {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     if (urlDownloader != null) {
-                        final StatusResponse status = new StatusResponse();
+                        final UrlStatus status = new UrlStatus();
                         status.setStatus(FileTransferStatus.ABORTED);
                         if (urlDownloader.getUrl() != null) {
                             status.setFileUrl(urlDownloader.getUrl());
@@ -150,15 +163,15 @@ public class FileManagementProtocol {
             throw new IllegalArgumentException("Use publishFlowStatus(FileTransferError error) to publish an error state.");
         }
 
-        final StatusResponse statusResponse = new StatusResponse();
-        statusResponse.setStatus(status);
+        final UrlStatus urlStatus = new UrlStatus();
+        urlStatus.setStatus(status);
         if (fileName.contains("/")) { // File names can't contain slashes, meaning it is a URL
-            statusResponse.setFileUrl(fileName);
+            urlStatus.setFileUrl(fileName);
         }
         else {
-            statusResponse.setFileName(fileName);
+            urlStatus.setFileName(fileName);
         }
-        publishFlowStatus(statusResponse);
+        publishFlowStatus(urlStatus);
     }
 
     public void publishFlowStatus(FileTransferError error) {
@@ -166,19 +179,19 @@ public class FileManagementProtocol {
             throw new IllegalArgumentException("Error must be set.");
         }
 
-        final StatusResponse statusResponse = new StatusResponse();
-        statusResponse.setStatus(FileTransferStatus.ERROR);
-        statusResponse.setError(error);
-        publishFlowStatus(statusResponse);
+        final UrlStatus urlStatus = new UrlStatus();
+        urlStatus.setStatus(FileTransferStatus.ERROR);
+        urlStatus.setError(error);
+        publishFlowStatus(urlStatus);
     }
 
 
-    private void publishFlowStatus(StatusResponse statusResponse) {
-        if (statusResponse.getFileUrl() == null) {
-            publish(FILE_UPLOAD_STATUS + client.getClientId(), statusResponse);
+    private void publishFlowStatus(UrlStatus urlStatus) {
+        if (urlStatus.getFileUrl() == null) {
+            publish(FILE_UPLOAD_STATUS + client.getClientId(), urlStatus);
         }
         else {
-            publish(FILE_URL_UPLOAD_STATUS + client.getClientId(), statusResponse);
+            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), urlStatus);
         }
     }
 

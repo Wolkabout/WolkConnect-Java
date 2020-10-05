@@ -14,12 +14,15 @@
  * limitations under the License.
  *
  */
-
-package com.wolkabout.wolk.filemanagement.model;
+package com.wolkabout.wolk.filemanagement.model.device2platform;
 
 import java.util.Objects;
 
-public class StatusResponse {
+/**
+ * This class represents the payload sent by the device to the platform
+ * to the `d2p/file_url_download_status/d/` endpoint to notify of the file download status.
+ */
+public class UrlStatus {
 
     private FileTransferStatus status;
     private FileTransferError error;
@@ -71,8 +74,8 @@ public class StatusResponse {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof StatusResponse)) return false;
-        StatusResponse that = (StatusResponse) o;
+        if (!(o instanceof UrlStatus)) return false;
+        UrlStatus that = (UrlStatus) o;
         return error == that.error &&
                 status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
     }

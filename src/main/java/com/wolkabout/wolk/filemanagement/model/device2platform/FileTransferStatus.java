@@ -14,44 +14,34 @@
  * limitations under the License.
  *
  */
-
-package com.wolkabout.wolk.filemanagement.model;
+package com.wolkabout.wolk.filemanagement.model.device2platform;
 
 /**
  * Possible statuses for firmware update.
  */
 public enum FileTransferStatus {
 
-    /**
-     * File transfer in progress.
-     */
+    // Transfer still in progress
     FILE_TRANSFER,
 
-    /**
-     * File transfer completed.
-     */
+    // File ready to be installed
     FILE_READY,
 
-    /**
-     * Firmware update completed successfully.
-     */
-    COMPLETED,
-
-    /**
-     * Error during firmware update.
-     */
+    // Error occurred during transfer
     ERROR,
 
-    /**
-     * Aborted by user.
-     */
+    // Aborted from the server
     ABORTED,
 
-    /**
-     * Unknown state encountered.
-     */
+    // Unknown error
     UNKNOWN;
 
+    // Convert the enum value into string
+    public static String toString(FileTransferStatus value) {
+        return value.name();
+    }
+
+    // Convert from string into an enum value
     public static FileTransferStatus fromString(String value) {
         for (FileTransferStatus status : values()) {
             if (status.name().equalsIgnoreCase(value)) {

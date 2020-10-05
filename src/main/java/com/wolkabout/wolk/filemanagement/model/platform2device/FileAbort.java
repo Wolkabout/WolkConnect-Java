@@ -14,34 +14,27 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement.model.command;
+package com.wolkabout.wolk.filemanagement.model.platform2device;
 
-public class UrlInfo{
+/**
+ * This class represents the payload sent by the platform to the device
+ * to the `p2d/file_upload_abort/d/` endpoint to abort a file transfer
+ */
+public class FileAbort {
 
-    private String fileUrl;
-    private boolean autoInstall;
+    private String fileName;
 
-    public String getFileUrl() {
-        return fileUrl;
+    public String getFileName() {
+        return fileName;
     }
 
-    public void setFileUrl(String fileUrl) {
-        this.fileUrl = fileUrl;
-    }
-
-    public boolean isAutoInstall() {
-        return autoInstall;
-    }
-
-    public void setAutoInstall(boolean autoInstall) {
-        this.autoInstall = autoInstall;
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 
     @Override
     public String toString() {
-        return "UrlInfo{" +
-                "fileUrl='" + fileUrl + '\'' +
-                ", autoInstall=" + autoInstall +
-                "} " + super.toString();
+        return "FileAbort={" +
+                "fileName='" + fileName + '\'' + "}";
     }
 }

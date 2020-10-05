@@ -1,6 +1,6 @@
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;

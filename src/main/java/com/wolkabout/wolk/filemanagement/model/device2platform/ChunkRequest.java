@@ -14,14 +14,23 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement.model.device2platform;
 
-package com.wolkabout.wolk.filemanagement.model.command;
-
-public class FileInfo {
+/**
+ * This class represents the payload sent by the device to the platform
+ * to the `d2p/file_binary_request/d/` endpoint to receive binary file data.
+ */
+public class ChunkRequest {
 
     private String fileName;
-    private long fileSize;
-    private String fileHash;
+    private int chunkIndex;
+    private int chunkSize;
+
+    public ChunkRequest(String fileName, int chunkIndex, int chunkSize) {
+        this.fileName = fileName;
+        this.chunkIndex = chunkIndex;
+        this.chunkSize = chunkSize;
+    }
 
     public String getFileName() {
         return fileName;
@@ -31,28 +40,28 @@ public class FileInfo {
         this.fileName = fileName;
     }
 
-    public long getFileSize() {
-        return fileSize;
+    public int getChunkIndex() {
+        return chunkIndex;
     }
 
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
+    public void setChunkIndex(int chunkIndex) {
+        this.chunkIndex = chunkIndex;
     }
 
-    public String getFileHash() {
-        return fileHash;
+    public int getChunkSize() {
+        return chunkSize;
     }
 
-    public void setFileHash(String fileHash) {
-        this.fileHash = fileHash;
+    public void setChunkSize(int chunkSize) {
+        this.chunkSize = chunkSize;
     }
 
     @Override
     public String toString() {
-        return "FileInfo{" +
+        return "ChunkRequest{" +
                 "fileName='" + fileName + '\'' +
-                ", fileSize=" + fileSize +
-                ", fileHash='" + fileHash + '\'' +
+                ", chunkIndex=" + chunkIndex +
+                ", chunkSize=" + chunkSize +
                 '}';
     }
 }

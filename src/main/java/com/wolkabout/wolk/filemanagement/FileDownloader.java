@@ -16,10 +16,10 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.ChunkRequest;
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.command.FileInfo;
+import com.wolkabout.wolk.filemanagement.model.device2platform.ChunkRequest;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -48,7 +48,7 @@ public class FileDownloader {
     private long expectedChunkCount;
 
     private int currentAttempt = 0;
-    private FileInfo fileInfo;
+    private FileInit fileInit;
 
     //Should be cleaned on restart
     private boolean aborted = false;
@@ -64,11 +64,11 @@ public class FileDownloader {
         this.callback = callback;
     }
 
-    public void download(FileInfo fileInfo) {
+    public void download(FileInit fileInit) {
         reset();
 
-        this.fileInfo = fileInfo;
-        expectedChunkCount = fileInfo.getFileSize() / CHUNK_SIZE;
+        this.fileInit = fileInit;
+        expectedChunkCount = fileInit.getFileSize() / CHUNK_SIZE;
 
         requestChunk(0);
         this.callback.onStatusUpdate(FileTransferStatus.FILE_TRANSFER);
@@ -84,7 +84,7 @@ public class FileDownloader {
             client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) {
-                    if (aborted || fileInfo == null) {
+                    if (aborted || fileInit == null) {
                         return;
                     }
 
@@ -99,10 +99,10 @@ public class FileDownloader {
                     } else {
                         final byte[] allBytes = aggregateFile();
                         final byte[] actualHash = DigestUtils.sha256(allBytes);
-                        final byte[] expectedHash = Base64.decodeBase64(fileInfo.getFileHash());
+                        final byte[] expectedHash = Base64.decodeBase64(fileInit.getFileHash());
                         if (Arrays.equals(expectedHash, actualHash)) {
                             callback.onStatusUpdate(FileTransferStatus.FILE_READY);
-                            callback.onFileReceived(fileInfo.getFileName(), allBytes);
+                            callback.onFileReceived(fileInit.getFileName(), allBytes);
                         } else {
                             restart();
                         }
@@ -156,7 +156,7 @@ public class FileDownloader {
         currentRetry++;
 
         if (currentRetry > MAX_RETRY) {
-            callback.onError(FileTransferError.RETRY_COUNT_EXCEEDED);
+            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
             return;
         }
 
@@ -164,11 +164,7 @@ public class FileDownloader {
     }
 
     private void requestChunk(int index) {
-        final ChunkRequest chunkRequest = new ChunkRequest();
-        chunkRequest.setChunkIndex(index);
-        chunkRequest.setChunkSize(CHUNK_SIZE);
-        chunkRequest.setFileName(fileInfo.getFileName());
-
+        final ChunkRequest chunkRequest = new ChunkRequest(fileInit.getFileName(), index, CHUNK_SIZE);
         publish("service/status/file/" + client.getClientId(), chunkRequest);
     }
 
@@ -184,7 +180,7 @@ public class FileDownloader {
     private void restart() {
         currentAttempt++;
         if (currentAttempt > MAX_RESTART) {
-            callback.onError(FileTransferError.RETRY_COUNT_EXCEEDED);
+            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
         }
 
         reset();
@@ -221,7 +217,9 @@ public class FileDownloader {
 
     public interface Callback {
         void onStatusUpdate(FileTransferStatus status);
+
         void onError(FileTransferError error);
+
         void onFileReceived(String fileName, byte[] bytes);
     }
 }
