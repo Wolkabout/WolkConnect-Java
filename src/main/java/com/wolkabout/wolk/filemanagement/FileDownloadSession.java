@@ -164,7 +164,7 @@ public class FileDownloadSession {
         error = null;
 
         // Call the callback
-        callback.onFinish(status, null);
+        executor.submit(() -> callback.onFinish(status, null));
 
         return true;
     }
@@ -224,7 +224,8 @@ public class FileDownloadSession {
             error = null;
         }
 
-        callback.sendRequest(initMessage.getFileName(), ++currentChunk, chunkSizes.get(currentChunk));
+        executor.submit(() ->
+                callback.sendRequest(initMessage.getFileName(), ++currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
@@ -281,7 +282,8 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+        executor.submit(() ->
+                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
@@ -301,7 +303,8 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+        executor.submit(() ->
+                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
@@ -328,7 +331,7 @@ public class FileDownloadSession {
             status = getCurrentStatus();
             error = FileTransferError.RETRY_COUNT_EXCEEDED;
 
-            callback.onFinish(status, error);
+            executor.submit(() -> callback.onFinish(status, error));
             return false;
         }
 
@@ -340,7 +343,8 @@ public class FileDownloadSession {
 
         // Request the first chunk again
         Log.debug("Requesting first chunk after restart.");
-        callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+        executor.submit(() ->
+                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
