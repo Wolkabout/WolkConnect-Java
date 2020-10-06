@@ -181,7 +181,8 @@ public class FileDownloadSession {
      * an error, since it had retried too many times.
      */
     public synchronized boolean receiveBytes(byte[] receivedBytes) {
-        LOG.trace("Received chunk of bytes. Size of chunk: " + receivedBytes.length + ", current chunk count: " + currentChunk + ".");
+        LOG.trace("Received chunk of bytes. Size of chunk: " + receivedBytes.length +
+                ", current chunk count: " + currentChunk + ".");
 
         // Check the session status
         if (!running)
@@ -216,12 +217,16 @@ public class FileDownloadSession {
 
         // Check if the file is fully here now.
         if (currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
+            // If the entire file hash is invalid, restart the entire process
             if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
                 return restartDataObtain();
             }
 
+            // Return everything
             status = getCurrentStatus();
             error = null;
+            executor.submit(() -> callback.onFinish(status, error));
+            return true;
         }
 
         executor.submit(() ->
