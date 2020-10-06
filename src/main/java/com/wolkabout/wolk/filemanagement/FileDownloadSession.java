@@ -33,6 +33,8 @@ public class FileDownloadSession {
 
     // The constant values
     private static final int MINIMUM_PACKET_SIZE = 65;
+    private static final int PREVIOUS_HASH_SIZE = 32;
+    private static final int CURRENT_HASH_SIZE = 32;
     private static final int CHUNK_SIZE = 1000000;
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
@@ -46,13 +48,13 @@ public class FileDownloadSession {
     private final FileInit initMessage;
 
     // The collected data
+    private List<Integer> chunkSizes;
     private List<Byte[]> chunks;
+
     private byte[] headerHash;
 
-    private long byteCount;
-
     // The callback for when the work is done
-    private Callback callback;
+    private final Callback callback;
 
     public boolean isRunning() {
         return running;
@@ -66,33 +68,40 @@ public class FileDownloadSession {
         return initMessage;
     }
 
-    public void setCallback(Callback callback) {
-        this.callback = callback;
-    }
+    public FileDownloadSession(FileInit initMessage, Callback callback) throws IllegalArgumentException {
+        if (initMessage == null) {
+            throw new IllegalArgumentException("The initial message object can not be null.");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("The callback object can not be null.");
+        }
 
-    public FileDownloadSession(FileInit initMessage) {
         this.initMessage = initMessage;
         this.running = true;
 
         this.chunks = new ArrayList<>();
-    }
+        this.chunkSizes = new ArrayList<>();
 
-    public FileDownloadSession(FileInit initMessage, Callback callback) {
-        this.initMessage = initMessage;
-        this.running = true;
-
-        this.chunks = new ArrayList<>();
         this.callback = callback;
+
+        // Calculate the chunk count, and each of their sizes
+        long fullChunkDataBytes = CHUNK_SIZE - (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE);
+        long fullSizedChunks = initMessage.getFileSize() / fullChunkDataBytes;
+        long leftoverSizedChunk = initMessage.getFileSize() % fullChunkDataBytes;
+
+        // Append them all into the list
+        for (int i = 0; i < fullSizedChunks; i++) {
+            chunkSizes.add(CHUNK_SIZE);
+        }
+
+        if (leftoverSizedChunk > 0) {
+            chunkSizes.add((int) (leftoverSizedChunk + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE)));
+        }
     }
 
     public boolean receiveBytes(byte[] bytes) {
-        LOG.trace("Received chunk of bytes. Size of chunk: " + bytes.length + ", current chunk count: " +
-                chunks.size() + ", current bytes count: " + byteCount +
-                (chunks.isEmpty() ? "" : ", last chunk hash: " + Arrays.toString(chunks.get(chunks.size() - 1))));
-
-        if (bytes.length < MINIMUM_PACKET_SIZE) {
-
-        }
+        LOG.trace("Received chunk of bytes. Size of chunk: " + bytes.length + ", current chunk count: " + chunks.size()
+                + (chunks.isEmpty() ? "" : ", last chunk hash: " + Arrays.toString(chunks.get(chunks.size() - 1))));
 
         return true;
     }

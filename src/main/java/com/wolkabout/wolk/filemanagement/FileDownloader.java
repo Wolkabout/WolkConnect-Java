@@ -116,20 +116,20 @@ public class FileDownloader {
                 return;
             }
 
-            if (currentChunk != expectedChunkCount) {
-                currentChunk++;
-                requestChunk(currentChunk);
-            } else {
-                final byte[] allBytes = aggregateFile();
-                final byte[] actualHash = DigestUtils.sha256(allBytes);
-                final byte[] expectedHash = Base64.decodeBase64(fileInit.getFileHash());
-                if (Arrays.equals(expectedHash, actualHash)) {
-                    callback.onStatusUpdate(FileTransferStatus.FILE_READY);
-                    callback.onFileReceived(fileInit.getFileName(), allBytes);
-                } else {
-                    restart();
-                }
-            }
+//            if (currentChunk != expectedChunkCount) {
+//                currentChunk++;
+//                requestChunk(currentChunk);
+//            } else {
+//                final byte[] allBytes = aggregateFile();
+//                final byte[] actualHash = DigestUtils.sha256(allBytes);
+//                final byte[] expectedHash = Base64.decodeBase64(fileInit.getFileHash());
+//                if (Arrays.equals(expectedHash, actualHash)) {
+//                    callback.onStatusUpdate(FileTransferStatus.FILE_READY);
+//                    callback.onFileReceived(fileInit.getFileName(), allBytes);
+//                } else {
+//                    restart();
+//                }
+//            }
         } catch (Exception e) {
             LOG.error(e.getMessage());
         }
@@ -138,40 +138,40 @@ public class FileDownloader {
     public void download(FileInit fileInit) {
         reset();
 
-        this.fileInit = fileInit;
-        expectedChunkCount = fileInit.getFileSize() / CHUNK_SIZE;
+//        this.fileInit = fileInit;
+//        expectedChunkCount = fileInit.getFileSize() / CHUNK_SIZE;
 
         requestChunk(0);
         this.callback.onStatusUpdate(FileTransferStatus.FILE_TRANSFER);
     }
 
     public void abort() {
-        aborted = true;
+//        aborted = true;
         callback.onStatusUpdate(FileTransferStatus.ABORTED);
     }
 
     private boolean processChunk(byte[] chunk) {
-        if (chunk.length < MINIMUM_PACKET_SIZE) {
-            LOG.trace("Chunk size is bellow minimum. Retrying...");
-            retryLastChunk();
-            return false;
-        }
+//        if (chunk.length < MINIMUM_PACKET_SIZE) {
+//            LOG.trace("Chunk size is bellow minimum. Retrying...");
+//            retryLastChunk();
+//            return false;
+//        }
 
         final byte[] providedLastChunkHash = Arrays.copyOfRange(chunk, 0, 32);
         final byte[] data = Arrays.copyOfRange(chunk, 32, chunk.length - 32);
         final byte[] providedHash = Arrays.copyOfRange(chunk, chunk.length - 32, chunk.length);
 
-        if (currentChunk != expectedChunkCount && data.length != CHUNK_SIZE - 64) {
-            LOG.trace("Bad chunk size. Retrying..." + data.length);
-            retryLastChunk();
-            return false;
-        }
-
-        if (lastChunkHash != null && !Arrays.equals(lastChunkHash, providedLastChunkHash)) {
-            LOG.trace("Bad last chunk hash. Retrying...");
-            retryLastChunk();
-            return false;
-        }
+//        if (currentChunk != expectedChunkCount && data.length != CHUNK_SIZE - 64) {
+//            LOG.trace("Bad chunk size. Retrying..." + data.length);
+//            retryLastChunk();
+//            return false;
+//        }
+//
+//        if (lastChunkHash != null && !Arrays.equals(lastChunkHash, providedLastChunkHash)) {
+//            LOG.trace("Bad last chunk hash. Retrying...");
+//            retryLastChunk();
+//            return false;
+//        }
 
         final byte[] calculatedHash = DigestUtils.sha256(data);
         if (!Arrays.equals(calculatedHash, calculatedHash)) {
@@ -180,28 +180,28 @@ public class FileDownloader {
             return false;
         }
 
-        this.lastChunkHash = providedHash;
-        chunks.add(data);
-
-        LOG.trace("Received chunk: " + (currentChunk + 1) + "/" + (expectedChunkCount + 1));
-        currentRetry = 0;
+//        this.lastChunkHash = providedHash;
+//        chunks.add(data);
+//
+//        LOG.trace("Received chunk: " + (currentChunk + 1) + "/" + (expectedChunkCount + 1));
+//        currentRetry = 0;
         return true;
     }
 
     private void retryLastChunk() {
-        currentRetry++;
-
-        if (currentRetry > MAX_RETRY) {
-            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
-            return;
-        }
-
-        requestChunk(currentChunk);
+//        currentRetry++;
+//
+//        if (currentRetry > MAX_RETRY) {
+//            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
+//            return;
+//        }
+//
+//        requestChunk(currentChunk);
     }
 
     private void requestChunk(int index) {
-        final ChunkRequest chunkRequest = new ChunkRequest(fileInit.getFileName(), index, CHUNK_SIZE);
-        publish("service/status/file/" + client.getClientId(), chunkRequest);
+//        final ChunkRequest chunkRequest = new ChunkRequest(fileInit.getFileName(), index, CHUNK_SIZE);
+//        publish("service/status/file/" + client.getClientId(), chunkRequest);
     }
 
     private void publish(String topic, Object payload) {
@@ -214,40 +214,40 @@ public class FileDownloader {
     }
 
     private void restart() {
-        currentAttempt++;
-        if (currentAttempt > MAX_RESTART) {
-            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
-        }
+//        currentAttempt++;
+//        if (currentAttempt > MAX_RESTART) {
+//            callback.onError(FileTransferError.FILE_SYSTEM_ERROR);
+//        }
 
         reset();
         requestChunk(0);
     }
 
     private void reset() {
-        aborted = false;
-        chunks.clear();
-        lastChunkHash = null;
-        currentChunk = 0;
-        currentRetry = 0;
+//        aborted = false;
+//        chunks.clear();
+//        lastChunkHash = null;
+//        currentChunk = 0;
+//        currentRetry = 0;
     }
 
     private byte[] aggregateFile() {
         int size = 0;
-        for (byte[] chunk : chunks) {
-            size += chunk.length;
-        }
+//        for (byte[] chunk : chunks) {
+//            size += chunk.length;
+//        }
 
         final byte[] file = new byte[size];
-        int position = 0;
-
-        for (byte[] chunk : chunks) {
-            for (byte aByte : chunk) {
-                file[position] = aByte;
-                position++;
-            }
-        }
-
-        chunks.clear();
+//        int position = 0;
+//
+//        for (byte[] chunk : chunks) {
+//            for (byte aByte : chunk) {
+//                file[position] = aByte;
+//                position++;
+//            }
+//        }
+//
+//        chunks.clear();
         return file;
     }
 
