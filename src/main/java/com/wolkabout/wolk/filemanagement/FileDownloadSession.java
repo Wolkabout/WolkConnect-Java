@@ -146,19 +146,19 @@ public class FileDownloadSession {
      * successful, it will not be aborted, and if it had already thrown an error, it will not be aborted.
      */
     public synchronized boolean abort() {
-        // If the session is not running
-        if (!this.running) {
-            Log.warn("Unable to abort transfer session. Session is not running.");
+        // If the session has thrown an error
+        if (this.aborted) {
+            LOG.warn("Unable to abort transfer session. Session is already aborted.");
             return false;
         }
         // If the session was successful
         if (this.success) {
-            Log.warn("Unable to abort transfer session. Session is done and successful.");
+            LOG.warn("Unable to abort transfer session. Session is done and successful.");
             return false;
         }
-        // If the session has thrown an error
-        if (this.aborted) {
-            Log.warn("Unable to abort transfer session. Session is already aborted.");
+        // If the session is not running
+        if (!this.running) {
+            LOG.warn("Unable to abort transfer session. Session is not running.");
             return false;
         }
 
