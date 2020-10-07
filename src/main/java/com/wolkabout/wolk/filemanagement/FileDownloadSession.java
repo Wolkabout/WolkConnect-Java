@@ -19,6 +19,7 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import jdk.internal.jline.internal.Log;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
@@ -106,6 +107,8 @@ public class FileDownloadSession {
         }
 
         // Request the first chunk
+        status = FileTransferStatus.FILE_TRANSFER;
+        error = null;
         requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
@@ -144,14 +147,20 @@ public class FileDownloadSession {
      */
     public synchronized boolean abort() {
         // If the session is not running
-        if (!this.running)
+        if (!this.running) {
+            Log.warn("Unable to abort transfer session. Session is not running.");
             return false;
+        }
         // If the session was successful
-        if (this.success)
+        if (this.success) {
+            Log.warn("Unable to abort transfer session. Session is done and successful.");
             return false;
+        }
         // If the session has thrown an error
-        if (!this.aborted)
+        if (this.aborted) {
+            Log.warn("Unable to abort transfer session. Session is already aborted.");
             return false;
+        }
 
         // Set the state for aborted
         this.running = false;

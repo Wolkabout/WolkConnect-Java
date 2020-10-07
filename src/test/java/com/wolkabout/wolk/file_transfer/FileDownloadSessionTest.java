@@ -33,8 +33,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Field;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -153,6 +152,10 @@ public class FileDownloadSessionTest {
             payload[(CHUNK_EXTRA / 2) + fileSize + i] = hash[i];
         }
 
+        // Check that the status is FILE_TRANSFER
+        assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
+        assertNull(session.getError());
+
         // Give the session all the bytes
         assertTrue(session.receiveBytes(payload));
 
@@ -164,5 +167,31 @@ public class FileDownloadSessionTest {
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+    }
+
+    @Test
+    public void singleChunkSimpleAbort() {
+        // Define the constants
+        final int fileSize = 1024;
+
+        // Create the message
+        FileInit initial = new FileInit();
+        initial.setFileName("test-file.jar");
+        initial.setFileHash("test-hash");
+        initial.setFileSize(fileSize);
+
+        // Create the session
+        FileDownloadSession session = new FileDownloadSession(initial, callbackMock);
+
+        // Check that the status is FILE_TRANSFER
+        assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
+        assertNull(session.getError());
+
+        // Abort the transfer
+        assertTrue(session.abort());
+
+        // Verify that the mock was called
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
     }
 }
