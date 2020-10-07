@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class FileDownloadSession {
 
@@ -43,7 +44,7 @@ public class FileDownloadSession {
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
     // The executor
-    private static final ExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final ExecutorService executor = Executors.newSingleThreadScheduledExecutor();
     // The input data
     private final FileInit initMessage;
     private final Callback callback;
@@ -51,6 +52,8 @@ public class FileDownloadSession {
     private final List<Integer> chunkSizes;
     private final List<Byte> bytes;
     private final List<byte[]> hashes;
+    private Future<?> requestTask;
+    private Future<?> finishTask;
     // The main indicators of state
     private boolean running;
     private boolean success;
@@ -104,7 +107,7 @@ public class FileDownloadSession {
         }
 
         // Request the first chunk
-        executor.submit(() ->
+        requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
 
@@ -164,7 +167,7 @@ public class FileDownloadSession {
         error = null;
 
         // Call the callback
-        executor.submit(() -> callback.onFinish(status, null));
+        finishTask = executor.submit(() -> callback.onFinish(status, null));
 
         return true;
     }
@@ -200,20 +203,34 @@ public class FileDownloadSession {
         byte[] currentHash = Arrays.copyOfRange(receivedBytes, receivedBytes.length - 32, receivedBytes.length);
 
         // Analyze the chunk received.
-        // Analyze the first hash to be all zeroes.
         if (currentChunk == 0) {
+            // Analyze the first hash to be all zeroes.
             for (byte hashByte : previousHash) {
                 if (hashByte != 0) {
                     Log.warn("Invalid header for first chunk, previous hash is not 0.");
                     return requestChunkAgain();
                 }
             }
+        } else {
+            // Analyze the hash of last chunk with the hash received in this message for chunk before.
+            if (!Arrays.equals(previousHash, hashes.get(hashes.size() - 1))) {
+                return requestPreviousChunk();
+            }
+
+            // Calculate the hash for current data and check it
+            byte[] calculatedHash = calculateHashForBytes(chunkData);
+            if (!Arrays.equals(calculatedHash, currentHash)) {
+                return requestChunkAgain();
+            }
         }
+
 
         // Append all the chunk data into the bytes
         for (byte chunkByte : chunkData) {
             bytes.add(chunkByte);
         }
+        // Append the hash
+        hashes.add(currentHash);
 
         // Check if the file is fully here now.
         if (currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
@@ -225,11 +242,12 @@ public class FileDownloadSession {
             // Return everything
             status = getCurrentStatus();
             error = null;
-            executor.submit(() -> callback.onFinish(status, error));
+            finishTask = executor.submit(() -> callback.onFinish(status, error));
             return true;
         }
 
-        executor.submit(() ->
+        // Request the next chunk
+        requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), ++currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
@@ -287,7 +305,7 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        executor.submit(() ->
+        requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
@@ -308,7 +326,7 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        executor.submit(() ->
+        requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
@@ -336,7 +354,7 @@ public class FileDownloadSession {
             status = getCurrentStatus();
             error = FileTransferError.RETRY_COUNT_EXCEEDED;
 
-            executor.submit(() -> callback.onFinish(status, error));
+            finishTask = executor.submit(() -> callback.onFinish(status, error));
             return false;
         }
 
@@ -348,7 +366,7 @@ public class FileDownloadSession {
 
         // Request the first chunk again
         Log.debug("Requesting first chunk after restart.");
-        executor.submit(() ->
+        requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
