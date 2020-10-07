@@ -232,7 +232,7 @@ public class FileDownloadSession {
         hashes.add(currentHash);
 
         // Check if the file is fully here now.
-        if (currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
+        if (++currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
             // If the entire file hash is invalid, restart the entire process
             if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
                 return restartDataObtain();
@@ -247,7 +247,7 @@ public class FileDownloadSession {
 
         // Request the next chunk
         requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), ++currentChunk, chunkSizes.get(currentChunk)));
+                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 

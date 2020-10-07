@@ -108,7 +108,6 @@ public class FileDownloadSessionTest {
         assertTrue(session.receiveBytes(new byte[fileSize + CHUNK_EXTRA]));
 
         // Verify that the mock was called
-        verify(callbackMock, atLeastOnce()).sendRequest(anyString(), anyInt(), anyInt());
-        verify(callbackMock, atLeastOnce()).onFinish(any(), any());
+        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());
     }
 }
