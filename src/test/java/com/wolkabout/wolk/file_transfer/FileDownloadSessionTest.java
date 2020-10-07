@@ -126,6 +126,5 @@ public class FileDownloadSessionTest {
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
-
     }
 }
