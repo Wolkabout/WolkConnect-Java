@@ -216,14 +216,13 @@ public class FileDownloadSession {
             if (!Arrays.equals(previousHash, hashes.get(hashes.size() - 1))) {
                 return requestPreviousChunk();
             }
-
-            // Calculate the hash for current data and check it
-            byte[] calculatedHash = calculateHashForBytes(chunkData);
-            if (!Arrays.equals(calculatedHash, currentHash)) {
-                return requestChunkAgain();
-            }
         }
 
+        // Calculate the hash for current data and check it
+        byte[] calculatedHash = calculateHashForBytes(chunkData);
+        if (!Arrays.equals(calculatedHash, currentHash)) {
+            return requestChunkAgain();
+        }
 
         // Append all the chunk data into the bytes
         for (byte chunkByte : chunkData) {
