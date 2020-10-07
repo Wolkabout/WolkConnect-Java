@@ -63,6 +63,23 @@ public class FileDownloadSessionTest {
     }
 
     @Test
+    public void checkInitialMessageIntegrity() {
+        // Prepare the message
+        FileInit message = new FileInit();
+        message.setFileName("test-file.jar");
+        message.setFileHash("test-hash");
+
+        // Make the session
+        FileDownloadSession session = new FileDownloadSession(message, callbackMock);
+
+        // Check everything
+        assertEquals(message, session.getInitMessage());
+        assertEquals(message.getFileName(), session.getInitMessage().getFileName());
+        assertEquals(message.getFileHash(), session.getInitMessage().getFileHash());
+        assertEquals(message.getFileHash(), session.getInitMessage().getFileHash());
+    }
+
+    @Test
     public void chunkSizeOneChunk() throws NoSuchFieldException, IllegalAccessException {
         // Prepare the steps
         final int START = 100;
@@ -146,6 +163,9 @@ public class FileDownloadSessionTest {
         // Create the session
         FileDownloadSession session = new FileDownloadSession(initial, callbackMock);
 
+        // Check that it is reporting that it is running
+        assertTrue(session.isRunning());
+
         // Form the payload
         byte[] payload = new byte[fileSize + CHUNK_EXTRA];
         for (int i = 0; i < hash.length; i++) {
@@ -163,6 +183,9 @@ public class FileDownloadSessionTest {
         for (byte value : session.getBytes()) {
             assertEquals(value, 0);
         }
+
+        // Check if it says it is successful
+        assertTrue(session.isSuccess());
 
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
