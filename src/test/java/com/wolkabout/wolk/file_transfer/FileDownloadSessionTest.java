@@ -17,6 +17,7 @@
 package com.wolkabout.wolk.file_transfer;
 
 import com.wolkabout.wolk.filemanagement.FileDownloadSession;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.paho.client.mqttv3.internal.websocket.Base64;
@@ -34,7 +35,8 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FileDownloadSessionTest {
@@ -122,8 +124,8 @@ public class FileDownloadSessionTest {
         }
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest(anyString(), anyInt(), anyInt());
-        verify(callbackMock, times(1)).onFinish(any(), any());
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
 
     }
 }

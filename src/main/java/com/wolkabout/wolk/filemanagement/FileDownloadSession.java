@@ -239,6 +239,9 @@ public class FileDownloadSession {
             }
 
             // Return everything
+            running = false;
+            success = true;
+
             status = getCurrentStatus();
             error = null;
             finishTask = executor.submit(() -> callback.onFinish(status, error));
