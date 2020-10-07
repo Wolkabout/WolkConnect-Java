@@ -18,6 +18,8 @@ package com.wolkabout.wolk.file_transfer;
 
 import com.wolkabout.wolk.filemanagement.FileDownloadSession;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import org.apache.commons.codec.digest.DigestUtils;
+import org.eclipse.paho.client.mqttv3.internal.websocket.Base64;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -69,7 +71,7 @@ public class FileDownloadSessionTest {
         // Prepare the message
         FileInit message = new FileInit();
         message.setFileName("test-file.jar");
-        message.setFileHash("test-file-hash");
+        message.setFileHash("00000000000000000000000000000000");
 
         // Prepare the field for obtaining values
         Field chunkSizesField = FileDownloadSession.class.getDeclaredField("chunkSizes");
@@ -98,16 +100,30 @@ public class FileDownloadSessionTest {
         // Create the message
         FileInit initial = new FileInit();
         initial.setFileName("test-file.jar");
-        initial.setFileHash("test-file-hash");
+        byte[] hash = DigestUtils.sha256(new byte[fileSize]);
+        initial.setFileHash(Base64.encodeBytes(hash));
         initial.setFileSize(fileSize);
 
         // Create the session
         FileDownloadSession session = new FileDownloadSession(initial, callbackMock);
 
+        // Form the payload
+        byte[] payload = new byte[fileSize + CHUNK_EXTRA];
+        for (int i = 0; i < hash.length; i++) {
+            payload[(CHUNK_EXTRA / 2) + fileSize + i] = hash[i];
+        }
+
         // Give the session all the bytes
-        assertTrue(session.receiveBytes(new byte[fileSize + CHUNK_EXTRA]));
+        assertTrue(session.receiveBytes(payload));
+
+        // Verify that the payload is all zeroes
+        for (byte value : session.getBytes()) {
+            assertEquals(value, 0);
+        }
 
         // Verify that the mock was called
-        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(1)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(1)).onFinish(any(), any());
+
     }
 }

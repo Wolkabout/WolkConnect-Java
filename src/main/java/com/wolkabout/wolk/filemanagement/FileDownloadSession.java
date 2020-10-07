@@ -207,7 +207,7 @@ public class FileDownloadSession {
             // Analyze the first hash to be all zeroes.
             for (byte hashByte : previousHash) {
                 if (hashByte != 0) {
-                    Log.warn("Invalid header for first chunk, previous hash is not 0.");
+                    LOG.warn("Invalid header for first chunk, previous hash is not 0.");
                     return requestChunkAgain();
                 }
             }
@@ -280,11 +280,11 @@ public class FileDownloadSession {
      * hash of current chunk are not equal.
      */
     private boolean requestPreviousChunk() {
-        Log.debug("Requesting the previous chunk.");
+        LOG.debug("Requesting the previous chunk.");
 
         // If we already requested previous chunks over the limit, restart the process.
         if (chunkRetryCount == MAX_RETRY) {
-            Log.warn("Previous chunks have been re-requested " + chunkRetryCount +
+            LOG.warn("Previous chunks have been re-requested " + chunkRetryCount +
                     " times, achieving the limit. Restarting the process.");
             restartDataObtain();
             return false;
@@ -313,11 +313,11 @@ public class FileDownloadSession {
      * This is an internal method used to define how a chunk for which the current hash is invalid, will be re-obtained.
      */
     private boolean requestChunkAgain() {
-        Log.debug("Requesting a chunk again.");
+        LOG.debug("Requesting a chunk again.");
 
         // If we already requested the chunk over the limit, restart the process
         if (chunkRetryCount == MAX_RETRY) {
-            Log.warn("A single chunk has been re-requested " + chunkRetryCount +
+            LOG.warn("A single chunk has been re-requested " + chunkRetryCount +
                     " times, achieving the limit. Restarting the process.");
             restartDataObtain();
             return false;
@@ -335,11 +335,11 @@ public class FileDownloadSession {
      * been called to the limit.
      */
     private boolean restartDataObtain() {
-        Log.debug("Restarting the data obtain session.");
+        LOG.debug("Restarting the data obtain session.");
 
         // If we already restarted the file obtain too much times, set the state to error and notify
         if (restartCount == MAX_RESTART) {
-            Log.warn("The session was restarted " + restartCount +
+            LOG.warn("The session was restarted " + restartCount +
                     " times, achieving the limit. Returning error.");
             this.running = false;
             this.success = false;
@@ -364,7 +364,7 @@ public class FileDownloadSession {
         hashes.clear();
 
         // Request the first chunk again
-        Log.debug("Requesting first chunk after restart.");
+        LOG.debug("Requesting first chunk after restart.");
         requestTask = executor.submit(() ->
                 callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
@@ -377,18 +377,18 @@ public class FileDownloadSession {
      */
     private FileTransferStatus getCurrentStatus() {
         if (this.running) {
-            Log.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
+            LOG.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
             return FileTransferStatus.FILE_TRANSFER;
         }
         if (this.aborted) {
-            Log.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
+            LOG.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
             return FileTransferStatus.ABORTED;
         }
         if (this.success) {
-            Log.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
+            LOG.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
             return FileTransferStatus.FILE_READY;
         }
-        Log.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
+        LOG.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
         return FileTransferStatus.ERROR;
     }
 
