@@ -73,7 +73,7 @@ public class FileDownloadSessionTest {
         // Prepare the message
         FileInit message = new FileInit();
         message.setFileName("test-file.jar");
-        message.setFileHash("00000000000000000000000000000000");
+        message.setFileHash("test-hash");
 
         // Prepare the field for obtaining values
         Field chunkSizesField = FileDownloadSession.class.getDeclaredField("chunkSizes");
@@ -91,6 +91,44 @@ public class FileDownloadSessionTest {
             List<Integer> chunkSizes = (List<Integer>) chunkSizesField.get(session);
             assertEquals(chunkSizes.size(), 1);
             assertEquals(chunkSizes.get(0), Integer.valueOf(i + CHUNK_EXTRA));
+        }
+    }
+
+    @Test
+    public void chunkSizeMultipleChunks() throws NoSuchFieldException, IllegalAccessException {
+        // Prepare the steps
+        final int START = 500000;
+        final int STEP = 1000000;
+        final int DATA_IN_CHUNK = 1000000 - CHUNK_EXTRA;
+        final int MAX = 15000000;
+
+        // Prepare the message
+        FileInit message = new FileInit();
+        message.setFileName("test-file.jar");
+        message.setFileHash("test-hash");
+
+        // Prepare the field for obtaining values
+        Field chunkSizesField = FileDownloadSession.class.getDeclaredField("chunkSizes");
+        chunkSizesField.setAccessible(true);
+
+        // Do the looping around these values
+        for (int i = START; i <= MAX; i += STEP) {
+            // Adjust the message
+            message.setFileSize(i);
+
+            // Make the session
+            FileDownloadSession session = new FileDownloadSession(message, callbackMock);
+
+            // Check the values
+            List<Integer> chunkSizes = (List<Integer>) chunkSizesField.get(session);
+            assertEquals(chunkSizes.size(), (i / DATA_IN_CHUNK) + 1);
+            for (int j = 0; j < (i / DATA_IN_CHUNK) + 1; j++) {
+                if (j == (i / DATA_IN_CHUNK)) {
+                    assertEquals(chunkSizes.get(j), Integer.valueOf((i + (CHUNK_EXTRA * (j + 1))) % 1000000));
+                } else {
+                    assertEquals(chunkSizes.get(j), Integer.valueOf(1000000));
+                }
+            }
         }
     }
 
