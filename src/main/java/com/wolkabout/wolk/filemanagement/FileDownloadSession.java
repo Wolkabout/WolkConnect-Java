@@ -102,7 +102,7 @@ public class FileDownloadSession {
         }
 
         // Request the first chunk
-        status = FileTransferStatus.FILE_TRANSFER;
+        status = getCurrentStatus();
         error = null;
         executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
@@ -221,9 +221,14 @@ public class FileDownloadSession {
         }
 
         // Calculate the hash for current data and check it
-        byte[] calculatedHash = calculateHashForBytes(chunkData);
-        if (!Arrays.equals(calculatedHash, currentHash)) {
-            return requestChunkAgain();
+        try {
+            byte[] calculatedHash = calculateHashForBytes(chunkData);
+            if (!Arrays.equals(calculatedHash, currentHash)) {
+                return requestChunkAgain();
+            }
+        } catch (Exception exception) {
+            throw new RuntimeException("Exception occurred during calculation of hash: " +
+                    exception.getLocalizedMessage());
         }
 
         // Append all the chunk data into the bytes
