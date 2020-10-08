@@ -149,7 +149,7 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void singleChunkReceiveAll() {
+    public void singleChunkReceiveAll() throws InterruptedException {
         // Define the constants
         final int fileSize = 1024;
 
@@ -187,13 +187,16 @@ public class FileDownloadSessionTest {
         // Check if it says it is successful
         assertTrue(session.isSuccess());
 
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
+
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
     @Test
-    public void singleChunkSimpleAbort() {
+    public void singleChunkSimpleAbort() throws InterruptedException {
         // Define the constants
         final int fileSize = 1024;
 
@@ -213,13 +216,16 @@ public class FileDownloadSessionTest {
         // Abort the transfer
         assertTrue(session.abort());
 
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
+
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
     }
 
     @Test
-    public void singleChunkAbortAfterSuccess() {
+    public void singleChunkAbortAfterSuccess() throws InterruptedException {
         // Define the constants
         final int fileSize = 1024;
 
@@ -254,13 +260,16 @@ public class FileDownloadSessionTest {
         // Try to abort now that it is successful
         assertFalse(session.abort());
 
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
+
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
     @Test
-    public void singleChunkAbortAfterAbort() {
+    public void singleChunkAbortAfterAbort() throws InterruptedException {
         // Define the constants
         final int fileSize = 1024;
 
@@ -286,6 +295,9 @@ public class FileDownloadSessionTest {
 
         // This abort should not work
         assertFalse(session.abort());
+
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
 
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, fileSize + CHUNK_EXTRA);

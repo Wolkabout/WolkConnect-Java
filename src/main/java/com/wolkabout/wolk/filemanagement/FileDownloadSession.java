@@ -19,7 +19,6 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
-import jdk.internal.jline.internal.Log;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
@@ -44,7 +43,7 @@ public class FileDownloadSession {
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
     // The executor
-    private final ExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(2);
     // The input data
     private final FileInit initMessage;
     private final Callback callback;
