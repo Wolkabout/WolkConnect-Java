@@ -53,37 +53,35 @@ public class FileManagementProtocol {
     private static final String FILE_LIST_CONFIRM = "p2d/file_list_confirm/d/";
 
     private final MqttClient client;
-    private final FileDownloader fileDownloader;
-    private final UrlFileDownloader urlDownloader;
 
     protected static final int QOS = 0;
 
-    public FileManagementProtocol(MqttClient client, UrlFileDownloader urlDownloader) {
+    public FileManagementProtocol(MqttClient client) {
         this.client = client;
-        this.urlDownloader = urlDownloader;
+//        this.urlDownloader = urlDownloader;
 
-        this.fileDownloader = new FileDownloader(client, new FileDownloader.Callback() {
-            @Override
-            public void onStatusUpdate(FileTransferStatus status) {
-                final UrlStatus urlStatus = new UrlStatus();
-                urlStatus.setStatus(status);
-                publishFlowStatus(urlStatus);
-            }
-
-            @Override
-            public void onError(FileTransferError error) {
-                final UrlStatus errorStatus = new UrlStatus();
-                errorStatus.setStatus(FileTransferStatus.ERROR);
-                errorStatus.setError(error);
-                publishFlowStatus(errorStatus);
-            }
-
-            @Override
-            public void onFileReceived(String fileName, byte[] bytes) {
-                publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
-                // TODO: callback for reporting file list
-            }
-        });
+//        this.fileDownloader = new FileDownloader(client, new FileDownloader.Callback() {
+//            @Override
+//            public void onStatusUpdate(FileTransferStatus status) {
+//                final UrlStatus urlStatus = new UrlStatus();
+//                urlStatus.setStatus(status);
+//                publishFlowStatus(urlStatus);
+//            }
+//
+//            @Override
+//            public void onError(FileTransferError error) {
+//                final UrlStatus errorStatus = new UrlStatus();
+//                errorStatus.setStatus(FileTransferStatus.ERROR);
+//                errorStatus.setError(error);
+//                publishFlowStatus(errorStatus);
+//            }
+//
+//            @Override
+//            public void onFileReceived(String fileName, byte[] bytes) {
+//                publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
+//                // TODO: callback for reporting file list
+//            }
+//        });
     }
 
     public void subscribe() {
@@ -92,7 +90,7 @@ public class FileManagementProtocol {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     final FileInit fileInit = JsonUtil.deserialize(message, FileInit.class);
-                    fileDownloader.download(fileInit);
+//                    fileDownloader.download(fileInit);
                     // TODO: Move to firmware update
                     //                  firmwareInstaller.onInstallCommandReceived();
                     //                  firmwareInstaller.onAbortCommandReceived();
@@ -102,7 +100,7 @@ public class FileManagementProtocol {
             client.subscribe(FILE_UPLOAD_ABORT + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    fileDownloader.abort();
+//                    fileDownloader.abort();
                 }
             });
 
@@ -110,25 +108,25 @@ public class FileManagementProtocol {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
                     final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
-                    if (urlDownloader == null) {
-                        publishFlowStatus(FileTransferError.TRANSFER_PROTOCOL_DISABLED);
-                        return;
-                    }
+//                    if (urlDownloader == null) {
+//                        publishFlowStatus(FileTransferError.TRANSFER_PROTOCOL_DISABLED);
+//                        return;
+//                    }
 
                     publishFlowStatus(FileTransferStatus.FILE_TRANSFER, urlInfo.getFileUrl());
 
-                    urlDownloader.downloadFile(urlInfo.getFileUrl(), new UrlFileDownloader.Callback() {
-                        @Override
-                        public void onError(FileTransferError error) {
-                            publishFlowStatus(error);
-                        }
-
-                        @Override
-                        public void onFileReceived(String fileName, byte[] bytes) {
-                            publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
-                            // TODO: publish file list
-                        }
-                    });
+//                    urlDownloader.downloadFile(urlInfo.getFileUrl(), new UrlFileDownloadSession.Callback() {
+//                        @Override
+//                        public void onError(FileTransferError error) {
+//                            publishFlowStatus(error);
+//                        }
+//
+//                        @Override
+//                        public void onFileReceived(String fileName, byte[] bytes) {
+//                            publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
+//                            // TODO: publish file list
+//                        }
+//                    });
                 }
 
                 ;
@@ -137,18 +135,18 @@ public class FileManagementProtocol {
             client.subscribe(FILE_URL_DOWNLOAD_ABORT + client.getClientId(), QOS, new IMqttMessageListener() {
                 @Override
                 public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    if (urlDownloader != null) {
-                        final UrlStatus status = new UrlStatus();
-                        status.setStatus(FileTransferStatus.ABORTED);
-                        if (urlDownloader.getUrl() != null) {
-                            status.setFileUrl(urlDownloader.getUrl());
-                        }
-                        publishFlowStatus(status);
-                        urlDownloader.abort();
-                    }
+//                    if (urlDownloader != null) {
+//                        final UrlStatus status = new UrlStatus();
+//                        status.setStatus(FileTransferStatus.ABORTED);
+//                        if (urlDownloader.getUrl() != null) {
+//                            status.setFileUrl(urlDownloader.getUrl());
+//                        }
+//                        publishFlowStatus(status);
+//                        urlDownloader.abort();
+//                    }
                 }
             });
-            fileDownloader.prepareSubscription();
+//            fileDownloader.prepareSubscription();
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
         }

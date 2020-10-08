@@ -205,8 +205,14 @@ public class FileDownloadSessionTest {
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
         assertNull(session.getError());
 
+        // It is still not aborted
+        assertFalse(session.isAborted());
+
         // Abort the transfer
         assertTrue(session.abort());
+
+        // Check that it says true
+        assertTrue(session.isAborted());
 
         // Sleep a tad bit for the mocks to be called
         Thread.sleep(100);

@@ -30,8 +30,15 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * This is a class that represents a single file transfer session.
+ * Session starts with the initiate message from platform, and then we request all the chunks
+ * until we finally assembled all the bytes into a single place, where the file is compiled.
+ * Checks of hashes are done in between, when we can re-request anything in between of runtime.
+ */
 public class FileDownloadSession {
 
+    // The Logger
     private static final Logger LOG = LoggerFactory.getLogger(FileDownloadSession.class);
 
     // The constant values
@@ -79,13 +86,12 @@ public class FileDownloadSession {
         }
 
         this.initMessage = initMessage;
+        this.callback = callback;
         this.running = true;
 
         this.bytes = new ArrayList<>();
         this.hashes = new ArrayList<>();
         this.chunkSizes = new ArrayList<>();
-
-        this.callback = callback;
 
         // Calculate the chunk count, and each of their sizes
         long fullChunkDataBytes = CHUNK_SIZE - (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE);
@@ -113,6 +119,10 @@ public class FileDownloadSession {
 
     public boolean isSuccess() {
         return success;
+    }
+
+    public boolean isAborted() {
+        return aborted;
     }
 
     public FileInit getInitMessage() {

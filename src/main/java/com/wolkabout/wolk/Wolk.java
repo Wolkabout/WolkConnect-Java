@@ -18,7 +18,7 @@ package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
-import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
+import com.wolkabout.wolk.filemanagement.UrlFileDownloadSession;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.model.*;
@@ -464,8 +464,6 @@ public class Wolk {
 
         private FirmwareInstaller firmwareInstaller = null;
 
-        private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
-
         private boolean keepAliveServiceEnabled = true;
 
         private Builder() {
@@ -526,14 +524,13 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloader urlFileDownloader) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloadSession urlFileDownloadSession) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.urlFileDownloader = urlFileDownloader;
             return this;
         }
 
@@ -572,10 +569,10 @@ public class Wolk {
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
 
-                if (firmwareUpdateEnabled) {
-                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, urlFileDownloader);
-                    firmwareInstaller.setWolk(wolk);
-                }
+//                if (firmwareUpdateEnabled) {
+//                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, urlFileDownloadSession);
+//                    firmwareInstaller.setWolk(wolk);
+//                }
 
                 actuatorHandler.setWolk(wolk);
                 configurationHandler.setWolk(wolk);
