@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 public class FileDownloadSession {
 
@@ -43,7 +42,7 @@ public class FileDownloadSession {
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
     // The executor
-    private final ExecutorService executor = Executors.newFixedThreadPool(2);
+    private final ExecutorService executor = Executors.newCachedThreadPool();
     // The input data
     private final FileInit initMessage;
     private final Callback callback;
@@ -51,8 +50,6 @@ public class FileDownloadSession {
     private final List<Integer> chunkSizes;
     private final List<Byte> bytes;
     private final List<byte[]> hashes;
-    private Future<?> requestTask;
-    private Future<?> finishTask;
     // The main indicators of state
     private boolean running;
     private boolean success;
@@ -63,7 +60,6 @@ public class FileDownloadSession {
     // The end status variables
     private FileTransferStatus status;
     private FileTransferError error;
-
 
     /**
      * The default constructor for the class. Bases the download session off the passed message data about the file
@@ -108,8 +104,7 @@ public class FileDownloadSession {
         // Request the first chunk
         status = FileTransferStatus.FILE_TRANSFER;
         error = null;
-        requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
 
     public boolean isRunning() {
@@ -174,7 +169,7 @@ public class FileDownloadSession {
         error = null;
 
         // Call the callback
-        finishTask = executor.submit(() -> callback.onFinish(status, null));
+        executor.execute(new FinishRunnable(status, null));
 
         return true;
     }
@@ -251,13 +246,12 @@ public class FileDownloadSession {
 
             status = getCurrentStatus();
             error = null;
-            finishTask = executor.submit(() -> callback.onFinish(status, error));
+            executor.execute(new FinishRunnable(status, null));
             return true;
         }
 
         // Request the next chunk
-        requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
@@ -286,8 +280,8 @@ public class FileDownloadSession {
     }
 
     /**
-     * This is an internal method used to define how a chunk for which the current hash of previous chunk, and previous
-     * hash of current chunk are not equal.
+     * This is an internal method used to define how a chunk for which the
+     * current hash of previous chunk, and previous hash of current chunk are not equal.
      */
     private boolean requestPreviousChunk() {
         LOG.debug("Requesting the previous chunk.");
@@ -314,13 +308,13 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
     /**
-     * This is an internal method used to define how a chunk for which the current hash is invalid, will be re-obtained.
+     * This is an internal method used to define how a chunk for
+     * which the current hash is invalid, will be re-obtained.
      */
     private boolean requestChunkAgain() {
         LOG.debug("Requesting a chunk again.");
@@ -335,14 +329,13 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
     /**
-     * This is an internal method used to define how the entire session will be restarted after the chunk reacquire has
-     * been called to the limit.
+     * This is an internal method used to define how the entire session will be restarted
+     * after the chunk reacquire has been called to the limit.
      */
     private boolean restartDataObtain() {
         LOG.debug("Restarting the data obtain session.");
@@ -363,7 +356,7 @@ public class FileDownloadSession {
             status = getCurrentStatus();
             error = FileTransferError.RETRY_COUNT_EXCEEDED;
 
-            finishTask = executor.submit(() -> callback.onFinish(status, error));
+            executor.execute(new FinishRunnable(status, error));
             return false;
         }
 
@@ -375,8 +368,7 @@ public class FileDownloadSession {
 
         // Request the first chunk again
         LOG.debug("Requesting first chunk after restart.");
-        requestTask = executor.submit(() ->
-                callback.sendRequest(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
         return true;
     }
 
@@ -411,5 +403,45 @@ public class FileDownloadSession {
         void sendRequest(String fileName, int chunkIndex, int chunkSize);
 
         void onFinish(FileTransferStatus status, FileTransferError error);
+    }
+
+    /**
+     * This is a private class that represents how a Runnable for calling `sendRequest` is supposed to look like.
+     */
+    private class RequestRunnable implements Runnable {
+
+        private final String fileName;
+        private final int currentChunk;
+        private final int chunkSize;
+
+        public RequestRunnable(String fileName, int currentChunk, int chunkSize) {
+            this.fileName = fileName;
+            this.currentChunk = currentChunk;
+            this.chunkSize = chunkSize;
+        }
+
+        @Override
+        public void run() {
+            callback.sendRequest(fileName, currentChunk, chunkSize);
+        }
+    }
+
+    /**
+     * This is a private class that represents how a Runnable for calling `onFinish` is supposed to look like.
+     */
+    private class FinishRunnable implements Runnable {
+
+        private final FileTransferStatus status;
+        private final FileTransferError error;
+
+        public FinishRunnable(FileTransferStatus status, FileTransferError error) {
+            this.status = status;
+            this.error = error;
+        }
+
+        @Override
+        public void run() {
+            callback.onFinish(status, error);
+        }
     }
 }

@@ -86,7 +86,7 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void chunkSizeOneChunk() throws NoSuchFieldException, IllegalAccessException {
+    public void chunkSizeOneChunk() throws NoSuchFieldException, IllegalAccessException, InterruptedException {
         // Prepare the steps
         final int START = 100;
         final int STEP = 100;
@@ -117,7 +117,7 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void chunkSizeMultipleChunks() throws NoSuchFieldException, IllegalAccessException {
+    public void chunkSizeMultipleChunks() throws NoSuchFieldException, IllegalAccessException, InterruptedException {
         // Prepare the steps
         final int START = 500000;
         final int STEP = 1000000;
