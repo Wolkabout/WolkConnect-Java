@@ -298,7 +298,7 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void singleChunkNotEnoughBytes() {
+    public void singleChunkNotEnoughBytes() throws InterruptedException {
         // Create the session
         FileDownloadSession session = new FileDownloadSession(testMessage, callbackMock);
 
@@ -306,9 +306,11 @@ public class FileDownloadSessionTest {
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
         assertNull(session.getError());
 
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
+
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
-
 
         // Expect an exception to be thrown for data
         exceptionRule.expect(IllegalArgumentException.class);
@@ -317,7 +319,7 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void singleChunkWrongBytes() {
+    public void singleChunkWrongBytes() throws InterruptedException {
         // Create the session
         FileDownloadSession session = new FileDownloadSession(testMessage, callbackMock);
 
@@ -325,9 +327,11 @@ public class FileDownloadSessionTest {
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
         assertNull(session.getError());
 
+        // Sleep a tad bit for the mocks to be called
+        Thread.sleep(100);
+
         // Verify that the mock was called
         verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
-
 
         // Expect an exception to be thrown for data
         exceptionRule.expect(IllegalArgumentException.class);
