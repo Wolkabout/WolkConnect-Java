@@ -32,10 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Queue;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -459,12 +456,50 @@ public class FileDownloadSessionTest {
     }
 
     @Test
-    public void multiChunkSecondChunkInvalidHashFirstTime() {
+    public void multiChunkSecondChunkInvalidHashFirstTime() throws InterruptedException {
         // Calculate the hashes
         byte[] firstHash = DigestUtils.sha256(new byte[MEGABYTE - CHUNK_EXTRA]);
-        byte[] secondHash = DigestUtils.sha256(new byte[MEGABYTE / 2]);
+        byte[] secondHash = DigestUtils.sha256(new byte[MEGABYTE / 2 + CHUNK_EXTRA]);
 
         // Create the payload
+        byte[] firstPayload = new byte[MEGABYTE];
+        byte[] secondPayloadInvalid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
+        byte[] secondPayloadValid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
+        for (int i = 0; i < firstHash.length; i++) {
+            // Set the first hash as valid
+            firstPayload[firstPayload.length - (CHUNK_EXTRA / 2) + i] = firstHash[i];
+            secondPayloadInvalid[i] = firstHash[i];
+            secondPayloadValid[i] = firstHash[i];
+            // Set the second hash as valid
+            secondPayloadValid[secondPayloadValid.length - (CHUNK_EXTRA / 2) + i] = secondHash[i];
+        }
 
+        // Prepare the initial message
+        FileInit initialMessage = new FileInit();
+        initialMessage.setFileName("test-file.jar");
+        initialMessage.setFileHash(Base64.encodeBytes(
+                DigestUtils.sha256(new byte[(MEGABYTE + (MEGABYTE / 2))])));
+        initialMessage.setFileSize(MEGABYTE + (MEGABYTE / 2));
+
+        // Prepare the message goings
+        Queue<byte[]> queue = new LinkedList<byte[]>() {{
+            add(firstPayload);
+            add(secondPayloadInvalid);
+            add(secondPayloadValid);
+        }};
+        doAnswer(invocation -> {
+            session.receiveBytes(Objects.requireNonNull(queue.poll()));
+            return null;
+        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+
+        // Prepare the session and run everything
+        session = new FileDownloadSession(initialMessage, callbackMock);
+
+        // Sleep for a bit
+        Thread.sleep(300);
+
+        // Verify all the calls
+        verify(callbackMock, times(3)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 }

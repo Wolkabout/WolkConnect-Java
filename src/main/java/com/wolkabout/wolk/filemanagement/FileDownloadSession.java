@@ -186,8 +186,8 @@ public class FileDownloadSession {
      * an error, since it had retried too many times.
      */
     public synchronized boolean receiveBytes(byte[] receivedBytes) {
-        LOG.trace("Received chunk of bytes. Size of chunk: " + receivedBytes.length +
-                ", current chunk count: " + currentChunk + ".");
+        LOG.trace("Received chunk of bytes. Size of chunk: " + receivedBytes.length + ", " +
+                "current chunk count: " + currentChunk + ".");
 
         // Check the session status
         if (!running)
@@ -207,11 +207,9 @@ public class FileDownloadSession {
         // Analyze the chunk received.
         if (currentChunk == 0) {
             // Analyze the first hash to be all zeroes.
-            for (byte hashByte : previousHash) {
-                if (hashByte != 0) {
-                    LOG.warn("Invalid header for first chunk, previous hash is not 0.");
-                    return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
-                }
+            if (!Arrays.equals(previousHash, new byte[32])) {
+                LOG.warn("Invalid header for first chunk, previous hash is not 0.");
+                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
             }
         } else {
             // Analyze the hash of last chunk with the hash received in this message for chunk before.
@@ -227,8 +225,13 @@ public class FileDownloadSession {
         }
 
         // Calculate the hash for current data and check it
-        byte[] calculatedHash = calculateHashForBytes(chunkData);
-        if (!Arrays.equals(calculatedHash, currentHash)) {
+        try {
+            byte[] calculatedHash = calculateHashForBytes(chunkData);
+            if (!Arrays.equals(calculatedHash, currentHash)) {
+                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+            }
+        } catch (Exception exception) {
+            LOG.warn("Failed to calculate hash for chunk data bytes.");
             return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
         }
 
@@ -242,12 +245,7 @@ public class FileDownloadSession {
         // Check if the file is fully here now.
         if (++currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
             // If the entire file hash is invalid, restart the entire process
-            try {
-                if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
-                    return restartDataObtain();
-                }
-            } catch (Exception exception) {
-                LOG.warn("Failed to compare hashes of the file.");
+            if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
                 return restartDataObtain();
             }
 
