@@ -422,7 +422,7 @@ public class FileDownloadSessionTest {
         assertNull(session.getError());
 
         // Wait for the calls to execute
-        Thread.sleep(300);
+        Thread.sleep(1000);
 
         // Verify everything was called, and the status was returned successfully.
         verify(callbackMock, times(6)).sendRequest(anyString(), anyInt(), anyInt());
