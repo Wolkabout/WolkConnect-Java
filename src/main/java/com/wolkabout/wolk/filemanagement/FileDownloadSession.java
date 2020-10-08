@@ -210,25 +210,26 @@ public class FileDownloadSession {
             for (byte hashByte : previousHash) {
                 if (hashByte != 0) {
                     LOG.warn("Invalid header for first chunk, previous hash is not 0.");
-                    return requestChunkAgain();
+                    return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
                 }
             }
         } else {
             // Analyze the hash of last chunk with the hash received in this message for chunk before.
             if (!Arrays.equals(previousHash, hashes.get(hashes.size() - 1))) {
-                return requestPreviousChunk();
+                // Return a chunk back, remove the hash, and delete the bytes
+                --currentChunk;
+                hashes.remove(currentChunk);
+                for (int i = 0; i < chunkSizes.get(currentChunk); i++) {
+                    bytes.remove(bytes.size() - 1);
+                }
+                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
             }
         }
 
         // Calculate the hash for current data and check it
-        try {
-            byte[] calculatedHash = calculateHashForBytes(chunkData);
-            if (!Arrays.equals(calculatedHash, currentHash)) {
-                return requestChunkAgain();
-            }
-        } catch (Exception exception) {
-            throw new RuntimeException("Exception occurred during calculation of hash: " +
-                    exception.getLocalizedMessage());
+        byte[] calculatedHash = calculateHashForBytes(chunkData);
+        if (!Arrays.equals(calculatedHash, currentHash)) {
+            return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
         }
 
         // Append all the chunk data into the bytes
@@ -241,7 +242,12 @@ public class FileDownloadSession {
         // Check if the file is fully here now.
         if (++currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
             // If the entire file hash is invalid, restart the entire process
-            if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
+            try {
+                if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
+                    return restartDataObtain();
+                }
+            } catch (Exception exception) {
+                LOG.warn("Failed to compare hashes of the file.");
                 return restartDataObtain();
             }
 
@@ -285,43 +291,10 @@ public class FileDownloadSession {
     }
 
     /**
-     * This is an internal method used to define how a chunk for which the
-     * current hash of previous chunk, and previous hash of current chunk are not equal.
-     */
-    private boolean requestPreviousChunk() {
-        LOG.debug("Requesting the previous chunk.");
-
-        // If we already requested previous chunks over the limit, restart the process.
-        if (chunkRetryCount == MAX_RETRY) {
-            LOG.warn("Previous chunks have been re-requested " + chunkRetryCount +
-                    " times, achieving the limit. Restarting the process.");
-            restartDataObtain();
-            return false;
-        }
-
-        // Filter out this invalid state.
-        if (currentChunk == 0) {
-            throw new IllegalStateException("Request previous chunk called when current chunk is first chunk.");
-        }
-
-        // Return a chunk back, remove the hash, and delete the bytes
-        --currentChunk;
-        hashes.remove(currentChunk);
-        for (int i = 0; i < chunkSizes.get(currentChunk); i++) {
-            bytes.remove(bytes.size() - 1);
-        }
-
-        // Increment the counter, and request the chunk again
-        ++chunkRetryCount;
-        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
-        return true;
-    }
-
-    /**
      * This is an internal method used to define how a chunk for
      * which the current hash is invalid, will be re-obtained.
      */
-    private boolean requestChunkAgain() {
+    private boolean requestChunkAgain(String fileName, int chunkIndex, int chunkSize) {
         LOG.debug("Requesting a chunk again.");
 
         // If we already requested the chunk over the limit, restart the process
@@ -334,7 +307,7 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(fileName, chunkIndex, chunkSize));
         return true;
     }
 
@@ -368,12 +341,13 @@ public class FileDownloadSession {
         // Increment the counter, restart all the data
         ++restartCount;
         chunkRetryCount = 0;
+        currentChunk = 0;
         bytes.clear();
         hashes.clear();
 
         // Request the first chunk again
         LOG.debug("Requesting first chunk after restart.");
-        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), 0, chunkSizes.get(0)));
         return true;
     }
 

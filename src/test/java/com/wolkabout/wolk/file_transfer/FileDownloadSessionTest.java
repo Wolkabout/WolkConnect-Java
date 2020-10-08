@@ -341,7 +341,7 @@ public class FileDownloadSessionTest {
         // Expect an exception to be thrown for data
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The passed bytes is not the same size as requested.");
-        session.receiveBytes(new byte[500]);
+        session.receiveBytes(new byte[80]);
     }
 
     @Test
@@ -368,6 +368,35 @@ public class FileDownloadSessionTest {
 
         // Verify that the mock was called
         verify(callbackMock, times(16)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.RETRY_COUNT_EXCEEDED);
+    }
+
+    @Test
+    public void singleChunkInvalidFileHash() throws InterruptedException {
+        // Prepare an invalid initialMessage
+        FileInit initialMessage = new FileInit();
+        initialMessage.setFileName("test-file.jar");
+        initialMessage.setFileHash("asdfmovie");
+        initialMessage.setFileSize(testFileSize);
+
+        // Prepare the payload
+        byte[] hash = DigestUtils.sha256(new byte[testFileSize]);
+        byte[] payload = new byte[testFileSize + CHUNK_EXTRA];
+        System.arraycopy(hash, 0, payload, payload.length - 32, hash.length);
+
+        // Setup the return
+        doAnswer(invocation -> {
+            session.receiveBytes(payload);
+            return null;
+        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+
+        // Setup the session
+        session = new FileDownloadSession(initialMessage, callbackMock);
+        // Sleep for a bit
+        Thread.sleep(300);
+
+        // Check that we received the expected output
+        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.RETRY_COUNT_EXCEEDED);
     }
 
@@ -427,5 +456,15 @@ public class FileDownloadSessionTest {
         // Verify everything was called, and the status was returned successfully.
         verify(callbackMock, times(6)).sendRequest(anyString(), anyInt(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+    }
+
+    @Test
+    public void multiChunkSecondChunkInvalidHashFirstTime() {
+        // Calculate the hashes
+        byte[] firstHash = DigestUtils.sha256(new byte[MEGABYTE - CHUNK_EXTRA]);
+        byte[] secondHash = DigestUtils.sha256(new byte[MEGABYTE / 2]);
+
+        // Create the payload
+
     }
 }
