@@ -218,6 +218,8 @@ public class FileDownloadSession {
                 --currentChunk;
                 hashes.remove(currentChunk);
                 for (int i = 0; i < chunkSizes.get(currentChunk); i++) {
+                    if (bytes.isEmpty())
+                        break;
                     bytes.remove(bytes.size() - 1);
                 }
                 return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
@@ -225,13 +227,8 @@ public class FileDownloadSession {
         }
 
         // Calculate the hash for current data and check it
-        try {
-            byte[] calculatedHash = calculateHashForBytes(chunkData);
-            if (!Arrays.equals(calculatedHash, currentHash)) {
-                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
-            }
-        } catch (Exception exception) {
-            LOG.warn("Failed to calculate hash for chunk data bytes.");
+        byte[] calculatedHash = calculateHashForBytes(chunkData);
+        if (!Arrays.equals(calculatedHash, currentHash)) {
             return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
         }
 
