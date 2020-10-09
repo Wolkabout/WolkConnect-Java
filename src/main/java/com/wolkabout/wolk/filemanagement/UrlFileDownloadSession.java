@@ -22,8 +22,11 @@ import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * This is a class that represents a single url file download session.
@@ -47,6 +50,7 @@ public class UrlFileDownloadSession {
     // The end status variables
     private FileTransferStatus status;
     private FileTransferError error;
+    private Future<?> downloadTask;
 
     /**
      * The default constructor for the class. Bases the download session off the passed message data
@@ -71,7 +75,7 @@ public class UrlFileDownloadSession {
         // Start the download
         status = getCurrentStatus();
         error = null;
-        executor.execute(new DownloadRunnable(initMessage.getFileUrl()));
+        downloadTask = executor.submit(new DownloadRunnable(initMessage.getFileUrl()));
     }
 
     public boolean isRunning() {
@@ -122,6 +126,14 @@ public class UrlFileDownloadSession {
             LOG.warn("Unable to abort transfer session. Session is not running.");
             return false;
         }
+        // If the task is not running
+        if (downloadTask == null || downloadTask.isDone()) {
+            LOG.warn("The file download is already done.");
+            return false;
+        }
+
+        // Stop the task
+        downloadTask.cancel(true);
 
         // Set the state for aborted
         this.running = false;
@@ -144,7 +156,21 @@ public class UrlFileDownloadSession {
      * @return
      */
     public synchronized boolean downloadFile(String url) {
-        return true;
+        try {
+            final URL remoteFile = new URL(url);
+        } catch (MalformedURLException exception) {
+            error = FileTransferError.MALFORMED_URL;
+        } catch (Exception exception) {
+            error = FileTransferError.UNSPECIFIED_ERROR;
+        } finally {
+            this.running = false;
+            this.success = this.error == null;
+
+            status = getCurrentStatus();
+
+            executor.execute(new FinishRunnable(status, error));
+        }
+        return this.success;
     }
 
     /**

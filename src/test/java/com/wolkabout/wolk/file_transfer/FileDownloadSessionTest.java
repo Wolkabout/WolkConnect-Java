@@ -399,7 +399,7 @@ public class FileDownloadSessionTest {
         // Setup the session
         session = new FileDownloadSession(initialMessage, callbackMock);
         // Sleep for a bit
-        Thread.sleep(300);
+        Thread.sleep(1000);
 
         // Check that we received the expected output
         verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());

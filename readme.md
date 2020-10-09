@@ -18,6 +18,8 @@
 ```
 ----
 
+[![Build Status](https://travis-ci.com/Wolkabout/WolkConnect-Java.svg?branch=master)](https://travis-ci.com/Wolkabout/WolkConnect-Java)
+
 WolkAbout Java Connector for connecting devices to  [WolkAbout IoT Platform](https://demo.wolkabout.com/#/login).
 
 Supported device communication protocols:
