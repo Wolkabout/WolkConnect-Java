@@ -22,6 +22,8 @@ import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.concurrent.ExecutorService;
@@ -43,14 +45,17 @@ public class UrlFileDownloadSession {
     // The input data
     private final UrlInfo initMessage;
     private final Callback callback;
+    private final Future<?> downloadTask;
     // The main indicators of state
     private boolean running;
     private boolean success;
     private boolean aborted;
+    // The end result data
+    private byte[] fileData;
+    private String fileName;
     // The end status variables
     private FileTransferStatus status;
     private FileTransferError error;
-    private Future<?> downloadTask;
 
     /**
      * The default constructor for the class. Bases the download session off the passed message data
@@ -92,6 +97,14 @@ public class UrlFileDownloadSession {
 
     public UrlInfo getInitMessage() {
         return initMessage;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public byte[] getFileData() {
+        return fileData;
     }
 
     public FileTransferStatus getStatus() {
@@ -152,12 +165,26 @@ public class UrlFileDownloadSession {
     /**
      * This is the method used to obtain the bytes by sending a GET HTTP request to the URL passed as argument.
      *
-     * @param url
-     * @return
+     * @param url HTTP path showing directly to the location that will return a file.
+     * @return Success of the operation. The method will call the callback event `onFinish`, with the results, and if it
+     * is successful, the data will be set into variables inside the object, obtainable through getters.
      */
     public synchronized boolean downloadFile(String url) {
         try {
             final URL remoteFile = new URL(url);
+            final InputStream inputStream = remoteFile.openStream();
+            final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+            byte[] data = new byte[16384];
+            int read;
+            while ((read = inputStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, read);
+            }
+            buffer.flush();
+
+            final String[] urlParts = url.split("/");
+            fileName = urlParts[urlParts.length - 1];
+            fileData = buffer.toByteArray();
         } catch (MalformedURLException exception) {
             error = FileTransferError.MALFORMED_URL;
         } catch (Exception exception) {
@@ -216,7 +243,11 @@ public class UrlFileDownloadSession {
 
         @Override
         public void run() {
-            downloadFile(url);
+            if (downloadFile(url)) {
+                LOG.info("File download was successful.");
+            } else {
+                LOG.info("File download was not successful.");
+            }
         }
     }
 
