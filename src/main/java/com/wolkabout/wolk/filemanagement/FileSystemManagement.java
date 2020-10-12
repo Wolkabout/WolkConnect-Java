@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -81,6 +83,23 @@ public class FileSystemManagement {
      */
     public boolean addFile(File newFile) {
         return newFile.renameTo(new File(folder.getAbsolutePath() + SEPARATOR + newFile.getName()));
+    }
+
+    /**
+     * This is the method used to create a file from passed bytes, and a name given.
+     *
+     * @param bytes    The bytes that should be written to the file.
+     * @param fileName The name of the new file that will be created.
+     * @return Success status of the operation.
+     */
+    public boolean createFile(byte[] bytes, String fileName) {
+        try (FileOutputStream stream = new FileOutputStream(folder.getAbsolutePath() + SEPARATOR + fileName)) {
+            stream.write(bytes);
+            return true;
+        } catch (IOException e) {
+            LOG.error(e.getLocalizedMessage());
+            return false;
+        }
     }
 
     /**

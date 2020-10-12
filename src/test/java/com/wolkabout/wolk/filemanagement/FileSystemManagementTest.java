@@ -151,7 +151,7 @@ public class FileSystemManagementTest {
         // Setup the addition to be successful
         doReturn(true).when(fileMock).renameTo(any());
         doReturn(false).when(fileMock).delete();
-        doReturn(new File[] {fileMock}).when(folderMock).listFiles();
+        doReturn(new File[]{fileMock}).when(folderMock).listFiles();
 
         // Create the file to be found
         assertTrue(fileMock.renameTo(new File(testFolder + SEPARATOR + testFileName)));
@@ -166,5 +166,30 @@ public class FileSystemManagementTest {
 
         // Attempt to purge an undelete-able file
         assertFalse(management.purgeDirectory());
+    }
+
+    @Test
+    public void createFileFromBytes() {
+        // Create the hypothetical file
+        byte[] bytes = new byte[]{0, 123, 55, 125};
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Create the file
+        assertTrue(management.createFile(bytes, testFileName));
+    }
+
+    @Test
+    public void createFileThatCannotBeCreated() {
+        // Create the hypothetical file
+        byte[] bytes = new byte[]{0, 123, 55, 125};
+        String invalidFilePath = "this/path/totally/does/not/exist";
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Create the file
+        assertFalse(management.createFile(bytes, invalidFilePath));
     }
 }
