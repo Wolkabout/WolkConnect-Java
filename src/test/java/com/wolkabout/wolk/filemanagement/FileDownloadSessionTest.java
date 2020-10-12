@@ -14,9 +14,8 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.file_transfer;
+package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.FileDownloadSession;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;

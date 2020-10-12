@@ -37,6 +37,10 @@ public class FileManagementProtocol {
     private static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";
     private static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
 
+    // File upload chunk topics
+    private static final String FILE_BINARY_REQUEST = "d2p/file_binary_request/d/";
+    private static final String FILE_BINARY_RESPONSE = "p2d/file_binary_response/d/";
+
     // File URL download initiation and input/output topics
     private static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
     private static final String FILE_URL_DOWNLOAD_STATUS = "d2p/file_url_download_status/d/";
