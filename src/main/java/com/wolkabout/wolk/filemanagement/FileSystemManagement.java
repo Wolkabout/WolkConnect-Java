@@ -33,6 +33,8 @@ public class FileSystemManagement {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemManagement.class);
 
+    // Constants
+    private static final String SEPARATOR = "/";
     // Given arguments
     private final File folder;
 
@@ -69,5 +71,36 @@ public class FileSystemManagement {
 
         // Return all the names
         return files;
+    }
+
+    /**
+     * This is the method used to add a new already existing folder to the directory.
+     *
+     * @param newFile Instanced file that can be already found on the file system.
+     * @return Success status of the operation.
+     */
+    public boolean addFile(File newFile) {
+        return newFile.renameTo(new File(folder.getAbsolutePath() + SEPARATOR + newFile.getName()));
+    }
+
+    /**
+     * This is the method used to purge all the directory contents, by removing all the files located in the folder.
+     *
+     * @return Success of this operation
+     */
+    public boolean purgeDirectory() {
+        // Create a place to record status
+        boolean failures = false;
+
+        // Iterate through all the files
+        for (File file : Objects.requireNonNull(folder.listFiles())) {
+            if (!file.delete()) {
+                LOG.warn("Failed to delete file '" + file.getName() + "' while purging directory.");
+                failures = true;
+            }
+        }
+
+        // Return the status
+        return !failures;
     }
 }
