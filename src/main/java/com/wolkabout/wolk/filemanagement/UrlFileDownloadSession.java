@@ -77,6 +77,8 @@ public class UrlFileDownloadSession {
         this.callback = callback;
         this.running = true;
 
+        this.fileData = new byte[0];
+
         // Start the download
         status = getCurrentStatus();
         error = null;
@@ -135,18 +137,15 @@ public class UrlFileDownloadSession {
             return false;
         }
         // If the session is not running
-        if (!this.running) {
+        if (!this.running || downloadTask == null || downloadTask.isDone()) {
             LOG.warn("Unable to abort transfer session. Session is not running.");
-            return false;
-        }
-        // If the task is not running
-        if (downloadTask == null || downloadTask.isDone()) {
-            LOG.warn("The file download is already done.");
             return false;
         }
 
         // Stop the task
         downloadTask.cancel(true);
+        this.fileData = new byte[0];
+        this.fileName = "";
 
         // Set the state for aborted
         this.running = false;
@@ -244,9 +243,9 @@ public class UrlFileDownloadSession {
         @Override
         public void run() {
             if (downloadFile(url)) {
-                LOG.info("File download was successful.");
+                LOG.info("File download on url '" + this.url + "' was successful.");
             } else {
-                LOG.info("File download was not successful.");
+                LOG.info("File download on url '" + this.url + "' was not successful.");
             }
         }
     }
