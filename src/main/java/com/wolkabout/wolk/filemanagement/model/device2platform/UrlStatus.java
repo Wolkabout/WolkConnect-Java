@@ -29,6 +29,23 @@ public class UrlStatus {
     private String fileName;
     private String fileUrl;
 
+    public UrlStatus(String fileUrl, FileTransferStatus status) {
+        this.status = status;
+        this.fileUrl = fileUrl;
+    }
+
+    public UrlStatus(String fileUrl, FileTransferStatus status, FileTransferError error) {
+        this.status = status;
+        this.error = error;
+        this.fileUrl = fileUrl;
+    }
+
+    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName) {
+        this.status = status;
+        this.fileName = fileName;
+        this.fileUrl = fileUrl;
+    }
+
     public FileTransferStatus getStatus() {
         return status;
     }

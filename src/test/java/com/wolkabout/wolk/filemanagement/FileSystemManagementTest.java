@@ -90,14 +90,17 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void checkInvalidPath() {
+    public void checkInvalidPath() throws IOException {
+        String testPath = "test/asdfasdf";
+        File existingFolder = new File(testPath);
+        existingFolder.createNewFile();
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("Path given as argument is not a valid directory path.");
-        new FileSystemManagement("asdf.asdf");
+        new FileSystemManagement(testPath);
     }
 
     @Test
-    public void simpleConstructorTestWithValidPath() {
+    public void simpleConstructorTestWithValidPath() throws IOException {
         // Create the management with valid test folder path
         management = new FileSystemManagement(testFolderPath);
     }
@@ -138,7 +141,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void addMockFile() {
+    public void addMockFile() throws IOException {
         // Setup the addition to be successful
         doReturn(true).when(fileMock).renameTo(any());
 
@@ -153,7 +156,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void addMockNonPurgingFile() throws NoSuchFieldException, IllegalAccessException {
+    public void addMockNonPurgingFile() throws NoSuchFieldException, IllegalAccessException, IOException {
         // Setup the addition to be successful
         doReturn(true).when(fileMock).renameTo(any());
         doReturn(false).when(fileMock).delete();
@@ -180,7 +183,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void createFileFromBytes() {
+    public void createFileFromBytes() throws IOException {
         // Create the management
         management = new FileSystemManagement(testFolderPath);
 
@@ -189,7 +192,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void createFileThatCannotBeCreated() {
+    public void createFileThatCannotBeCreated() throws IOException {
         // Create the hypothetical file
         String invalidFilePath = "this/path/totally/does/not/exist";
 
@@ -201,7 +204,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void deleteExistingFile() throws NoSuchFieldException, IllegalAccessException {
+    public void deleteExistingFile() throws NoSuchFieldException, IllegalAccessException, IOException {
         // Setup the folder mock
         doReturn(testFileName).when(fileMock).getName();
         doReturn(true).when(fileMock).delete();
@@ -225,7 +228,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void deleteFileThatDoesNotDelete() throws NoSuchFieldException, IllegalAccessException {
+    public void deleteFileThatDoesNotDelete() throws NoSuchFieldException, IllegalAccessException, IOException {
         // Setup the folder mock
         doReturn(testFileName).when(fileMock).getName();
         doReturn(false).when(fileMock).delete();
@@ -249,7 +252,7 @@ public class FileSystemManagementTest {
     }
 
     @Test
-    public void deleteFileThatDoesNotExist() throws NoSuchFieldException, IllegalAccessException {
+    public void deleteFileThatDoesNotExist() throws NoSuchFieldException, IllegalAccessException, IOException {
         // Setup the folder mock
         doReturn(testFileName).when(fileMock).getName();
         doReturn(new File[]{fileMock}).when(folderMock).listFiles();

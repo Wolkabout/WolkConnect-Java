@@ -16,187 +16,346 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.device2platform.UrlStatus;
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
-import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
+import com.wolkabout.wolk.filemanagement.model.device2platform.*;
+import com.wolkabout.wolk.filemanagement.model.platform2device.*;
 import com.wolkabout.wolk.util.JsonUtil;
-import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
+import org.apache.commons.codec.binary.Base64;
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 public class FileManagementProtocol {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocol.class);
-
-    // File upload initiation and input/output topics
-    private static final String FILE_UPLOAD_INITIATE = "p2d/file_upload_initiate/d/";
-    private static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";
-    private static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
-
-    // File upload chunk topics
-    private static final String FILE_BINARY_REQUEST = "d2p/file_binary_request/d/";
-    private static final String FILE_BINARY_RESPONSE = "p2d/file_binary_response/d/";
-
-    // File URL download initiation and input/output topics
-    private static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
-    private static final String FILE_URL_DOWNLOAD_STATUS = "d2p/file_url_download_status/d/";
-    private static final String FILE_URL_DOWNLOAD_ABORT = "p2d/file_url_download_abort/d/";
-
-    // File removal topics
-    private static final String FILE_DELETE = "p2d/file_delete/d/";
-    private static final String FILE_PURGE = "p2d/file_purge/d/";
-
-    // File list input/output topics
-    private static final String FILE_LIST_REQUEST = "p2d/file_list_request/d/";
-    private static final String FILE_LIST_RESPONSE = "d2p/file_list_response/d/";
-    private static final String FILE_LIST_UPDATE = "d2p/file_list_update/d/";
-    private static final String FILE_LIST_CONFIRM = "p2d/file_list_confirm/d/";
-
-    private final MqttClient client;
-
+    protected static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocol.class);
     protected static final int QOS = 0;
+    // File upload initiation and input/output topics
+    protected static final String FILE_UPLOAD_INITIATE = "p2d/file_upload_initiate/d/";
+    protected static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";
+    protected static final String FILE_UPLOAD_ABORT = "p2d/file_upload_abort/d/";
+    // File upload chunk topics
+    protected static final String FILE_BINARY_REQUEST = "d2p/file_binary_request/d/";
+    protected static final String FILE_BINARY_RESPONSE = "p2d/file_binary_response/d/";
+    // File URL download initiation and input/output topics
+    protected static final String FILE_URL_DOWNLOAD_INITIATE = "p2d/file_url_download_initiate/d/";
+    protected static final String FILE_URL_DOWNLOAD_STATUS = "d2p/file_url_download_status/d/";
+    protected static final String FILE_URL_DOWNLOAD_ABORT = "p2d/file_url_download_abort/d/";
+    // File removal topics
+    protected static final String FILE_DELETE = "p2d/file_delete/d/";
+    protected static final String FILE_PURGE = "p2d/file_purge/d/";
+    // File list input/output topics
+    protected static final String FILE_LIST_REQUEST = "p2d/file_list_request/d/";
+    protected static final String FILE_LIST_RESPONSE = "d2p/file_list_response/d/";
+    protected static final String FILE_LIST_UPDATE = "d2p/file_list_update/d/";
+    protected static final String FILE_LIST_CONFIRM = "p2d/file_list_confirm/d/";
+    // The MQTT client
+    protected final MqttClient client;
+    // The feature classes for functionality
+    protected FileSystemManagement management;
+    protected FileDownloadSession fileDownloadSession;
+    protected UrlFileDownloadSession urlFileDownloadSession;
 
-    public FileManagementProtocol(MqttClient client) {
+    /**
+     * This is the constructor for the FileManagement feature. This will create the file system folder
+     * by default `<work_dir>/files/`
+     *
+     * @param client The MQTT client passed to by the Wolk instance.
+     */
+    public FileManagementProtocol(MqttClient client) throws IOException {
+        if (client == null) {
+            throw new IllegalArgumentException("The client cannot be null.");
+        }
+
         this.client = client;
-//        this.urlDownloader = urlDownloader;
-
-//        this.fileDownloader = new FileDownloader(client, new FileDownloader.Callback() {
-//            @Override
-//            public void onStatusUpdate(FileTransferStatus status) {
-//                final UrlStatus urlStatus = new UrlStatus();
-//                urlStatus.setStatus(status);
-//                publishFlowStatus(urlStatus);
-//            }
-//
-//            @Override
-//            public void onError(FileTransferError error) {
-//                final UrlStatus errorStatus = new UrlStatus();
-//                errorStatus.setStatus(FileTransferStatus.ERROR);
-//                errorStatus.setError(error);
-//                publishFlowStatus(errorStatus);
-//            }
-//
-//            @Override
-//            public void onFileReceived(String fileName, byte[] bytes) {
-//                publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
-//                // TODO: callback for reporting file list
-//            }
-//        });
+        this.management = new FileSystemManagement("files/");
     }
 
+    /**
+     * This is the constructor for the FileManagement feature. This allows the user to set a custom folder path
+     * for storing files.
+     *
+     * @param client     The MQTT client passed to by the Wolk instance.
+     * @param folderPath The custom folder path for file storing.
+     * @throws IOException If folder does not exist, and cannot be made, this exception will be thrown.
+     */
+    public FileManagementProtocol(MqttClient client, String folderPath) throws IOException {
+        if (client == null) {
+            throw new IllegalArgumentException("The client cannot be null.");
+        }
+        if (folderPath.isEmpty()) {
+            throw new IllegalArgumentException("The folder path cannot be empty.");
+        }
+
+        this.client = client;
+        this.management = new FileSystemManagement(folderPath);
+    }
+
+    /**
+     * This is the method that is used to capture the file list and send it.
+     */
+    public void publishFileList() {
+        publishFileList(FILE_LIST_UPDATE);
+    }
+
+    /**
+     * This is the main method that uses the passed MqttClient to subscribe to all the topics
+     * that need to be subscribed to by the protocol.
+     */
     public void subscribe() {
         try {
-            client.subscribe(FILE_UPLOAD_INITIATE + client.getClientId(), QOS, new IMqttMessageListener() {
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    final FileInit fileInit = JsonUtil.deserialize(message, FileInit.class);
-//                    fileDownloader.download(fileInit);
-                    // TODO: Move to firmware update
-                    //                  firmwareInstaller.onInstallCommandReceived();
-                    //                  firmwareInstaller.onAbortCommandReceived();
-                }
-            });
-
-            client.subscribe(FILE_UPLOAD_ABORT + client.getClientId(), QOS, new IMqttMessageListener() {
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-//                    fileDownloader.abort();
-                }
-            });
-
-            client.subscribe(FILE_URL_DOWNLOAD_INITIATE + client.getClientId(), QOS, new IMqttMessageListener() {
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    final UrlInfo urlInfo = JsonUtil.deserialize(message, UrlInfo.class);
-//                    if (urlDownloader == null) {
-//                        publishFlowStatus(FileTransferError.TRANSFER_PROTOCOL_DISABLED);
-//                        return;
-//                    }
-
-                    publishFlowStatus(FileTransferStatus.FILE_TRANSFER, urlInfo.getFileUrl());
-
-//                    urlDownloader.downloadFile(urlInfo.getFileUrl(), new UrlFileDownloadSession.Callback() {
-//                        @Override
-//                        public void onError(FileTransferError error) {
-//                            publishFlowStatus(error);
-//                        }
-//
-//                        @Override
-//                        public void onFileReceived(String fileName, byte[] bytes) {
-//                            publishFlowStatus(FileTransferStatus.FILE_READY, fileName);
-//                            // TODO: publish file list
-//                        }
-//                    });
-                }
-
-                ;
-            });
-
-            client.subscribe(FILE_URL_DOWNLOAD_ABORT + client.getClientId(), QOS, new IMqttMessageListener() {
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-//                    if (urlDownloader != null) {
-//                        final UrlStatus status = new UrlStatus();
-//                        status.setStatus(FileTransferStatus.ABORTED);
-//                        if (urlDownloader.getUrl() != null) {
-//                            status.setFileUrl(urlDownloader.getUrl());
-//                        }
-//                        publishFlowStatus(status);
-//                        urlDownloader.abort();
-//                    }
-                }
-            });
-//            fileDownloader.prepareSubscription();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Unable to subscribe to all required topics.", e);
+            // File transfer subscriptions
+            client.subscribe(FILE_UPLOAD_INITIATE, QOS, this::handleFileTransferInitiation);
+            client.subscribe(FILE_UPLOAD_ABORT, QOS, this::handleFileTransferAbort);
+            client.subscribe(FILE_BINARY_RESPONSE, QOS, this::handleFileTransferBinaryResponse);
+            // File URL download subscriptions
+            client.subscribe(FILE_URL_DOWNLOAD_INITIATE, QOS, this::handleUrlDownloadInitiation);
+            client.subscribe(FILE_URL_DOWNLOAD_ABORT, QOS, this::handleUrlDownloadAbort);
+            // File deletion subscriptions
+            client.subscribe(FILE_DELETE, QOS, this::handleFileDeletion);
+            client.subscribe(FILE_PURGE, QOS, this::handleFilePurge);
+            // File list subscriptions
+            client.subscribe(FILE_LIST_REQUEST, QOS, this::handleFileListRequest);
+            client.subscribe(FILE_LIST_CONFIRM, QOS, this::logReceivedMqttMessage);
+        } catch (MqttException exception) {
+            LOG.error(exception.getMessage());
         }
     }
 
-    public void publishFlowStatus(FileTransferStatus status, String fileName) {
+    private void handleFileTransferInitiation(String topic, MqttMessage message) {
+        // If a session is already running, that means the initialization message is not acceptable now.
+        if (isSessionRunning()) {
+            logReceivedMqttMessage(topic, message);
+            LOG.warn("File transfer session is already ongoing. Ignoring this message...");
+            return;
+        }
+
+        // Parse the initialization message
+        FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
+        fileDownloadSession = new FileDownloadSession(initMessage, new FileDownloadSession.Callback() {
+            @Override
+            public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+                handleFileTransferRequest(fileName, chunkIndex, chunkSize);
+            }
+
+            @Override
+            public void onFinish(FileTransferStatus status, FileTransferError error) {
+                handleFileTransferFinish(fileDownloadSession, status, error);
+                fileDownloadSession = null;
+            }
+        });
+
+        // Send the transferring message
+        FileStatus statusMessage = new FileStatus(fileDownloadSession.getInitMessage().getFileName(),
+                FileTransferStatus.FILE_TRANSFER);
+        publish(FILE_UPLOAD_STATUS, statusMessage);
+    }
+
+    private void handleFileTransferAbort(String topic, MqttMessage message) {
+        // Null check the session
+        if (fileDownloadSession == null) {
+            LOG.warn("Received binary chunk data when session is not ongoing.");
+            return;
+        }
+
+        // Parse the payload and check its validity
+        FileAbort abortMessage = JsonUtil.deserialize(message, FileAbort.class);
+        if (!abortMessage.getFileName().equals(fileDownloadSession.getInitMessage().getFileName())) {
+            LOG.warn("Received file transfer abort message with non-matching file name.");
+            return;
+        }
+
+        // Abort the session
+        fileDownloadSession.abort();
+    }
+
+    private void handleFileTransferBinaryResponse(String topic, MqttMessage message) {
+        // Null check the session
+        if (fileDownloadSession == null) {
+            LOG.warn("Received binary chunk data when session is not ongoing.");
+            return;
+        }
+
+        // Pass on the payload
+        fileDownloadSession.receiveBytes(message.getPayload());
+    }
+
+    private void handleFileTransferRequest(String fileName, int chunkIndex, int chunkSize) {
+        // Create a message to request the data and send it
+        ChunkRequest chunkRequest = new ChunkRequest(fileName, chunkIndex, chunkSize);
+        publish(FILE_BINARY_REQUEST, chunkRequest);
+    }
+
+    private void handleFileTransferFinish(FileDownloadSession session, FileTransferStatus status,
+                                          FileTransferError error) {
+        // Null check what needs to be null checked
+        if (session == null) {
+            throw new IllegalStateException("Handle file session finish is called with a null session.");
+        }
         if (status == null) {
-            throw new IllegalArgumentException("Status must be set.");
+            throw new IllegalStateException("Handle file session finish is called with a null status.");
         }
 
-        if (status == FileTransferStatus.ERROR) {
-            throw new IllegalArgumentException("Use publishFlowStatus(FileTransferError error) to publish an error state.");
+        // Announce the not good status
+        if (status != FileTransferStatus.FILE_READY) {
+            FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status, error);
+            publish(FILE_UPLOAD_STATUS, statusMessage);
+            return;
         }
 
-        final UrlStatus urlStatus = new UrlStatus();
-        urlStatus.setStatus(status);
-        if (fileName.contains("/")) { // File names can't contain slashes, meaning it is a URL
-            urlStatus.setFileUrl(fileName);
-        }
-        else {
-            urlStatus.setFileName(fileName);
-        }
-        publishFlowStatus(urlStatus);
+        // Announce the status for good status, and save the data from file.
+        FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status);
+        publish(FILE_UPLOAD_STATUS, statusMessage);
+
+        // Make the file
+        management.createFile(session.getBytes(), session.getInitMessage().getFileName());
     }
 
-    public void publishFlowStatus(FileTransferError error) {
-        if (error == null) {
-            throw new IllegalArgumentException("Error must be set.");
+    /**
+     * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_INITIATE message is received.
+     */
+    private void handleUrlDownloadInitiation(String topic, MqttMessage message) {
+        // If a session is already running, that means the initialization message is not acceptable now.
+        if (isSessionRunning()) {
+            logReceivedMqttMessage(topic, message);
+            LOG.warn("File transfer session is already ongoing. Ignoring this message...");
+            return;
         }
 
-        final UrlStatus urlStatus = new UrlStatus();
-        urlStatus.setStatus(FileTransferStatus.ERROR);
-        urlStatus.setError(error);
-        publishFlowStatus(urlStatus);
+        // Parse the initialization message and create the session
+        UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
+        urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
+            handleUrlSessionFinish(urlFileDownloadSession, status, error);
+            urlFileDownloadSession = null;
+        });
+
+        // Give the transfer message
+        UrlStatus statusMessage = new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER);
+        publish(FILE_URL_DOWNLOAD_STATUS, statusMessage);
     }
 
+    /**
+     * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_ABORT message is received.
+     */
+    private void handleUrlDownloadAbort(String topic, MqttMessage message) {
+        // Null check the session
+        if (urlFileDownloadSession == null) {
+            LOG.warn("Received URL download abort while session is not running.");
+            return;
+        }
 
-    private void publishFlowStatus(UrlStatus urlStatus) {
-        if (urlStatus.getFileUrl() == null) {
-            publish(FILE_UPLOAD_STATUS + client.getClientId(), urlStatus);
+        // Parse the payload, and check its validity
+        UrlAbort abortMessage = JsonUtil.deserialize(message, UrlAbort.class);
+        if (!abortMessage.getFileUrl().equals(urlFileDownloadSession.getInitMessage().getFileUrl())) {
+            LOG.warn("Received URL download abort for non-matching URL paths.");
+            return;
         }
-        else {
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), urlStatus);
-        }
+
+        // Abort the message
+        urlFileDownloadSession.abort();
     }
 
+    /**
+     * This is the callback method for the URL Download session to handle the result of the session.
+     */
+    private void handleUrlSessionFinish(UrlFileDownloadSession session, FileTransferStatus status,
+                                        FileTransferError error) {
+        // Null check what needs to be null checked
+        if (session == null) {
+            throw new IllegalStateException("Handle URL session finish is called with a null session.");
+        }
+        if (status == null) {
+            throw new IllegalStateException("Handle URL session finish is called with a null status.");
+        }
+
+        // Announce the not good status
+        if (status != FileTransferStatus.FILE_READY) {
+            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), status, error);
+            publish(FILE_URL_DOWNLOAD_STATUS, statusMessage);
+            return;
+        }
+
+        // Announce the status for good status, and save the data from file.
+        UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY,
+                session.getFileName());
+        publish(FILE_URL_DOWNLOAD_STATUS, statusMessage);
+
+        // Make the file
+        management.createFile(session.getFileData(), session.getFileName());
+    }
+
+    /**
+     * This is the method that defines the behaviour when a FILE_DELETE message is received.
+     */
+    private void handleFileDeletion(String topic, MqttMessage message) {
+        FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
+        management.deleteFile(fileDelete.getFileName());
+    }
+
+    /**
+     * This is the method that defines the behaviour when a FILE_PURGE message is received.
+     */
+    private void handleFilePurge(String topic, MqttMessage message) {
+        management.purgeDirectory();
+    }
+
+    /**
+     * This is the method that defines the behaviour when a FILE_LIST_REQUEST message is received.
+     */
+    private void handleFileListRequest(String topic, MqttMessage message) {
+        publishFileList(FILE_LIST_RESPONSE);
+    }
+
+    /**
+     * This is the method that is used to capture the file list and send it.
+     * This one takes in a topic to which the message will be sent.
+     *
+     * @param topic The topic to which the message will be sent.
+     */
+    private void publishFileList(String topic) {
+        // Acquire all the files
+        List<String> files = management.listAllFiles();
+        LOG.trace("Peeked the file system to find files, found " + files.size() + " files.");
+
+        // Place them all in the payload
+        List<FileInformation> payload = new ArrayList<>();
+        for (String file : files) {
+            payload.add(new FileInformation(file));
+        }
+        LOG.trace("Created payload to announce '" + Base64.encodeBase64String(JsonUtil.serialize(payload)) + "'.");
+
+        // Send everything
+        publish(topic, payload);
+    }
+
+    /**
+     * This is a utility method that is meant to just log a received message.
+     */
+    private void logReceivedMqttMessage(String topic, MqttMessage message) {
+        LOG.info("Received '" + topic + "' -> " + message.toString() + ".");
+    }
+
+    /**
+     * This is a utility method that returns whether or not some session is ongoing.
+     *
+     * @return Returns true if some session is ongoing.
+     */
+    private boolean isSessionRunning() {
+        LOG.trace("Session running check: 'File Download: " + (fileDownloadSession != null) +
+                "'/'Url File Download: " + (urlFileDownloadSession != null) + "'.");
+        return fileDownloadSession != null || urlFileDownloadSession != null;
+    }
+
+    /**
+     * This is an internal method used to publish a message to the MQTT broker.
+     *
+     * @param topic   Topic to which the message is being sent.
+     * @param payload This is the object payload that will be parsed into JSON and sent.
+     */
     private void publish(String topic, Object payload) {
         try {
             LOG.debug("Publishing to '" + topic + "' payload: " + payload);

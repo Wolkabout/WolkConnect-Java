@@ -47,14 +47,39 @@ import java.util.stream.Collectors;
  */
 public class Wolk {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
-
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
-
-
-    private boolean keepAliveServiceEnabled = true;
+    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
+    private boolean keepAliveServiceEnabled = true;
+    private ScheduledFuture<?> runningPublishTask;
+    private ScheduledFuture<?> runningPublishKeepAliveTask;
+    /**
+     * MQTT client.
+     */
+    private MqttClient client;
+    /**
+     * MQTT connect options
+     */
+    private MqttConnectOptions options;
+    /**
+     * Protocol for sending and receiving data.
+     */
+    private Protocol protocol;
+    private final Runnable publishKeepAlive = new Runnable() {
+        @Override
+        public void run() {
+            protocol.publishKeepAlive();
+        }
+    };
+    /**
+     * Protocol for receiving firmware updates.
+     */
+    private FileManagementProtocol fileManagementProtocol;
+    /**
+     * Persistence mechanism for storing and retrieving data.
+     */
+    private Persistence persistence;
     private final Runnable publishTask = new Runnable() {
         @Override
         public void run() {
@@ -62,41 +87,9 @@ public class Wolk {
         }
     };
 
-    private final Runnable publishKeepAlive = new Runnable() {
-        @Override
-        public void run() {
-            protocol.publishKeepAlive();
-        }
-    };
-    private ScheduledFuture<?> runningPublishTask;
-    private ScheduledFuture<?> runningPublishKeepAliveTask;
-
-
-    /**
-     * MQTT client.
-     */
-    private MqttClient client;
-
-    /**
-     * MQTT connect options
-     */
-    private MqttConnectOptions options;
-
-    /**
-     * Protocol for sending and receiving data.
-     */
-    private Protocol protocol;
-
-    /**
-     * Protocol for receiving firmware updates.
-     */
-    private FileManagementProtocol fileManagementProtocol;
-
-    /**
-     * Persistence mechanism for storing and retrieving data.
-     */
-    private Persistence persistence;
-
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public void connect() {
         try {
@@ -375,41 +368,6 @@ public class Wolk {
         }
     }
 
-    /**
-     * Publishes the progress of file transfer.
-     * To publish an error state use {link {@link #publishFileTransferStatus(FileTransferError)}}
-     *
-     * @param status Status of the file transfer.
-     */
-    public void publishFileTransferStatus(FileTransferStatus status) {
-        if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
-        }
-
-        try {
-//            fileManagementProtocol.publishFlowStatus(status);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware update status", e);
-        }
-    }
-
-    /**
-     * Publishes an error that occurred during firmware update.
-     *
-     * @param error Error that terminated firmware update.
-     */
-    public void publishFileTransferStatus(FileTransferError error) {
-        if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
-        }
-
-        try {
-            fileManagementProtocol.publishFlowStatus(error);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware update status", e);
-        }
-    }
-
     private void subscribe() {
         try {
             protocol.subscribe();
@@ -420,10 +378,6 @@ public class Wolk {
         } catch (Exception e) {
             LOG.debug("Unable to subscribe to all required topics.", e);
         }
-    }
-
-    public static Builder builder() {
-        return new Builder();
     }
 
     public static class Builder {
@@ -569,8 +523,10 @@ public class Wolk {
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
 
+                LOG.error(wolk.client.getClientId());
+
 //                if (firmwareUpdateEnabled) {
-//                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, urlFileDownloadSession);
+//                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client);
 //                    firmwareInstaller.setWolk(wolk);
 //                }
 

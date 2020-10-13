@@ -46,12 +46,15 @@ public class FileSystemManagement {
      *
      * @param folderPath The absolute/relative path to the folder where the manager will work.
      */
-    public FileSystemManagement(String folderPath) {
+    public FileSystemManagement(String folderPath) throws IOException {
         // Give it a new `File` instance and check whether the path is a valid directory path
         this.folder = new File(folderPath);
         if (!this.folder.isDirectory()) {
-            throw new IllegalArgumentException("Path given as argument is not a valid directory path.");
+            if (!this.folder.createNewFile()) {
+                throw new IllegalArgumentException("Path given as argument is not a valid directory path.");
+            }
         }
+        LOG.debug("Initialized file system management for absolute path '" + this.folder.getAbsolutePath() + "'.");
     }
 
     /**
@@ -62,6 +65,7 @@ public class FileSystemManagement {
      */
     public List<String> listAllFiles() {
         // Create the list where to store all the file names
+        LOG.debug("Peeking the file system for all files.");
         ArrayList<String> files = new ArrayList<>();
 
         // List through all the files
@@ -72,6 +76,7 @@ public class FileSystemManagement {
         }
 
         // Return all the names
+        LOG.debug("Found " + files.size() + " files.");
         return files;
     }
 
@@ -82,6 +87,8 @@ public class FileSystemManagement {
      * @return Success status of the operation.
      */
     public boolean addFile(File newFile) {
+        LOG.debug("Attempting to add an existing file '" + newFile.getName() +
+                "'@'" + newFile.getAbsolutePath() + "'.");
         return newFile.renameTo(new File(folder.getAbsolutePath() + SEPARATOR + newFile.getName()));
     }
 
@@ -93,6 +100,7 @@ public class FileSystemManagement {
      * @return Success status of the operation.
      */
     public boolean createFile(byte[] bytes, String fileName) {
+        LOG.debug("Attempting to create file '" + fileName + "' with " + bytes.length + " bytes.");
         try (FileOutputStream stream = new FileOutputStream(folder.getAbsolutePath() + SEPARATOR + fileName)) {
             stream.write(bytes);
             return true;
@@ -110,6 +118,7 @@ public class FileSystemManagement {
      */
     public boolean deleteFile(String fileName) {
         // Iterate through all the files
+        LOG.debug("Attempting to delete file '" + fileName + "' from the file system.");
         for (File file : Objects.requireNonNull(folder.listFiles())) {
             if (file.getName().equals(fileName)) {
                 return file.delete();
@@ -127,6 +136,7 @@ public class FileSystemManagement {
      */
     public boolean purgeDirectory() {
         // Create a place to record status
+        LOG.debug("Purging the file system directory.");
         boolean failures = false;
 
         // Iterate through all the files

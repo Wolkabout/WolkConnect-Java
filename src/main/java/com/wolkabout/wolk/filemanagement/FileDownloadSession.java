@@ -137,8 +137,12 @@ public class FileDownloadSession {
         return error;
     }
 
-    public List<Byte> getBytes() {
-        return bytes;
+    public byte[] getBytes() {
+        byte[] newBytes = new byte[bytes.size()];
+        for (int i = 0; i < bytes.size(); i++) {
+            newBytes[i] = bytes.get(i);
+        }
+        return newBytes;
     }
 
     /**
