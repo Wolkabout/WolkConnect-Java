@@ -96,10 +96,28 @@ public class FileSystemManagement {
         try (FileOutputStream stream = new FileOutputStream(folder.getAbsolutePath() + SEPARATOR + fileName)) {
             stream.write(bytes);
             return true;
-        } catch (IOException e) {
-            LOG.error(e.getLocalizedMessage());
+        } catch (IOException exception) {
+            LOG.error(exception.getLocalizedMessage());
             return false;
         }
+    }
+
+    /**
+     * This is the method used to delete a single file that can be found in the directory.
+     *
+     * @param fileName The exact name for the file that user wishes to delete.
+     * @return Success status of the operation.
+     */
+    public boolean deleteFile(String fileName) {
+        // Iterate through all the files
+        for (File file : Objects.requireNonNull(folder.listFiles())) {
+            if (file.getName().equals(fileName)) {
+                return file.delete();
+            }
+        }
+
+        // If nothing happened, just return false
+        return false;
     }
 
     /**

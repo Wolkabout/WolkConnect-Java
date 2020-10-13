@@ -35,9 +35,9 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.*;
 
+@SuppressWarnings("ResultOfMethodCallIgnored")
 @RunWith(MockitoJUnitRunner.class)
 public class FileSystemManagementTest {
 
@@ -51,6 +51,7 @@ public class FileSystemManagementTest {
     // Created at creation
     private final String testFolderPath;
     private final File testFolder;
+    private final byte[] testBytes;
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
     @Mock
@@ -62,17 +63,19 @@ public class FileSystemManagementTest {
     public FileSystemManagementTest() {
         testFolderPath = Paths.get(".").toAbsolutePath().normalize().toString() + SEPARATOR + testFolderName;
         testFolder = new File(testFolderPath);
+
+        testBytes = new byte[]{0, 123, 55, 125};
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         if (!testFolder.mkdir()) {
             LOG.warn("Test folder path already existed. Will be deleted afterwards anyways.");
         }
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         if (Objects.requireNonNull(testFolder.listFiles()).length > 0) {
             for (File file : Objects.requireNonNull(testFolder.listFiles())) {
                 if (!file.delete()) {
@@ -144,6 +147,9 @@ public class FileSystemManagementTest {
 
         // Add the file
         assertTrue(management.addFile(fileMock));
+
+        // Verify the mock was used
+        verify(fileMock, times(1)).renameTo(any());
     }
 
     @Test
@@ -166,30 +172,102 @@ public class FileSystemManagementTest {
 
         // Attempt to purge an undelete-able file
         assertFalse(management.purgeDirectory());
+
+        // Verify everything was called
+        verify(fileMock, times(1)).renameTo(any());
+        verify(fileMock, times(1)).delete();
+        verify(folderMock, times(1)).listFiles();
     }
 
     @Test
     public void createFileFromBytes() {
-        // Create the hypothetical file
-        byte[] bytes = new byte[]{0, 123, 55, 125};
-
         // Create the management
         management = new FileSystemManagement(testFolderPath);
 
         // Create the file
-        assertTrue(management.createFile(bytes, testFileName));
+        assertTrue(management.createFile(testBytes, testFileName));
     }
 
     @Test
     public void createFileThatCannotBeCreated() {
         // Create the hypothetical file
-        byte[] bytes = new byte[]{0, 123, 55, 125};
         String invalidFilePath = "this/path/totally/does/not/exist";
 
         // Create the management
         management = new FileSystemManagement(testFolderPath);
 
         // Create the file
-        assertFalse(management.createFile(bytes, invalidFilePath));
+        assertFalse(management.createFile(testBytes, invalidFilePath));
+    }
+
+    @Test
+    public void deleteExistingFile() throws NoSuchFieldException, IllegalAccessException {
+        // Setup the folder mock
+        doReturn(testFileName).when(fileMock).getName();
+        doReturn(true).when(fileMock).delete();
+        doReturn(new File[]{fileMock}).when(folderMock).listFiles();
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Inject the mock
+        Field folderFile = FileSystemManagement.class.getDeclaredField("folder");
+        folderFile.setAccessible(true);
+        folderFile.set(management, folderMock);
+
+        // Delete the mock file
+        assertTrue(management.deleteFile(testFileName));
+
+        // Verify the mocks were called
+        verify(fileMock, times(1)).getName();
+        verify(fileMock, times(1)).delete();
+        verify(folderMock, times(1)).listFiles();
+    }
+
+    @Test
+    public void deleteFileThatDoesNotDelete() throws NoSuchFieldException, IllegalAccessException {
+        // Setup the folder mock
+        doReturn(testFileName).when(fileMock).getName();
+        doReturn(false).when(fileMock).delete();
+        doReturn(new File[]{fileMock}).when(folderMock).listFiles();
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Inject the mock
+        Field folderFile = FileSystemManagement.class.getDeclaredField("folder");
+        folderFile.setAccessible(true);
+        folderFile.set(management, folderMock);
+
+        // Delete the mock file
+        assertFalse(management.deleteFile(testFileName));
+
+        // Verify the mocks were called
+        verify(fileMock, times(1)).getName();
+        verify(fileMock, times(1)).delete();
+        verify(folderMock, times(1)).listFiles();
+    }
+
+    @Test
+    public void deleteFileThatDoesNotExist() throws NoSuchFieldException, IllegalAccessException {
+        // Setup the folder mock
+        doReturn(testFileName).when(fileMock).getName();
+        doReturn(new File[]{fileMock}).when(folderMock).listFiles();
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Inject the mock
+        Field folderFile = FileSystemManagement.class.getDeclaredField("folder");
+        folderFile.setAccessible(true);
+        folderFile.set(management, folderMock);
+
+        // Delete the mock file
+        assertFalse(management.deleteFile("asdf.asdf"));
+
+        // Verify the mocks were called
+        verify(fileMock, times(1)).getName();
+        verify(fileMock, times(0)).delete();
+        verify(folderMock, times(1)).listFiles();
     }
 }
