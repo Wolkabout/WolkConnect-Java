@@ -50,7 +50,7 @@ public class FileSystemManagement {
         // Give it a new `File` instance and check whether the path is a valid directory path
         this.folder = new File(folderPath);
         if (!this.folder.isDirectory()) {
-            if (!this.folder.createNewFile()) {
+            if (!this.folder.mkdir()) {
                 throw new IllegalArgumentException("Path given as argument is not a valid directory path.");
             }
         }

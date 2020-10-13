@@ -109,24 +109,25 @@ public class FileManagementProtocol {
     public void subscribe() {
         try {
             // File transfer subscriptions
-            client.subscribe(FILE_UPLOAD_INITIATE, QOS, this::handleFileTransferInitiation);
-            client.subscribe(FILE_UPLOAD_ABORT, QOS, this::handleFileTransferAbort);
-            client.subscribe(FILE_BINARY_RESPONSE, QOS, this::handleFileTransferBinaryResponse);
+            client.subscribe(FILE_UPLOAD_INITIATE + client.getClientId(), QOS, this::handleFileTransferInitiation);
+            client.subscribe(FILE_UPLOAD_ABORT + client.getClientId(), QOS, this::handleFileTransferAbort);
+            client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS, this::handleFileTransferBinaryResponse);
             // File URL download subscriptions
-            client.subscribe(FILE_URL_DOWNLOAD_INITIATE, QOS, this::handleUrlDownloadInitiation);
-            client.subscribe(FILE_URL_DOWNLOAD_ABORT, QOS, this::handleUrlDownloadAbort);
+            client.subscribe(FILE_URL_DOWNLOAD_INITIATE + client.getClientId(), QOS, this::handleUrlDownloadInitiation);
+            client.subscribe(FILE_URL_DOWNLOAD_ABORT + client.getClientId(), QOS, this::handleUrlDownloadAbort);
             // File deletion subscriptions
-            client.subscribe(FILE_DELETE, QOS, this::handleFileDeletion);
-            client.subscribe(FILE_PURGE, QOS, this::handleFilePurge);
+            client.subscribe(FILE_DELETE + client.getClientId(), QOS, this::handleFileDeletion);
+            client.subscribe(FILE_PURGE + client.getClientId(), QOS, this::handleFilePurge);
             // File list subscriptions
-            client.subscribe(FILE_LIST_REQUEST, QOS, this::handleFileListRequest);
-            client.subscribe(FILE_LIST_CONFIRM, QOS, this::logReceivedMqttMessage);
+            client.subscribe(FILE_LIST_REQUEST + client.getClientId(), QOS, this::handleFileListRequest);
+            client.subscribe(FILE_LIST_CONFIRM + client.getClientId(), QOS, this::logReceivedMqttMessage);
         } catch (MqttException exception) {
             LOG.error(exception.getMessage());
         }
     }
 
     private void handleFileTransferInitiation(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         // If a session is already running, that means the initialization message is not acceptable now.
         if (isSessionRunning()) {
             logReceivedMqttMessage(topic, message);
@@ -156,6 +157,7 @@ public class FileManagementProtocol {
     }
 
     private void handleFileTransferAbort(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         // Null check the session
         if (fileDownloadSession == null) {
             LOG.warn("Received binary chunk data when session is not ongoing.");
@@ -174,6 +176,7 @@ public class FileManagementProtocol {
     }
 
     private void handleFileTransferBinaryResponse(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         // Null check the session
         if (fileDownloadSession == null) {
             LOG.warn("Received binary chunk data when session is not ongoing.");
@@ -219,6 +222,7 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_INITIATE message is received.
      */
     private void handleUrlDownloadInitiation(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         // If a session is already running, that means the initialization message is not acceptable now.
         if (isSessionRunning()) {
             logReceivedMqttMessage(topic, message);
@@ -242,6 +246,7 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_ABORT message is received.
      */
     private void handleUrlDownloadAbort(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         // Null check the session
         if (urlFileDownloadSession == null) {
             LOG.warn("Received URL download abort while session is not running.");
@@ -292,6 +297,7 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_DELETE message is received.
      */
     private void handleFileDeletion(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
         management.deleteFile(fileDelete.getFileName());
     }
@@ -300,6 +306,7 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_PURGE message is received.
      */
     private void handleFilePurge(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         management.purgeDirectory();
     }
 
@@ -307,6 +314,7 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_LIST_REQUEST message is received.
      */
     private void handleFileListRequest(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
         publishFileList(FILE_LIST_RESPONSE);
     }
 
@@ -336,7 +344,7 @@ public class FileManagementProtocol {
      * This is a utility method that is meant to just log a received message.
      */
     private void logReceivedMqttMessage(String topic, MqttMessage message) {
-        LOG.info("Received '" + topic + "' -> " + message.toString() + ".");
+        LOG.debug("Received '" + topic + "' -> " + message.toString() + ".");
     }
 
     /**

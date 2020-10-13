@@ -18,9 +18,6 @@ package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
-import com.wolkabout.wolk.filemanagement.UrlFileDownloadSession;
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -33,6 +30,7 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -414,6 +412,10 @@ public class Wolk {
 
         private Persistence persistence = new InMemoryPersistence();
 
+        private boolean fileManagementEnabled = false;
+
+        private String fileManagementLocation = null;
+
         private boolean firmwareUpdateEnabled = false;
 
         private FirmwareInstaller firmwareInstaller = null;
@@ -468,21 +470,35 @@ public class Wolk {
             return this;
         }
 
+        public Builder enableFileManagement() {
+            fileManagementEnabled = true;
+            return this;
+        }
+
+        public Builder enableFileManagement(String fileManagementLocation) {
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            return this;
+        }
+
         public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
+            fileManagementEnabled = true;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloadSession urlFileDownloadSession) {
+        public Builder enableFirmwareUpdate(String fileManagementLocation, FirmwareInstaller firmwareInstaller) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
             return this;
@@ -523,12 +539,11 @@ public class Wolk {
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
 
-                LOG.error(wolk.client.getClientId());
-
-//                if (firmwareUpdateEnabled) {
-//                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client);
-//                    firmwareInstaller.setWolk(wolk);
-//                }
+                if (fileManagementEnabled) {
+                    wolk.fileManagementProtocol = fileManagementLocation != null ?
+                            new FileManagementProtocol(wolk.client, fileManagementLocation) :
+                            new FileManagementProtocol(wolk.client);
+                }
 
                 actuatorHandler.setWolk(wolk);
                 configurationHandler.setWolk(wolk);
@@ -536,6 +551,8 @@ public class Wolk {
                 wolk.keepAliveServiceEnabled = keepAliveServiceEnabled;
 
                 return wolk;
+            } catch (IOException ioException) {
+                throw new IllegalArgumentException("Unable to use file management folder.", ioException);
             } catch (MqttException mqttException) {
                 throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);
             }
