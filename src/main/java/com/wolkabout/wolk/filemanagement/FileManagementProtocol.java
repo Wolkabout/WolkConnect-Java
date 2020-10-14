@@ -336,6 +336,7 @@ public class FileManagementProtocol {
         logReceivedMqttMessage(topic, message);
         FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
         management.deleteFile(fileDelete.getFileName());
+        publishFileList();
     }
 
     /**
@@ -344,6 +345,7 @@ public class FileManagementProtocol {
     private void handleFilePurge(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         management.purgeDirectory();
+        publishFileList();
     }
 
     /**
