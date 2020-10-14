@@ -380,7 +380,11 @@ public class FileManagementProtocol {
      * This is a utility method that is meant to just log a received message.
      */
     private void logReceivedMqttMessage(String topic, MqttMessage message) {
-        LOG.debug("Received '" + topic + "' -> " + message.toString() + ".");
+        if (message.getPayload().length > 1000) {
+            LOG.debug("Received '" + topic + "' -> " + message.getPayload().length + " bytes.");
+        } else {
+            LOG.debug("Received '" + topic + "' -> " + message.toString() + ".");
+        }
     }
 
     /**

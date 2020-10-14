@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 /**
  * All possible values found in the `error` value for status transfer messages.
  */
@@ -42,6 +44,13 @@ public enum FileTransferError {
     // A device has failed to recover from error 3 times in a row during upload/download.
     RETRY_COUNT_EXCEEDED(10);
 
+    // Error code value as int
+    private final int code;
+
+    FileTransferError(int code) {
+        this.code = code;
+    }
+
     // Convert the enum value into string
     public static String toString(FileTransferError value) {
         return value.name();
@@ -58,13 +67,7 @@ public enum FileTransferError {
         return UNSPECIFIED_ERROR;
     }
 
-    // Error code value as int
-    private final int code;
-
-    FileTransferError(int code) {
-        this.code = code;
-    }
-
+    @JsonValue
     public int getCode() {
         return code;
     }

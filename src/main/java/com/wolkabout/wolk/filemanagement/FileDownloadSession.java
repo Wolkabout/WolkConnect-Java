@@ -45,7 +45,7 @@ public class FileDownloadSession {
     private static final int MINIMUM_PACKET_SIZE = 65;
     private static final int PREVIOUS_HASH_SIZE = 32;
     private static final int CURRENT_HASH_SIZE = 32;
-    private static final int CHUNK_SIZE = 1000000;
+    private static final int CHUNK_SIZE = 250000;
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
     // The executor
@@ -94,13 +94,12 @@ public class FileDownloadSession {
         this.chunkSizes = new ArrayList<>();
 
         // Calculate the chunk count, and each of their sizes
-        long fullChunkDataBytes = CHUNK_SIZE - (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE);
-        long fullSizedChunks = initMessage.getFileSize() / fullChunkDataBytes;
-        long leftoverSizedChunk = initMessage.getFileSize() % fullChunkDataBytes;
+        long fullSizedChunks = initMessage.getFileSize() / CHUNK_SIZE;
+        long leftoverSizedChunk = initMessage.getFileSize() % CHUNK_SIZE;
 
         // Append them all into the list
         for (int i = 0; i < fullSizedChunks; i++) {
-            chunkSizes.add(CHUNK_SIZE);
+            chunkSizes.add(CHUNK_SIZE + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
         }
 
         if (leftoverSizedChunk > 0) {
@@ -231,6 +230,7 @@ public class FileDownloadSession {
             // Analyze the hash of last chunk with the hash received in this message for chunk before.
             if (!Arrays.equals(previousHash, hashes.get(hashes.size() - 1))) {
                 // Return a chunk back, remove the hash, and delete the bytes
+                LOG.warn("Received hash for previous chunk and calculated hash of previous chunk do not match.");
                 --currentChunk;
                 hashes.remove(currentChunk);
                 for (int i = 0; i < chunkSizes.get(currentChunk); i++) {
@@ -245,6 +245,7 @@ public class FileDownloadSession {
         // Calculate the hash for current data and check it
         byte[] calculatedHash = calculateHashForBytes(chunkData);
         if (!Arrays.equals(calculatedHash, currentHash)) {
+            LOG.warn("Hash of the current chunk calculated does not match the sent hash.");
             return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
         }
 
@@ -306,7 +307,7 @@ public class FileDownloadSession {
      * which the current hash is invalid, will be re-obtained.
      */
     private boolean requestChunkAgain(String fileName, int chunkIndex, int chunkSize) {
-        LOG.debug("Requesting a chunk again.");
+        LOG.debug("Requesting a chunk again(" + chunkIndex + ").");
 
         // If we already requested the chunk over the limit, restart the process
         if (chunkRetryCount == MAX_RETRY) {
