@@ -44,7 +44,7 @@ public class FileDownloadSessionTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileDownloadSessionTest.class);
 
-    private final int MEGABYTE = 1000000;
+    private final int MAX_CHUNK_SIZE = 250000;
     private final int CHUNK_EXTRA = 64;
     // Define the constants
     private final int testFileSize = 1024;
@@ -94,7 +94,7 @@ public class FileDownloadSessionTest {
         // Prepare the steps
         final int START = 100;
         final int STEP = 100;
-        final int MAX = MEGABYTE - CHUNK_EXTRA;
+        final int MAX = MAX_CHUNK_SIZE - CHUNK_EXTRA;
 
         // Prepare the message
         FileInit message = new FileInit();
@@ -123,9 +123,7 @@ public class FileDownloadSessionTest {
     @Test
     public void chunkSizeMultipleChunks() throws NoSuchFieldException, IllegalAccessException {
         // Prepare the steps
-        final int START = 500000;
-        final int STEP = MEGABYTE;
-        final int DATA_IN_CHUNK = MEGABYTE - CHUNK_EXTRA;
+        final int START = 1000;
         final int MAX = 15000000;
 
         // Prepare the message
@@ -138,7 +136,7 @@ public class FileDownloadSessionTest {
         chunkSizesField.setAccessible(true);
 
         // Do the looping around these values
-        for (int i = START; i <= MAX; i += STEP) {
+        for (int i = START; i <= MAX; i += MAX_CHUNK_SIZE) {
             // Adjust the message
             message.setFileSize(i);
 
@@ -147,12 +145,12 @@ public class FileDownloadSessionTest {
 
             // Check the values
             List<Integer> chunkSizes = (List<Integer>) chunkSizesField.get(session);
-            assertEquals(chunkSizes.size(), (i / DATA_IN_CHUNK) + 1);
-            for (int j = 0; j < (i / DATA_IN_CHUNK) + 1; j++) {
-                if (j == (i / DATA_IN_CHUNK)) {
-                    assertEquals(chunkSizes.get(j), Integer.valueOf((i + (CHUNK_EXTRA * (j + 1))) % MEGABYTE));
+            assertEquals(chunkSizes.size(), (i / MAX_CHUNK_SIZE) + 1);
+            for (int j = 0; j < (i / (MAX_CHUNK_SIZE + CHUNK_EXTRA)) + 1; j++) {
+                if (j == (i / MAX_CHUNK_SIZE)) {
+                    assertEquals(chunkSizes.get(j), Integer.valueOf((i + CHUNK_EXTRA) % MAX_CHUNK_SIZE));
                 } else {
-                    assertEquals(chunkSizes.get(j), Integer.valueOf(MEGABYTE));
+                    assertEquals(chunkSizes.get(j), Integer.valueOf(MAX_CHUNK_SIZE + CHUNK_EXTRA));
                 }
             }
         }
@@ -411,26 +409,23 @@ public class FileDownloadSessionTest {
         // This is going to be 6 chunks, hashes are all going to be the same ones.
 
         // Calculate the hash
-        byte[] hash = DigestUtils.sha256(new byte[MEGABYTE - CHUNK_EXTRA]);
-        byte[] lastHash = DigestUtils.sha256(new byte[5 * CHUNK_EXTRA]);
+        byte[] hash = DigestUtils.sha256(new byte[MAX_CHUNK_SIZE]);
         // Setup the chunks
-        byte[] firstChunk = new byte[MEGABYTE], otherChunks = new byte[MEGABYTE], lastChunk = new byte[(6 * CHUNK_EXTRA)];
+        byte[] firstChunk = new byte[MAX_CHUNK_SIZE + CHUNK_EXTRA], otherChunks = new byte[MAX_CHUNK_SIZE + CHUNK_EXTRA];
         for (int i = 0; i < hash.length; i++) {
             // Copy into first bytes for other chunks
             otherChunks[i] = hash[i];
-            lastChunk[i] = hash[i];
             // Copy into last bytes for other chunks
             firstChunk[firstChunk.length - (CHUNK_EXTRA / 2) + i] = hash[i];
             otherChunks[otherChunks.length - (CHUNK_EXTRA / 2) + i] = hash[i];
-            lastChunk[lastChunk.length - (CHUNK_EXTRA / 2) + i] = lastHash[i];
         }
 
         // Prepare the message
-        byte[] messageHash = DigestUtils.sha256(new byte[5 * MEGABYTE]);
+        byte[] messageHash = DigestUtils.sha256(new byte[5 * MAX_CHUNK_SIZE]);
         FileInit message = new FileInit();
         message.setFileName("test-file-message");
         message.setFileHash(Base64.encodeBytes(messageHash));
-        message.setFileSize(5 * MEGABYTE);
+        message.setFileSize(5 * MAX_CHUNK_SIZE);
 
         // Prepare the queue
         Queue<byte[]> queue = new LinkedList<byte[]>() {{
@@ -439,7 +434,6 @@ public class FileDownloadSessionTest {
             add(otherChunks);
             add(otherChunks);
             add(otherChunks);
-            add(lastChunk);
         }};
 
         // Setup the calls
@@ -459,20 +453,20 @@ public class FileDownloadSessionTest {
         Thread.sleep(1000);
 
         // Verify everything was called, and the status was returned successfully.
-        verify(callbackMock, times(6)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(5)).sendRequest(anyString(), anyInt(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
     @Test
     public void multiChunkSecondChunkInvalidHashFirstTime() throws InterruptedException {
         // Calculate the hashes
-        byte[] firstHash = DigestUtils.sha256(new byte[MEGABYTE - CHUNK_EXTRA]);
-        byte[] secondHash = DigestUtils.sha256(new byte[MEGABYTE / 2 + CHUNK_EXTRA]);
+        byte[] firstHash = DigestUtils.sha256(new byte[MAX_CHUNK_SIZE]);
+        byte[] secondHash = DigestUtils.sha256(new byte[MAX_CHUNK_SIZE / 2]);
 
         // Create the payload
-        byte[] firstPayload = new byte[MEGABYTE];
-        byte[] secondPayloadInvalid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
-        byte[] secondPayloadValid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
+        byte[] firstPayload = new byte[MAX_CHUNK_SIZE + CHUNK_EXTRA];
+        byte[] secondPayloadInvalid = new byte[(MAX_CHUNK_SIZE / 2) + CHUNK_EXTRA];
+        byte[] secondPayloadValid = new byte[(MAX_CHUNK_SIZE / 2) + CHUNK_EXTRA];
         for (int i = 0; i < firstHash.length; i++) {
             // Set the first hash as valid
             firstPayload[firstPayload.length - (CHUNK_EXTRA / 2) + i] = firstHash[i];
@@ -486,8 +480,8 @@ public class FileDownloadSessionTest {
         FileInit initialMessage = new FileInit();
         initialMessage.setFileName("test-file.jar");
         initialMessage.setFileHash(Base64.encodeBytes(
-                DigestUtils.sha256(new byte[(MEGABYTE + (MEGABYTE / 2))])));
-        initialMessage.setFileSize(MEGABYTE + (MEGABYTE / 2));
+                DigestUtils.sha256(new byte[(MAX_CHUNK_SIZE + (MAX_CHUNK_SIZE / 2))])));
+        initialMessage.setFileSize(MAX_CHUNK_SIZE + (MAX_CHUNK_SIZE / 2));
 
         // Prepare the message goings
         Queue<byte[]> queue = new LinkedList<byte[]>() {{
@@ -514,14 +508,14 @@ public class FileDownloadSessionTest {
     @Test
     public void multiChunkRewindBack() throws InterruptedException {
         // Calculate the hashes
-        byte[] firstHash = DigestUtils.sha256(new byte[MEGABYTE - CHUNK_EXTRA]);
-        byte[] secondHash = DigestUtils.sha256(new byte[MEGABYTE / 2 + CHUNK_EXTRA]);
+        byte[] firstHash = DigestUtils.sha256(new byte[MAX_CHUNK_SIZE]);
+        byte[] secondHash = DigestUtils.sha256(new byte[MAX_CHUNK_SIZE / 2]);
 
         // Create the payload
-        byte[] firstPayloadInvalid = new byte[MEGABYTE];
-        byte[] firstPayloadValid = new byte[MEGABYTE];
-        byte[] secondPayloadInvalid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
-        byte[] secondPayloadValid = new byte[(MEGABYTE / 2) + (2 * CHUNK_EXTRA)];
+        byte[] firstPayloadInvalid = new byte[MAX_CHUNK_SIZE + CHUNK_EXTRA];
+        byte[] firstPayloadValid = new byte[MAX_CHUNK_SIZE + CHUNK_EXTRA];
+        byte[] secondPayloadInvalid = new byte[(MAX_CHUNK_SIZE / 2) + CHUNK_EXTRA];
+        byte[] secondPayloadValid = new byte[(MAX_CHUNK_SIZE / 2) + CHUNK_EXTRA];
         for (int i = 0; i < firstHash.length; i++) {
             // Put the first hash where it needs to be put in
             firstPayloadInvalid[firstPayloadInvalid.length - (CHUNK_EXTRA / 2) + i] = firstHash[i];
@@ -536,8 +530,8 @@ public class FileDownloadSessionTest {
         FileInit initialMessage = new FileInit();
         initialMessage.setFileName("test-file.jar");
         initialMessage.setFileHash(Base64.encodeBytes(
-                DigestUtils.sha256(new byte[(MEGABYTE + (MEGABYTE / 2))])));
-        initialMessage.setFileSize(MEGABYTE + (MEGABYTE / 2));
+                DigestUtils.sha256(new byte[(MAX_CHUNK_SIZE + (MAX_CHUNK_SIZE / 2))])));
+        initialMessage.setFileSize(MAX_CHUNK_SIZE + (MAX_CHUNK_SIZE / 2));
 
         // Prepare the message goings
         Queue<byte[]> queue = new LinkedList<byte[]>() {{
