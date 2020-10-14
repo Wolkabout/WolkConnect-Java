@@ -19,7 +19,6 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.device2platform.*;
 import com.wolkabout.wolk.filemanagement.model.platform2device.*;
 import com.wolkabout.wolk.util.JsonUtil;
-import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -29,6 +28,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class FileManagementProtocol {
 
@@ -55,6 +56,8 @@ public class FileManagementProtocol {
     protected static final String FILE_LIST_CONFIRM = "p2d/file_list_confirm/d/";
     // The MQTT client
     protected final MqttClient client;
+    // The Executor
+    protected final ExecutorService executor;
     // The feature classes for functionality
     protected FileSystemManagement management;
     protected FileDownloadSession fileDownloadSession;
@@ -74,6 +77,8 @@ public class FileManagementProtocol {
         this.client = client;
         this.management = new FileSystemManagement("files/");
         LOG.debug("Created FileSystemManagement with folder path: './files/'");
+
+        this.executor = Executors.newCachedThreadPool();
     }
 
     /**
@@ -95,6 +100,8 @@ public class FileManagementProtocol {
         this.client = client;
         this.management = new FileSystemManagement(folderPath);
         LOG.debug("Created FileSystemManagement with folder path: '" + folderPath + "'");
+
+        this.executor = Executors.newCachedThreadPool();
     }
 
     /**
@@ -112,26 +119,35 @@ public class FileManagementProtocol {
         try {
             // File transfer subscriptions
             LOG.debug("Subscribing to topic '" + FILE_UPLOAD_INITIATE + client.getClientId() + "'.");
-            client.subscribe(FILE_UPLOAD_INITIATE + client.getClientId(), QOS, this::handleFileTransferInitiation);
+            client.subscribe(FILE_UPLOAD_INITIATE + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFileTransferInitiation(topic, message)));
             LOG.debug("Subscribing to topic '" + FILE_UPLOAD_ABORT + client.getClientId() + "'.");
-            client.subscribe(FILE_UPLOAD_ABORT + client.getClientId(), QOS, this::handleFileTransferAbort);
+            client.subscribe(FILE_UPLOAD_ABORT + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFileTransferAbort(topic, message)));
             LOG.debug("Subscribing to topic '" + FILE_BINARY_RESPONSE + client.getClientId() + "'.");
-            client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS, this::handleFileTransferBinaryResponse);
+            client.subscribe(FILE_BINARY_RESPONSE + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFileTransferBinaryResponse(topic, message)));
             // File URL download subscriptions
             LOG.debug("Subscribing to topic '" + FILE_URL_DOWNLOAD_INITIATE + client.getClientId() + "'.");
-            client.subscribe(FILE_URL_DOWNLOAD_INITIATE + client.getClientId(), QOS, this::handleUrlDownloadInitiation);
+            client.subscribe(FILE_URL_DOWNLOAD_INITIATE + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleUrlDownloadInitiation(topic, message)));
             LOG.debug("Subscribing to topic '" + FILE_URL_DOWNLOAD_ABORT + client.getClientId() + "'.");
-            client.subscribe(FILE_URL_DOWNLOAD_ABORT + client.getClientId(), QOS, this::handleUrlDownloadAbort);
+            client.subscribe(FILE_URL_DOWNLOAD_ABORT + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleUrlDownloadAbort(topic, message)));
             // File deletion subscriptions
             LOG.debug("Subscribing to topic '" + FILE_DELETE + client.getClientId() + "'.");
-            client.subscribe(FILE_DELETE + client.getClientId(), QOS, this::handleFileDeletion);
+            client.subscribe(FILE_DELETE + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFileDeletion(topic, message)));
             LOG.debug("Subscribing to topic '" + FILE_PURGE + client.getClientId() + "'.");
-            client.subscribe(FILE_PURGE + client.getClientId(), QOS, this::handleFilePurge);
+            client.subscribe(FILE_PURGE + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFilePurge(topic, message)));
             // File list subscriptions
             LOG.debug("Subscribing to topic '" + FILE_LIST_REQUEST + client.getClientId() + "'.");
-            client.subscribe(FILE_LIST_REQUEST + client.getClientId(), QOS, this::handleFileListRequest);
+            client.subscribe(FILE_LIST_REQUEST + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> handleFileListRequest(topic, message)));
             LOG.debug("Subscribing to topic '" + FILE_LIST_CONFIRM + client.getClientId() + "'.");
-            client.subscribe(FILE_LIST_CONFIRM + client.getClientId(), QOS, this::logReceivedMqttMessage);
+            client.subscribe(FILE_LIST_CONFIRM + client.getClientId(), QOS,
+                    (topic, message) -> executor.execute(() -> logReceivedMqttMessage(topic, message)));
         } catch (MqttException exception) {
             LOG.error(exception.getMessage());
         }
@@ -226,12 +242,13 @@ public class FileManagementProtocol {
             return;
         }
 
-        // Announce the status for good status, and save the data from file.
+        // Announce the status for good status, and save the data from file, and publish the file list.
         FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status);
         publish(FILE_UPLOAD_STATUS + client.getClientId(), statusMessage);
 
         // Make the file
         management.createFile(session.getBytes(), session.getInitMessage().getFileName());
+        publishFileList();
     }
 
     /**
@@ -302,13 +319,14 @@ public class FileManagementProtocol {
             return;
         }
 
-        // Announce the status for good status, and save the data from file.
+        // Announce the status for good status, and save the data from file, and publish the file list now.
         UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY,
                 session.getFileName());
         publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
 
         // Make the file
         management.createFile(session.getFileData(), session.getFileName());
+        publishFileList();
     }
 
     /**
@@ -371,8 +389,8 @@ public class FileManagementProtocol {
      * @return Returns true if some session is ongoing.
      */
     private boolean isSessionRunning() {
-        LOG.trace("Session running check: 'File Download: " + (fileDownloadSession != null) +
-                "'/'Url File Download: " + (urlFileDownloadSession != null) + "'.");
+        LOG.trace("FileDownloadSession: " + (fileDownloadSession != null) + "\n" +
+                "UrlFileDownloadSession: " + (urlFileDownloadSession != null));
         return fileDownloadSession != null || urlFileDownloadSession != null;
     }
 
