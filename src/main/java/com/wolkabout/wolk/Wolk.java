@@ -350,6 +350,21 @@ public class Wolk {
     }
 
     /**
+     * Publishes the current list of files.
+     */
+    public void publishFileList() {
+        try {
+            if (fileManagementProtocol == null) {
+                return;
+            }
+
+            fileManagementProtocol.publishFileList();
+        } catch (Exception e) {
+            LOG.info("Could not publish file list.", e);
+        }
+    }
+
+    /**
      * Publishes the new version of the firmware.
      *
      * @param version current firmware version.

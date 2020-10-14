@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * This class represents the payload sent by the device to the platform
  * to the `d2p/file_upload_status/d/` endpoint to notify of the file upload status.
@@ -24,11 +26,12 @@ public class FileStatus {
 
     private String fileName;
     private FileTransferStatus status;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private FileTransferError error;
 
     public FileStatus(String fileName, FileTransferStatus status) {
-        if (status == null)
-        {
+        if (status == null) {
             throw new IllegalArgumentException("FileTransferStatus can not be null.");
         }
 
@@ -37,8 +40,7 @@ public class FileStatus {
     }
 
     public FileStatus(String fileName, FileTransferStatus status, FileTransferError error) {
-        if (status == null)
-        {
+        if (status == null) {
             throw new IllegalArgumentException("FileTransferStatus can not be null.");
         }
 

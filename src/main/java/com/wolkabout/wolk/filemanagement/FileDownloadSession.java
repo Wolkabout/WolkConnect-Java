@@ -106,10 +106,12 @@ public class FileDownloadSession {
         if (leftoverSizedChunk > 0) {
             chunkSizes.add((int) (leftoverSizedChunk + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE)));
         }
+        LOG.trace("Calculated chunk count for this file: " + chunkSizes.size());
 
         // Request the first chunk
         status = getCurrentStatus();
         error = null;
+        LOG.trace("Requesting first chunk of data.");
         executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
 

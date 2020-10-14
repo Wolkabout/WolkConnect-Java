@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import java.util.Objects;
 
 /**
@@ -25,9 +27,12 @@ import java.util.Objects;
 public class UrlStatus {
 
     private FileTransferStatus status;
-    private FileTransferError error;
-    private String fileName;
     private String fileUrl;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private FileTransferError error;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String fileName;
 
     public UrlStatus(String fileUrl, FileTransferStatus status) {
         this.status = status;
