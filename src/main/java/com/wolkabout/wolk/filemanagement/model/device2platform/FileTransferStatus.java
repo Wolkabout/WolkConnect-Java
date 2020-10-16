@@ -34,21 +34,5 @@ public enum FileTransferStatus {
     ABORTED,
 
     // Unknown error
-    UNKNOWN;
-
-    // Convert the enum value into string
-    public static String toString(FileTransferStatus value) {
-        return value.name();
-    }
-
-    // Convert from string into an enum value
-    public static FileTransferStatus fromString(String value) {
-        for (FileTransferStatus status : values()) {
-            if (status.name().equalsIgnoreCase(value)) {
-                return status;
-            }
-        }
-
-        return UNKNOWN;
-    }
+    UNKNOWN
 }

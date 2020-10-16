@@ -16,8 +16,6 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-
 /**
  * All possible values found in the `error` value for status transfer messages.
  */
@@ -49,26 +47,5 @@ public enum FileTransferError {
 
     FileTransferError(int code) {
         this.code = code;
-    }
-
-    // Convert the enum value into string
-    public static String toString(FileTransferError value) {
-        return value.name();
-    }
-
-    // Convert from string into an enum value
-    public static FileTransferError fromString(String value) {
-        for (FileTransferError error : values()) {
-            if (error.name().equalsIgnoreCase(value)) {
-                return error;
-            }
-        }
-
-        return UNSPECIFIED_ERROR;
-    }
-
-    @JsonValue
-    public int getCode() {
-        return code;
     }
 }
