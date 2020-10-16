@@ -273,4 +273,27 @@ public class FileSystemManagementTest {
         verify(fileMock, times(0)).delete();
         verify(folderMock, times(1)).listFiles();
     }
+
+    @Test
+    public void testGetFileHappyFlow() throws IOException, NoSuchFieldException, IllegalAccessException {
+        // Setup the folder mock
+        doReturn(testFileName).when(fileMock).getName();
+        doReturn(new File[]{fileMock}).when(folderMock).listFiles();
+
+        // Create the management
+        management = new FileSystemManagement(testFolderPath);
+
+        // Inject the mock
+        Field folderFile = FileSystemManagement.class.getDeclaredField("folder");
+        folderFile.setAccessible(true);
+        folderFile.set(management, folderMock);
+
+        // Get the file
+        assertEquals(fileMock, management.getFile(testFileName));
+        assertNull(management.getFile("asdf"));
+
+        // Verify the mocks were called
+        verify(fileMock, times(2)).getName();
+        verify(folderMock, times(2)).listFiles();
+    }
 }
