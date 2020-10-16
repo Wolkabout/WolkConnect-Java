@@ -31,7 +31,7 @@ import java.util.Objects;
  * to notify the outside of all files we contain, store a new file from given bytes and name,
  * delete/purge files.
  */
-public class FileSystemManagement {
+public final class FileSystemManagement {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemManagement.class);
 

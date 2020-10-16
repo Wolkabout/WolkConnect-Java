@@ -17,18 +17,22 @@
 package com.wolkabout.wolk.filemanagement;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import static org.junit.Assert.assertEquals;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({FileSystemManagement.class, FileManagementProtocol.class})
 public class FileManagementProtocolTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocolTest.class);
@@ -36,25 +40,45 @@ public class FileManagementProtocolTest {
     public ExpectedException exceptionRule = ExpectedException.none();
     @Mock
     MqttClient clientMock;
+    @Mock
+    FileSystemManagement managementMock;
+
+    @Before
+    public void setUp() throws Exception {
+        PowerMockito.whenNew(FileSystemManagement.class).withAnyArguments().thenReturn(managementMock);
+    }
 
     @Test
-    public void nullCheckMqttClient() throws IOException {
+    public void nullCheckMqttClient() {
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The client cannot be null.");
         new FileManagementProtocol(null);
     }
 
     @Test
-    public void nullCheckMqttClientWithFolderPath() throws IOException {
+    public void nullCheckMqttClientWithFolderPath() {
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The client cannot be null.");
         new FileManagementProtocol(null, "");
     }
 
     @Test
-    public void emptyFolderPath() throws IOException {
+    public void emptyFolderPath() {
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The folder path cannot be empty.");
         new FileManagementProtocol(clientMock, "");
+    }
+
+    @Test
+    public void createDefaultPath() throws Exception {
+        // Create the protocol
+        FileManagementProtocol protocol = new FileManagementProtocol(clientMock);
+
+        // Check that everything is valid
+        assertEquals(managementMock, protocol.management);
+        assertEquals(clientMock, protocol.client);
+
+        // Check that the management was constructed
+        PowerMockito.verifyNew(FileSystemManagement.class).withArguments("files/");
     }
 }

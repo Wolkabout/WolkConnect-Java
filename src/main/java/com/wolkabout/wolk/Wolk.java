@@ -566,8 +566,6 @@ public class Wolk {
                 wolk.keepAliveServiceEnabled = keepAliveServiceEnabled;
 
                 return wolk;
-            } catch (IOException ioException) {
-                throw new IllegalArgumentException("Unable to use file management folder.", ioException);
             } catch (MqttException mqttException) {
                 throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);
             }

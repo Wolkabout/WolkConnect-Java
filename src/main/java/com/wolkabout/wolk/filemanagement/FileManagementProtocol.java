@@ -73,14 +73,21 @@ public class FileManagementProtocol {
      *
      * @param client The MQTT client passed to by the Wolk instance.
      */
-    public FileManagementProtocol(MqttClient client) throws IOException {
+    public FileManagementProtocol(MqttClient client) {
         if (client == null) {
             throw new IllegalArgumentException("The client cannot be null.");
         }
 
         this.client = client;
-        this.management = new FileSystemManagement("files/");
-        LOG.debug("Created FileSystemManagement with folder path: './files/'");
+
+        try {
+            this.management = new FileSystemManagement("files/");
+            LOG.debug("Created FileSystemManagement with folder path: './files/'");
+        } catch (IOException ioException) {
+            LOG.error("Error occurred during creation of file system management. Folder might be inaccessible. " +
+                    ioException);
+            this.management = null;
+        }
 
         this.executor = Executors.newCachedThreadPool();
     }
@@ -91,7 +98,6 @@ public class FileManagementProtocol {
      *
      * @param client     The MQTT client passed to by the Wolk instance.
      * @param folderPath The custom folder path for file storing.
-     * @throws IOException If folder does not exist, and cannot be made, this exception will be thrown.
      */
     public FileManagementProtocol(MqttClient client, String folderPath) {
         if (client == null) {
