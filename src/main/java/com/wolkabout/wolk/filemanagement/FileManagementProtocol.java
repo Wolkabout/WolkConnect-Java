@@ -93,7 +93,7 @@ public class FileManagementProtocol {
      * @param folderPath The custom folder path for file storing.
      * @throws IOException If folder does not exist, and cannot be made, this exception will be thrown.
      */
-    public FileManagementProtocol(MqttClient client, String folderPath) throws IOException {
+    public FileManagementProtocol(MqttClient client, String folderPath) {
         if (client == null) {
             throw new IllegalArgumentException("The client cannot be null.");
         }
@@ -102,8 +102,15 @@ public class FileManagementProtocol {
         }
 
         this.client = client;
-        this.management = new FileSystemManagement(folderPath);
-        LOG.debug("Created FileSystemManagement with folder path: '" + folderPath + "'");
+
+        try {
+            this.management = new FileSystemManagement(folderPath);
+            LOG.debug("Created FileSystemManagement with folder path: '" + folderPath + "'");
+        } catch (IOException ioException) {
+            LOG.error("Error occurred during creation of file system management. Folder might be inaccessible. " +
+                    ioException);
+            this.management = null;
+        }
 
         this.executor = Executors.newCachedThreadPool();
     }
@@ -170,6 +177,14 @@ public class FileManagementProtocol {
             // Parse the initialization message
             FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
             LOG.info("Received file transfer session, with file named '" + initMessage.getFileName() + "'.");
+
+            // If there was an error creating the management, report a `FILE_SYSTEM_ERROR`.
+            if (this.management == null) {
+                LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+                publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                        FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+                return;
+            }
 
             // Check if the file already exists
             File file;
@@ -270,14 +285,24 @@ public class FileManagementProtocol {
             return;
         }
 
-        // Announce the status for good status, and save the data from file, and publish the file list.
-        FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status);
-        publish(FILE_UPLOAD_STATUS + client.getClientId(), statusMessage);
+        try {
+            // Make the file
+            management.createFile(session.getBytes(), session.getInitMessage().getFileName());
 
-        // Make the file
-        management.createFile(session.getBytes(), session.getInitMessage().getFileName());
-        LOG.info("Reporting file transfer as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
-        publishFileList();
+            // Announce the status for good status, and save the data from file, and publish the file list.
+            publish(FILE_UPLOAD_STATUS + client.getClientId(),
+                    new FileStatus(session.getInitMessage().getFileName(), status));
+            LOG.info("Reporting file transfer as successful. Downloaded file '" +
+                    session.getInitMessage().getFileName() + "'.");
+            publishFileList();
+        } catch (IOException exception) {
+            // Announce a file system error has occurred
+            publish(FILE_UPLOAD_STATUS + client.getClientId(),
+                    new FileStatus(session.getInitMessage().getFileName(),
+                            FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+            LOG.info("Reporting file transfer as '" + FileTransferStatus.ERROR +
+                    "' with error '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+        }
     }
 
     /**
@@ -296,6 +321,14 @@ public class FileManagementProtocol {
             // Parse the initialization message
             UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
             LOG.info("Received URL file download session, with URL '" + urlInit.getFileUrl() + "'.");
+
+            // If there is no management, return FILE_SYSTEM_ERROR immediately.
+            if (this.management == null) {
+                LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+                publish(FILE_UPLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
+                        FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+                return;
+            }
 
             // Give the transfer message
             publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
@@ -356,15 +389,24 @@ public class FileManagementProtocol {
             return;
         }
 
-        // Announce the status for good status, and save the data from file, and publish the file list now.
-        UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY,
-                session.getFileName());
-        publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
+        try {
+            // Make the file
+            management.createFile(session.getFileData(), session.getFileName());
 
-        // Make the file
-        management.createFile(session.getFileData(), session.getFileName());
-        LOG.info("Reporting URL file download as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
-        publishFileList();
+            // Announce the status for good status, and save the data from file, and publish the file list now.
+            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY,
+                    session.getFileName());
+            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
+            LOG.info("Reporting URL file download as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
+            publishFileList();
+        } catch (IOException exception) {
+            // Announce a file system error has occurred
+            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
+                    new FileStatus(session.getInitMessage().getFileUrl(),
+                            FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+            LOG.info("Reporting URL file download as '" + FileTransferStatus.ERROR +
+                    "' with error '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+        }
     }
 
     /**
@@ -372,6 +414,12 @@ public class FileManagementProtocol {
      */
     private void handleFileDeletion(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
+
+        if (this.management == null) {
+            LOG.warn("Unable to accept file deletion message, file system management is not running.");
+            return;
+        }
+
         FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
         LOG.info("Received request to delete file '" + fileDelete.getFileName() + "'. Deleting...");
         management.deleteFile(fileDelete.getFileName());
@@ -383,6 +431,12 @@ public class FileManagementProtocol {
      */
     private void handleFilePurge(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
+
+        if (this.management == null) {
+            LOG.warn("Unable to accept file purge message, file system management is not running.");
+            return;
+        }
+
         LOG.info("Received request to purge file list. Purging...");
         management.purgeDirectory();
         publishFileList();
@@ -404,19 +458,23 @@ public class FileManagementProtocol {
      * @param topic The topic to which the message will be sent.
      */
     private void publishFileList(String topic) {
-        // Acquire all the files
-        List<String> files = management.listAllFiles();
-        LOG.trace("Peeked the file system to find files, found " + files.size() + " files.");
+        try {
+            // Acquire all the files
+            List<String> files = management.listAllFiles();
+            LOG.trace("Peeked the file system to find files, found " + files.size() + " files.");
 
-        // Place them all in the payload
-        List<FileInformation> payload = new ArrayList<>();
-        for (String file : files) {
-            payload.add(new FileInformation(file));
+            // Place them all in the payload
+            List<FileInformation> payload = new ArrayList<>();
+            for (String file : files) {
+                payload.add(new FileInformation(file));
+            }
+            LOG.trace("Created payload to announce '" + payload + "'.");
+
+            // Send everything
+            publish(topic, payload);
+        } catch (IOException exception) {
+            LOG.error("Error occurred during reading of folder contents. " + exception);
         }
-        LOG.trace("Created payload to announce '" + payload + "'.");
-
-        // Send everything
-        publish(topic, payload);
     }
 
     /**

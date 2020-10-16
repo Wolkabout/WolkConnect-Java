@@ -63,16 +63,20 @@ public class FileSystemManagement {
      *
      * @return List of all direct file names as an ArrayList.
      */
-    public List<String> listAllFiles() {
+    public List<String> listAllFiles() throws IOException {
         // Create the list where to store all the file names
         LOG.debug("Peeking the file system for all files.");
         ArrayList<String> files = new ArrayList<>();
 
-        // List through all the files
-        for (File file : Objects.requireNonNull(folder.listFiles())) {
-            if (file.isFile()) {
-                files.add(file.getName());
+        try {
+            // List through all the files
+            for (File file : Objects.requireNonNull(folder.listFiles())) {
+                if (file.isFile()) {
+                    files.add(file.getName());
+                }
             }
+        } catch (NullPointerException exception) {
+            throw new IOException("Could not read folder contents.");
         }
 
         // Return all the names
@@ -117,14 +121,14 @@ public class FileSystemManagement {
      * @param fileName The name of the new file that will be created.
      * @return Success status of the operation.
      */
-    public boolean createFile(byte[] bytes, String fileName) {
+    public boolean createFile(byte[] bytes, String fileName) throws IOException {
         LOG.debug("Attempting to create file '" + fileName + "' with " + bytes.length + " bytes.");
         try (FileOutputStream stream = new FileOutputStream(folder.getAbsolutePath() + SEPARATOR + fileName)) {
             stream.write(bytes);
             return true;
         } catch (IOException exception) {
             LOG.error(exception.getLocalizedMessage());
-            return false;
+            throw exception;
         }
     }
 

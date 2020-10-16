@@ -200,7 +200,8 @@ public class FileSystemManagementTest {
         management = new FileSystemManagement(testFolderPath);
 
         // Create the file
-        assertFalse(management.createFile(testBytes, invalidFilePath));
+        exceptionRule.expect(IOException.class);
+        management.createFile(testBytes, invalidFilePath);
     }
 
     @Test
