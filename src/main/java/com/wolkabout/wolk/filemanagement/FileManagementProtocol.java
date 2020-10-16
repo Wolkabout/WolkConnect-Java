@@ -169,12 +169,15 @@ public class FileManagementProtocol {
 
             // Parse the initialization message
             FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
+            LOG.info("Received file transfer session, with file named '" + initMessage.getFileName() + "'.");
 
             // Check if the file already exists
             File file;
             if ((file = management.getFile(initMessage.getFileName())) != null) {
                 LOG.info("File '" + file.getName() + "' already exists.");
                 byte[] fileBytes = Files.readAllBytes(file.toPath());
+                // Check the file hash, it must be the same one of the new file, if it is not, we need to
+                // report an error.
                 if (Arrays.equals(FileDownloadSession.calculateHashForBytes(fileBytes),
                         Base64.decodeBase64(initMessage.getFileHash()))) {
                     LOG.info("File '" + file.getName() + "' hashes match, returning 'FILE_READY'.");
@@ -226,6 +229,7 @@ public class FileManagementProtocol {
         }
 
         // Abort the session
+        LOG.info("Received request to abort file transfer. Aborting...");
         fileDownloadSession.abort();
     }
 
@@ -260,6 +264,8 @@ public class FileManagementProtocol {
         // Announce the not good status
         if (status != FileTransferStatus.FILE_READY) {
             FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status, error);
+            LOG.info("Reporting file transfer as '" + status + "'" +
+                    (error != null ? " with error '" + error + "'" : "") + ".");
             publish(FILE_UPLOAD_STATUS + client.getClientId(), statusMessage);
             return;
         }
@@ -270,6 +276,7 @@ public class FileManagementProtocol {
 
         // Make the file
         management.createFile(session.getBytes(), session.getInitMessage().getFileName());
+        LOG.info("Reporting file transfer as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
         publishFileList();
     }
 
@@ -277,26 +284,31 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_INITIATE message is received.
      */
     private void handleUrlDownloadInitiation(String topic, MqttMessage message) {
-        logReceivedMqttMessage(topic, message);
-        // If a session is already running, that means the initialization message is not acceptable now.
-        if (isSessionRunning()) {
+        try {
             logReceivedMqttMessage(topic, message);
-            LOG.warn("File transfer session is already ongoing. Ignoring this message...");
-            return;
+            // If a session is already running, that means the initialization message is not acceptable now.
+            if (isSessionRunning()) {
+                logReceivedMqttMessage(topic, message);
+                LOG.warn("File transfer session is already ongoing. Ignoring this message...");
+                return;
+            }
+
+            // Parse the initialization message
+            UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
+            LOG.info("Received URL file download session, with URL '" + urlInit.getFileUrl() + "'.");
+
+            // Give the transfer message
+            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
+                    new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
+
+            // Create the session
+            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
+                handleUrlSessionFinish(urlFileDownloadSession, status, error);
+                urlFileDownloadSession = null;
+            });
+        } catch (Exception exception) {
+            LOG.error("Error occurred during handling of file transfer initializer message: " + exception);
         }
-
-        // Parse the initialization message
-        UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
-
-        // Give the transfer message
-        publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
-                new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
-
-        // Create the session
-        urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
-            handleUrlSessionFinish(urlFileDownloadSession, status, error);
-            urlFileDownloadSession = null;
-        });
     }
 
     /**
@@ -318,6 +330,7 @@ public class FileManagementProtocol {
         }
 
         // Abort the message
+        LOG.info("Received request to abort URL file download. Aborting...");
         urlFileDownloadSession.abort();
     }
 
@@ -336,6 +349,8 @@ public class FileManagementProtocol {
 
         // Announce the not good status
         if (status != FileTransferStatus.FILE_READY) {
+            LOG.info("Reporting URL file download as '" + status + "'" +
+                    (error != null ? " with error '" + error + "'" : "") + ".");
             UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), status, error);
             publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
             return;
@@ -348,6 +363,7 @@ public class FileManagementProtocol {
 
         // Make the file
         management.createFile(session.getFileData(), session.getFileName());
+        LOG.info("Reporting URL file download as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
         publishFileList();
     }
 
@@ -357,6 +373,7 @@ public class FileManagementProtocol {
     private void handleFileDeletion(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
+        LOG.info("Received request to delete file '" + fileDelete.getFileName() + "'. Deleting...");
         management.deleteFile(fileDelete.getFileName());
         publishFileList();
     }
@@ -366,6 +383,7 @@ public class FileManagementProtocol {
      */
     private void handleFilePurge(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
+        LOG.info("Received request to purge file list. Purging...");
         management.purgeDirectory();
         publishFileList();
     }
@@ -375,6 +393,7 @@ public class FileManagementProtocol {
      */
     private void handleFileListRequest(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
+        LOG.info("Received request for the file list. Responding...");
         publishFileList(FILE_LIST_RESPONSE + client.getClientId());
     }
 
