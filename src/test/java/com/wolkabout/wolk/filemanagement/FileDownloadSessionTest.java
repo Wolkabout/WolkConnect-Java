@@ -370,7 +370,7 @@ public class FileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify that the mock was called
-        verify(callbackMock, times(16)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(4)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.RETRY_COUNT_EXCEEDED);
     }
 

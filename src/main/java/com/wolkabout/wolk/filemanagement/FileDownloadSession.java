@@ -319,7 +319,19 @@ public class FileDownloadSession {
         if (chunkRetryCount == MAX_RETRY) {
             LOG.warn("A single chunk has been re-requested " + chunkRetryCount +
                     " times, achieving the limit. Restarting the process.");
-            restartDataObtain();
+            this.running = false;
+            this.success = false;
+            this.aborted = false;
+
+            currentChunk = 0;
+            bytes.clear();
+            chunkSizes.clear();
+            hashes.clear();
+
+            status = getCurrentStatus();
+            error = FileTransferError.RETRY_COUNT_EXCEEDED;
+
+            executor.execute(new FinishRunnable(status, error));
             return false;
         }
 
