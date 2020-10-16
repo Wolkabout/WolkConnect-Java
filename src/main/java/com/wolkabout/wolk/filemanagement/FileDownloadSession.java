@@ -274,7 +274,13 @@ public class FileDownloadSession {
         }
 
         // Request the next chunk
-        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        if (chunkSizes.size() > 1) {
+            executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk,
+                    CHUNK_SIZE + PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
+        } else {
+            executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk,
+                    chunkSizes.get(currentChunk)));
+        }
         return true;
     }
 
