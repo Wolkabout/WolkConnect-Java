@@ -325,7 +325,7 @@ public class FileManagementProtocol {
             // If there is no management, return FILE_SYSTEM_ERROR immediately.
             if (this.management == null) {
                 LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
-                publish(FILE_UPLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
+                publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
                         FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
                 return;
             }
