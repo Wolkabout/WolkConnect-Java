@@ -114,6 +114,30 @@ public class FileDownloadSession {
         executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
     }
 
+    /**
+     * This is an internal method used to define how a chunk of bytes is hashed.
+     *
+     * @param data Input bytes to be calculated a SHA256 hash from.
+     * @return The SHA256 hash of input data as byte array.
+     */
+    public static byte[] calculateHashForBytes(List<Byte> data) {
+        byte[] bytes = new byte[data.size()];
+        for (int i = 0; i < data.size(); i++) {
+            bytes[i] = data.get(i);
+        }
+        return DigestUtils.sha256(bytes);
+    }
+
+    /**
+     * This is an internal method used to define how a chunk of bytes is hashed.
+     *
+     * @param data Input bytes to be calculated a SHA256 hash from.
+     * @return The SHA256 hash of input data as byte array.
+     */
+    public static byte[] calculateHashForBytes(byte[] data) {
+        return DigestUtils.sha256(data);
+    }
+
     public boolean isRunning() {
         return running;
     }
@@ -282,30 +306,6 @@ public class FileDownloadSession {
                     chunkSizes.get(currentChunk)));
         }
         return true;
-    }
-
-    /**
-     * This is an internal method used to define how a chunk of bytes is hashed.
-     *
-     * @param data Input bytes to be calculated a SHA256 hash from.
-     * @return The SHA256 hash of input data as byte array.
-     */
-    private byte[] calculateHashForBytes(List<Byte> data) {
-        byte[] bytes = new byte[data.size()];
-        for (int i = 0; i < data.size(); i++) {
-            bytes[i] = data.get(i);
-        }
-        return DigestUtils.sha256(bytes);
-    }
-
-    /**
-     * This is an internal method used to define how a chunk of bytes is hashed.
-     *
-     * @param data Input bytes to be calculated a SHA256 hash from.
-     * @return The SHA256 hash of input data as byte array.
-     */
-    private byte[] calculateHashForBytes(byte[] data) {
-        return DigestUtils.sha256(data);
     }
 
     /**

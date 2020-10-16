@@ -19,14 +19,18 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.device2platform.*;
 import com.wolkabout.wolk.filemanagement.model.platform2device.*;
 import com.wolkabout.wolk.util.JsonUtil;
+import org.apache.commons.codec.binary.Base64;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -165,6 +169,24 @@ public class FileManagementProtocol {
 
             // Parse the initialization message
             FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
+
+            // Check if the file already exists
+            File file;
+            if ((file = management.getFile(initMessage.getFileName())) != null) {
+                LOG.info("File '" + file.getName() + "' already exists.");
+                byte[] fileBytes = Files.readAllBytes(file.toPath());
+                if (Arrays.equals(FileDownloadSession.calculateHashForBytes(fileBytes),
+                        Base64.decodeBase64(initMessage.getFileHash()))) {
+                    LOG.info("File '" + file.getName() + "' hashes match, returning 'FILE_READY'.");
+                    publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                            FileTransferStatus.FILE_READY));
+                } else {
+                    LOG.info("File '" + file.getName() + "' hashes do not match, returning 'FILE_HASH_MISMATCH'.");
+                    publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                            FileTransferStatus.ERROR, FileTransferError.FILE_HASH_MISMATCH));
+                }
+                return;
+            }
 
             // Start the session
             fileDownloadSession = new FileDownloadSession(initMessage, new FileDownloadSession.Callback() {

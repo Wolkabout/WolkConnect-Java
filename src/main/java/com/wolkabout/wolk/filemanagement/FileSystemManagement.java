@@ -81,6 +81,24 @@ public class FileSystemManagement {
     }
 
     /**
+     * This is the method used to attempt to obtain a file found in the folder. If it exists, its instance as File
+     * will be returned. Otherwise, a null will be returned.
+     *
+     * @param fileName The name for the file we are looking for.
+     * @return The instance of File we are looking for.
+     */
+    public File getFile(String fileName) {
+        // List through all the files
+        for (File file : Objects.requireNonNull(folder.listFiles())) {
+            if (file.getName().equals(fileName)) {
+                return file;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * This is the method used to add a new already existing folder to the directory.
      *
      * @param newFile Instanced file that can be already found on the file system.
