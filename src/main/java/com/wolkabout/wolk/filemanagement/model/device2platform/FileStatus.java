@@ -18,6 +18,8 @@ package com.wolkabout.wolk.filemanagement.model.device2platform;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 
 /**
  * This class represents the payload sent by the device to the platform

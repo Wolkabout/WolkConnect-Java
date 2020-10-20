@@ -16,8 +16,8 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.device2platform.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import org.junit.Rule;
 import org.junit.Test;

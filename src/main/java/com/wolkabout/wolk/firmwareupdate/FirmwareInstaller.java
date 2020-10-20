@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement;
+package com.wolkabout.wolk.firmwareupdate;
 
 import com.wolkabout.wolk.Wolk;
 

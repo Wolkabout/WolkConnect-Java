@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement.model.device2platform;
+package com.wolkabout.wolk.filemanagement.model;
 
 /**
  * All possible values found in the `error` value for status transfer messages.

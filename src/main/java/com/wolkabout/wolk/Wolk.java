@@ -17,7 +17,9 @@
 package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
-import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
+import com.wolkabout.wolk.filemanagement.FileSystemManagement;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -30,7 +32,6 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -71,19 +72,16 @@ public class Wolk {
         }
     };
     /**
-     * Protocol for receiving firmware updates.
+     * Everything regarding the File Management/Firmware Update.
      */
+    private FileSystemManagement fileSystemManagement;
     private FileManagementProtocol fileManagementProtocol;
+    private FirmwareUpdateProtocol firmwareUpdateProtocol;
     /**
      * Persistence mechanism for storing and retrieving data.
      */
     private Persistence persistence;
-    private final Runnable publishTask = new Runnable() {
-        @Override
-        public void run() {
-            publish();
-        }
-    };
+    private final Runnable publishTask = this::publish;
 
     public static Builder builder() {
         return new Builder();
@@ -375,7 +373,7 @@ public class Wolk {
         }
 
         try {
-//            fileManagementProtocol.publishFirmwareVersion(version);
+            firmwareUpdateProtocol.publishFirmwareVersion(version);
         } catch (Exception e) {
             LOG.info("Could not publish firmware version", e);
         }
@@ -387,6 +385,10 @@ public class Wolk {
 
             if (fileManagementProtocol != null) {
                 fileManagementProtocol.subscribe();
+
+                if (firmwareUpdateProtocol != null) {
+                    firmwareUpdateProtocol.subscribe();
+                }
             }
         } catch (Exception e) {
             LOG.debug("Unable to subscribe to all required topics.", e);
@@ -555,9 +557,18 @@ public class Wolk {
                 wolk.persistence = persistence;
 
                 if (fileManagementEnabled) {
-                    wolk.fileManagementProtocol = fileManagementLocation != null ?
-                            new FileManagementProtocol(wolk.client, fileManagementLocation) :
-                            new FileManagementProtocol(wolk.client);
+                    // Create the file system management
+                    wolk.fileSystemManagement = new FileSystemManagement(
+                            fileManagementLocation.isEmpty() ? "files/" : fileManagementLocation);
+
+                    // Create the file management protocol
+                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+
+                    // Create the firmware update if that is something the user wants
+                    if (firmwareUpdateEnabled) {
+                        wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
+                                wolk.client, wolk.fileSystemManagement);
+                    }
                 }
 
                 actuatorHandler.setWolk(wolk);

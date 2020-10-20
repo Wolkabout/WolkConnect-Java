@@ -16,7 +16,12 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.wolkabout.wolk.filemanagement.model.device2platform.*;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
+import com.wolkabout.wolk.filemanagement.model.device2platform.ChunkRequest;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileInformation;
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileStatus;
+import com.wolkabout.wolk.filemanagement.model.device2platform.UrlStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.*;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.binary.Base64;
@@ -63,61 +68,27 @@ public class FileManagementProtocol {
     // The Executor
     protected final ExecutorService executor;
     // The feature classes for functionality
-    protected FileSystemManagement management;
+    protected final FileSystemManagement management;
     protected FileDownloadSession fileDownloadSession;
     protected UrlFileDownloadSession urlFileDownloadSession;
 
     /**
-     * This is the constructor for the FileManagement feature. This will create the file system folder
-     * by default `<work_dir>/files/`
-     *
-     * @param client The MQTT client passed to by the Wolk instance.
-     */
-    public FileManagementProtocol(MqttClient client) {
-        if (client == null) {
-            throw new IllegalArgumentException("The client cannot be null.");
-        }
-
-        this.client = client;
-
-        try {
-            this.management = new FileSystemManagement("files/");
-            LOG.debug("Created FileSystemManagement with folder path: './files/'");
-        } catch (IOException ioException) {
-            LOG.error("Error occurred during creation of file system management. Folder might be inaccessible. " +
-                    ioException);
-            this.management = null;
-        }
-
-        this.executor = Executors.newCachedThreadPool();
-    }
-
-    /**
-     * This is the constructor for the FileManagement feature. This allows the user to set a custom folder path
-     * for storing files.
+     * This is the constructor for the FileManagement feature.
      *
      * @param client     The MQTT client passed to by the Wolk instance.
-     * @param folderPath The custom folder path for file storing.
+     * @param management The File System management logic that actually interacts with the file system.
+     *                   Passed by the Wolk instance.
      */
-    public FileManagementProtocol(MqttClient client, String folderPath) {
+    public FileManagementProtocol(MqttClient client, FileSystemManagement management) {
         if (client == null) {
             throw new IllegalArgumentException("The client cannot be null.");
         }
-        if (folderPath.isEmpty()) {
-            throw new IllegalArgumentException("The folder path cannot be empty.");
+        if (management == null) {
+            throw new IllegalArgumentException("The file management cannot be null.");
         }
 
         this.client = client;
-
-        try {
-            this.management = new FileSystemManagement(folderPath);
-            LOG.debug("Created FileSystemManagement with folder path: '" + folderPath + "'");
-        } catch (IOException ioException) {
-            LOG.error("Error occurred during creation of file system management. Folder might be inaccessible. " +
-                    ioException);
-            this.management = null;
-        }
-
+        this.management = management;
         this.executor = Executors.newCachedThreadPool();
     }
 

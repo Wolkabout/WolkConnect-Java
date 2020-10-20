@@ -31,7 +31,7 @@ import java.util.Objects;
  * to notify the outside of all files we contain, store a new file from given bytes and name,
  * delete/purge files.
  */
-public final class FileSystemManagement {
+public class FileSystemManagement {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemManagement.class);
 
@@ -46,7 +46,7 @@ public final class FileSystemManagement {
      *
      * @param folderPath The absolute/relative path to the folder where the manager will work.
      */
-    public FileSystemManagement(String folderPath) throws IOException {
+    public FileSystemManagement(String folderPath) throws IllegalArgumentException {
         // Give it a new `File` instance and check whether the path is a valid directory path
         this.folder = new File(folderPath);
         if (!this.folder.isDirectory()) {
