@@ -74,9 +74,10 @@ public class Wolk {
     /**
      * Everything regarding the File Management/Firmware Update.
      */
-    private FileSystemManagement fileSystemManagement;
     private FileManagementProtocol fileManagementProtocol;
     private FirmwareUpdateProtocol firmwareUpdateProtocol;
+    private FileSystemManagement fileSystemManagement;
+    private FirmwareInstaller firmwareInstaller;
     /**
      * Persistence mechanism for storing and retrieving data.
      */
@@ -566,8 +567,9 @@ public class Wolk {
 
                     // Create the firmware update if that is something the user wants
                     if (firmwareUpdateEnabled) {
+                        wolk.firmwareInstaller = firmwareInstaller;
                         wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
-                                wolk.client, wolk.fileSystemManagement);
+                                wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
                     }
                 }
 

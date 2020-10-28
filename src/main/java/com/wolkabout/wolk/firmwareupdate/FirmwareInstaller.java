@@ -16,27 +16,38 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.Wolk;
-
-import java.lang.ref.WeakReference;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
 
 public abstract class FirmwareInstaller {
 
-    private WeakReference<Wolk> wolk;
+    private FirmwareUpdateProtocol protocol;
 
-    protected Wolk getWolk() {
-        return wolk.get();
+    void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol) {
+        this.protocol = protocol;
     }
 
-    public void setWolk(Wolk wolk) {
-        if (this.wolk != null) {
-            throw new IllegalStateException("Wolk instance already set.");
-        }
-
-        this.wolk = new WeakReference<>(wolk);
+    protected final void publishStatus(FirmwareUpdateStatus status) {
+        protocol.sendStatusMessage(status);
+        onFirmwareVersion();
     }
 
-    public abstract void onInstallCommandReceived();
+    protected final void publishError(FirmwareUpdateError error) {
+        protocol.sendErrorMessage(error);
+        onFirmwareVersion();
+    }
 
-    public abstract void onAbortCommandReceived();
+    protected final void publishFirmwareVersion(String version) {
+        protocol.publishFirmwareVersion(version);
+    }
+
+    public void onInstallCommandReceived(String fileName) {
+        publishStatus(FirmwareUpdateStatus.INSTALLATION);
+    }
+
+    public void onAbortCommandReceived() {
+        publishStatus(FirmwareUpdateStatus.ABORTED);
+    }
+
+    public abstract void onFirmwareVersion();
 }
