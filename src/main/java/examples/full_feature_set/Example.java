@@ -21,6 +21,9 @@ import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
+import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Configuration;
@@ -66,12 +69,14 @@ public class Example {
         Configurations configurations = objectMapper.readValue(configurationFile, Configurations.class);
         setLogLevel(configurations.getLogLevel(), "com.wolkabout");
 
+        final String[] version = {"1.0"};
+
         final Wolk wolk = Wolk.builder()
                 .mqtt()
                 .host("ssl://api-demo.wolkabout.com:8883")
                 .sslCertification("ca.crt")
                 .deviceKey("device_key")
-                .password("some_password")
+                .password("device_password")
                 .build()
                 .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
                 .enableKeepAliveService(true)
@@ -136,11 +141,49 @@ public class Example {
                         return currentConfigurations;
                     }
                 })
+                .enableFirmwareUpdate("files/", new FirmwareInstaller() {
+
+                    private boolean aborted = false;
+
+                    @Override
+                    public void onInstallCommandReceived(String fileName) {
+                        try {
+                            super.onInstallCommandReceived(fileName);
+
+                            // Check that we can read the file
+                            if (new File(fileName).canRead()) {
+                                publishError(FirmwareUpdateError.FILE_SYSTEM_ERROR);
+                            }
+
+                            Thread.sleep(5000);
+                            if (!aborted) {
+                                version[0] = String.valueOf(Double.parseDouble(version[0]) + 1);
+                                publishStatus(FirmwareUpdateStatus.COMPLETED);
+                            }
+                            aborted = false;
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    @Override
+                    public void onAbortCommandReceived() {
+                        super.onAbortCommandReceived();
+                        aborted = true;
+                    }
+
+                    @Override
+                    public void onFirmwareVersion() {
+                        publishFirmwareVersion(String.valueOf(version[0]));
+                    }
+                })
                 .build();
         wolk.connect();
         wolk.publishActuatorStatus("SW");
         wolk.publishActuatorStatus("SL");
         wolk.publishConfiguration();
+        wolk.publishFileList();
+        wolk.publishFirmwareVersion(version[0]);
         wolk.publish();
 
         while (true) {
