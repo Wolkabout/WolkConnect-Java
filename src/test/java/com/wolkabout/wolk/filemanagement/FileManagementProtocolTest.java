@@ -27,8 +27,12 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.doReturn;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class FileManagementProtocolTest {
@@ -67,33 +71,29 @@ public class FileManagementProtocolTest {
     }
 
     @Test
-    public void subscribeTests() {
+    public void subscribeTests() throws MqttException {
         // In here, we must check that the protocol will subscribe to each and every topic
         String clientId = "test-client-id";
         doReturn(clientId).when(clientMock).getClientId();
-//        Map<String, Integer> requiredTopics = new HashMap<String, Integer>() {{
-//            put(FileManagementProtocol.FILE_UPLOAD_INITIATE, 0);
-//            put(FileManagementProtocol.FILE_UPLOAD_ABORT, 0);
-//            put(FileManagementProtocol.FILE_BINARY_RESPONSE, 0);
-//            put(FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE, 0);
-//            put(FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT, 0);
-//            put(FileManagementProtocol.FILE_DELETE, 0);
-//            put(FileManagementProtocol.FILE_PURGE, 0);
-//            put(FileManagementProtocol.FILE_LIST_REQUEST, 0);
-//            put(FileManagementProtocol.FILE_LIST_CONFIRM, 0);
-//        }};
-
-        // Create the argument matcher
-//        ArgumentMatcher<String> argumentMatcher = argument -> requiredTopics.containsKey(argument + clientId);
+        Map<String, Integer> requiredTopics = new HashMap<String, Integer>() {{
+            put(FileManagementProtocol.FILE_UPLOAD_INITIATE, 0);
+            put(FileManagementProtocol.FILE_UPLOAD_ABORT, 0);
+            put(FileManagementProtocol.FILE_BINARY_RESPONSE, 0);
+            put(FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE, 0);
+            put(FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT, 0);
+            put(FileManagementProtocol.FILE_DELETE, 0);
+            put(FileManagementProtocol.FILE_PURGE, 0);
+            put(FileManagementProtocol.FILE_LIST_REQUEST, 0);
+            put(FileManagementProtocol.FILE_LIST_CONFIRM, 0);
+        }};
 
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
         protocol.subscribe();
 
         // Verify all they belong
-        // TODO see why this is not working
-//        verify(clientMock, times(requiredTopics.size()))
-//                .subscribe(argThat(argumentMatcher), anyInt(), any());
-//        verify(clientMock, times(requiredTopics.size() * 2)).getClientId();
+        verify(clientMock, times(requiredTopics.size()))
+                .subscribe(anyString(), anyInt(), any());
+        verify(clientMock, times(requiredTopics.size() * 2)).getClientId();
     }
 }
