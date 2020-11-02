@@ -19,8 +19,10 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileAbort;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileDelete;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
 import com.wolkabout.wolk.util.JsonUtil;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -439,5 +441,262 @@ public class FileManagementProtocolTest {
         verify(managementMock, times(1)).getFile(anyString());
         verify(clientMock, times(5)).getClientId();
         verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFinishNullCheckSession() {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Null check
+        exceptionRule.expect(IllegalStateException.class);
+        protocol.handleFileTransferFinish(null, FileTransferStatus.FILE_READY, null);
+    }
+
+    @Test
+    public void handleFinishNullCheckStatus() {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the message
+        FileInit testInitMessage = new FileInit();
+        testInitMessage.setFileName("test-file-message");
+        testInitMessage.setFileSize(1024);
+        testInitMessage.setFileHash("abcde");
+
+        // Null check
+        exceptionRule.expect(IllegalStateException.class);
+        protocol.handleFileTransferFinish(new FileDownloadSession(testInitMessage,
+                new FileDownloadSession.Callback() {
+                    @Override
+                    public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+
+                    }
+
+                    @Override
+                    public void onFinish(FileTransferStatus status, FileTransferError error) {
+
+                    }
+                }), null, null);
+    }
+
+    @Test
+    public void binaryResponseNoSession() throws MqttException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Call the handler
+        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                new MqttMessage(new byte[1001]));
+
+        // Verify no publishes have been called
+        verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void binaryResponseSession() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the message
+        FileInit testInitMessage = new FileInit();
+        testInitMessage.setFileName("test-file-message");
+        testInitMessage.setFileSize(1024);
+        testInitMessage.setFileHash("abcde");
+        MqttMessage testMessage = new MqttMessage(JsonUtil.serialize(testInitMessage));
+
+        // Do the call
+        protocol.handleFileTransferInitiation(
+                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(), testMessage);
+
+        // Call the handler
+        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                new MqttMessage(new byte[1088]));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify no publishes have been called
+        verify(clientMock, times(5)).getClientId();
+        verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void fileTransferSessionHappyFlow() throws MqttException, IOException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Create the payload
+        byte[] bytes = new byte[1088];
+        byte[] hash = DigestUtils.sha256(new byte[1024]);
+        for (int i = 0; i < hash.length; i++) {
+            bytes[bytes.length - hash.length + i] = hash[i];
+        }
+
+        // Prepare the message
+        FileInit testInitMessage = new FileInit();
+        testInitMessage.setFileName("Test File");
+        testInitMessage.setFileSize(1024);
+        testInitMessage.setFileHash(Base64.encodeBytes(hash));
+
+        // Do the calls
+        protocol.handleFileTransferInitiation(
+                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(testInitMessage)));
+
+        protocol.handleFileTransferBinaryResponse(
+                FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                new MqttMessage(bytes));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the calls
+        verify(managementMock, times(1)).createFile(any(), anyString());
+        verify(clientMock, times(6)).getClientId();
+        verify(clientMock, times(4)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void fileTransferSessionFailToSaveFile() throws MqttException, IOException, InterruptedException {
+        // Create the snap
+        doThrow(new IOException("Failed to save file - TEST.")).when(managementMock).createFile(any(), anyString());
+
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Create the payload
+        byte[] bytes = new byte[1088];
+        byte[] hash = DigestUtils.sha256(new byte[1024]);
+        for (int i = 0; i < hash.length; i++) {
+            bytes[bytes.length - hash.length + i] = hash[i];
+        }
+
+        // Prepare the message
+        FileInit testInitMessage = new FileInit();
+        testInitMessage.setFileName("Test File");
+        testInitMessage.setFileSize(1024);
+        testInitMessage.setFileHash(Base64.encodeBytes(hash));
+
+        // Do the calls
+        protocol.handleFileTransferInitiation(
+                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(testInitMessage)));
+
+        protocol.handleFileTransferBinaryResponse(
+                FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                new MqttMessage(bytes));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the calls
+        verify(clientMock, times(5)).getClientId();
+        verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFileDeleteNoManagement() throws MqttException, InterruptedException, NoSuchFieldException, IllegalAccessException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Set the management to null
+        Field field = FileManagementProtocol.class.getDeclaredField("management");
+        field.setAccessible(true);
+        field.set(protocol, null);
+
+        // Create the test message
+        FileDelete delete = new FileDelete();
+        delete.setFileName("test-file");
+
+        // Call the method
+        protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(delete)));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks have been called
+        verify(managementMock, never()).deleteFile(eq("test-file"));
+        verify(clientMock, times(1)).getClientId();
+        verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFileDelete() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Create the test message
+        FileDelete delete = new FileDelete();
+        delete.setFileName("test-file");
+
+        // Call the method
+        protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(delete)));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks have been called
+        verify(managementMock, times(1)).deleteFile(eq("test-file"));
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFilePurgeNoManagement() throws MqttException, InterruptedException, NoSuchFieldException, IllegalAccessException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Set the management to null
+        Field field = FileManagementProtocol.class.getDeclaredField("management");
+        field.setAccessible(true);
+        field.set(protocol, null);
+
+        // Call the method
+        protocol.handleFilePurge(FileManagementProtocol.FILE_PURGE + clientMock.getClientId(),
+                new MqttMessage());
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks have been called
+        verify(managementMock, never()).purgeDirectory();
+        verify(clientMock, times(1)).getClientId();
+        verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFilePurge() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Call the method
+        protocol.handleFilePurge(FileManagementProtocol.FILE_PURGE + clientMock.getClientId(),
+                new MqttMessage());
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks have been called
+        verify(managementMock, times(1)).purgeDirectory();
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleFileRequest() throws IOException, MqttException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Call the method
+        protocol.handleFileListRequest(FileManagementProtocol.FILE_LIST_REQUEST + clientMock.getClientId(),
+                new MqttMessage());
+
+        // Verify the mocks have been called
+        verify(managementMock, times(1)).listAllFiles();
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 }

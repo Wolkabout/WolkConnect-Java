@@ -388,7 +388,7 @@ public class FileManagementProtocol {
     /**
      * This is the method that defines the behaviour when a FILE_DELETE message is received.
      */
-    private void handleFileDeletion(String topic, MqttMessage message) {
+    void handleFileDeletion(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
 
         if (this.management == null) {
@@ -405,7 +405,7 @@ public class FileManagementProtocol {
     /**
      * This is the method that defines the behaviour when a FILE_PURGE message is received.
      */
-    private void handleFilePurge(String topic, MqttMessage message) {
+    void handleFilePurge(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
 
         if (this.management == null) {
@@ -421,7 +421,7 @@ public class FileManagementProtocol {
     /**
      * This is the method that defines the behaviour when a FILE_LIST_REQUEST message is received.
      */
-    private void handleFileListRequest(String topic, MqttMessage message) {
+    void handleFileListRequest(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         LOG.info("Received request for the file list. Responding...");
         publishFileList(FILE_LIST_RESPONSE + client.getClientId());
