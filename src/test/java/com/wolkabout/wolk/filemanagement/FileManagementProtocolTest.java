@@ -18,9 +18,7 @@ package com.wolkabout.wolk.filemanagement;
 
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.platform2device.FileAbort;
-import com.wolkabout.wolk.filemanagement.model.platform2device.FileDelete;
-import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import com.wolkabout.wolk.filemanagement.model.platform2device.*;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -55,6 +53,10 @@ public class FileManagementProtocolTest {
     public ExpectedException exceptionRule = ExpectedException.none();
     @Mock
     File fileMock;
+    @Mock
+    FileDownloadSession fileDownloadSessionMock;
+    @Mock
+    UrlFileDownloadSession urlFileDownloadSessionMock;
     @Mock
     MqttClient clientMock;
     @Mock
@@ -596,6 +598,196 @@ public class FileManagementProtocolTest {
     }
 
     @Test
+    public void urlInitializationSessionRunning() throws NoSuchFieldException, IllegalAccessException, MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Set the session
+        Field field = FileManagementProtocol.class.getDeclaredField("urlFileDownloadSession");
+        field.setAccessible(true);
+        field.set(protocol, urlFileDownloadSessionMock);
+
+        // Prepare the test message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks were called
+        verify(clientMock, times(1)).getClientId();
+        verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlInitializationManagementIsNull() throws NoSuchFieldException, IllegalAccessException, MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Set the session
+        Field field = FileManagementProtocol.class.getDeclaredField("management");
+        field.setAccessible(true);
+        field.set(protocol, null);
+
+        // Prepare the test message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify everything was called on the mocks
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlInitializationManagementPublishThrows() throws MqttException, InterruptedException {
+        // Setup the throw
+        doThrow(new MqttException(new Exception("Test MQTT Exception."))).when(clientMock)
+                .publish(anyString(), any(), anyInt(), anyBoolean());
+
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the test message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify everything was called on the mocks
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlInitializationManagementHappyFlow() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the test message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mock calls
+        verify(clientMock, times(3)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlAbortButNoSession() throws NoSuchFieldException, MqttException, IllegalAccessException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Set the session
+        Field field = FileManagementProtocol.class.getDeclaredField("urlFileDownloadSession");
+        field.setAccessible(true);
+        field.set(protocol, null);
+
+        // Prepare the test message
+        UrlAbort urlAbort = new UrlAbort();
+        urlAbort.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadAbort(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlAbort)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks were called properly
+        verify(clientMock, times(1)).getClientId();
+        verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlAbortWrongUrl() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the init message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://proper.test.url");
+
+        // Call the init
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Prepare the test message
+        UrlAbort urlAbort = new UrlAbort();
+        urlAbort.setFileUrl("https://notproper.test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadAbort(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlAbort)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks were called properly
+        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void urlAbortHappyFlow() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the init message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://test.url");
+
+        // Call the init
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Prepare the abort message
+        UrlAbort urlAbort = new UrlAbort();
+        urlAbort.setFileUrl("https://test.url");
+
+        // Call the method
+        protocol.handleUrlDownloadAbort(FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlAbort)));
+
+        // Sleep for a tad bit
+        Thread.sleep(1000);
+
+        // Verify the mocks were called appropriately
+        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
     public void handleFileDeleteNoManagement() throws MqttException, InterruptedException, NoSuchFieldException, IllegalAccessException {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
@@ -620,6 +812,74 @@ public class FileManagementProtocolTest {
         verify(managementMock, never()).deleteFile(eq("test-file"));
         verify(clientMock, times(1)).getClientId();
         verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void nullCheckUrlFinishSession() {
+        // Setup the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Call the finish
+        exceptionRule.expect(IllegalStateException.class);
+        protocol.handleUrlSessionFinish(null, FileTransferStatus.FILE_READY, null);
+    }
+
+    @Test
+    public void nullCheckUrlFinishStats() {
+        // Setup the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Call the finish
+        exceptionRule.expect(IllegalStateException.class);
+        protocol.handleUrlSessionFinish(urlFileDownloadSessionMock, null, null);
+    }
+
+    @Test
+    public void handleUrlFileHappyFlow() throws InterruptedException, IOException, MqttException {
+        // Setup the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Setup the test initialize message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://get.docker.com");
+
+        // Pass the initialize message
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Wait for the results to show up
+        Thread.sleep(1000);
+
+        // Check that everything got called
+        verify(managementMock, times(1)).createFile(any(), eq("get.docker.com"));
+        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void handleUrlFileThrowsSaveFile() throws InterruptedException, IOException, MqttException {
+        // Setup the throw
+        doThrow(new IOException("Test FILE Exception")).when(managementMock).createFile(any(), anyString());
+
+        // Setup the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Setup the test initialize message
+        UrlInfo urlInfo = new UrlInfo();
+        urlInfo.setFileUrl("https://get.docker.com");
+
+        // Pass the initialize message
+        protocol.handleUrlDownloadInitiation(
+                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                new MqttMessage(JsonUtil.serialize(urlInfo)));
+
+        // Wait for the results to show up
+        Thread.sleep(1000);
+
+        // Check that everything got called
+        verify(clientMock, times(3)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 
     @Test
