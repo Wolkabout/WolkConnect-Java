@@ -141,12 +141,11 @@ public class FileManagementProtocol {
         }
     }
 
-    private void handleFileTransferInitiation(String topic, MqttMessage message) {
+    void handleFileTransferInitiation(String topic, MqttMessage message) {
         try {
             logReceivedMqttMessage(topic, message);
             // If a session is already running, that means the initialization message is not acceptable now.
             if (isSessionRunning()) {
-                logReceivedMqttMessage(topic, message);
                 LOG.warn("File transfer session is already ongoing. Ignoring this message...");
                 return;
             }
@@ -205,7 +204,7 @@ public class FileManagementProtocol {
         }
     }
 
-    private void handleFileTransferAbort(String topic, MqttMessage message) {
+    void handleFileTransferAbort(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         // Null check the session
         if (fileDownloadSession == null) {
@@ -225,7 +224,7 @@ public class FileManagementProtocol {
         fileDownloadSession.abort();
     }
 
-    private void handleFileTransferBinaryResponse(String topic, MqttMessage message) {
+    void handleFileTransferBinaryResponse(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         // Null check the session
         if (fileDownloadSession == null) {
@@ -237,14 +236,14 @@ public class FileManagementProtocol {
         fileDownloadSession.receiveBytes(message.getPayload());
     }
 
-    private void handleFileTransferRequest(String fileName, int chunkIndex, int chunkSize) {
+    void handleFileTransferRequest(String fileName, int chunkIndex, int chunkSize) {
         // Create a message to request the data and send it
         ChunkRequest chunkRequest = new ChunkRequest(fileName, chunkIndex, chunkSize);
         publish(FILE_BINARY_REQUEST + client.getClientId(), chunkRequest);
     }
 
-    private void handleFileTransferFinish(FileDownloadSession session, FileTransferStatus status,
-                                          FileTransferError error) {
+    void handleFileTransferFinish(FileDownloadSession session, FileTransferStatus status,
+                                  FileTransferError error) {
         // Null check what needs to be null checked
         if (session == null) {
             throw new IllegalStateException("Handle file session finish is called with a null session.");
@@ -285,7 +284,7 @@ public class FileManagementProtocol {
     /**
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_INITIATE message is received.
      */
-    private void handleUrlDownloadInitiation(String topic, MqttMessage message) {
+    void handleUrlDownloadInitiation(String topic, MqttMessage message) {
         try {
             logReceivedMqttMessage(topic, message);
             // If a session is already running, that means the initialization message is not acceptable now.
@@ -324,7 +323,7 @@ public class FileManagementProtocol {
     /**
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_ABORT message is received.
      */
-    private void handleUrlDownloadAbort(String topic, MqttMessage message) {
+    void handleUrlDownloadAbort(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
         // Null check the session
         if (urlFileDownloadSession == null) {
@@ -347,8 +346,8 @@ public class FileManagementProtocol {
     /**
      * This is the callback method for the URL Download session to handle the result of the session.
      */
-    private void handleUrlSessionFinish(UrlFileDownloadSession session, FileTransferStatus status,
-                                        FileTransferError error) {
+    void handleUrlSessionFinish(UrlFileDownloadSession session, FileTransferStatus status,
+                                FileTransferError error) {
         // Null check what needs to be null checked
         if (session == null) {
             throw new IllegalStateException("Handle URL session finish is called with a null session.");
