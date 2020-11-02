@@ -93,7 +93,7 @@ public class FirmwareUpdateProtocol {
         }
     }
 
-    private void handleFirmwareUpdateInitiation(String topic, MqttMessage message) {
+    void handleFirmwareUpdateInitiation(String topic, MqttMessage message) {
         // Log the message
         logReceivedMqttMessage(topic, message);
 
@@ -111,7 +111,7 @@ public class FirmwareUpdateProtocol {
         installer.onInstallCommandReceived(init.getFileName());
     }
 
-    private void handleFirmwareUpdateAbort(String topic, MqttMessage message) {
+    void handleFirmwareUpdateAbort(String topic, MqttMessage message) {
         // Log the message
         logReceivedMqttMessage(topic, message);
 
@@ -143,11 +143,7 @@ public class FirmwareUpdateProtocol {
      * This is a utility method that is meant to just log a received message.
      */
     private void logReceivedMqttMessage(String topic, MqttMessage message) {
-        if (message.getPayload().length > 1000) {
-            LOG.debug("Received '" + topic + "' -> " + message.getPayload().length + " bytes.");
-        } else {
-            LOG.debug("Received '" + topic + "' -> " + message.toString() + ".");
-        }
+        LOG.debug("Received '" + topic + "' -> " + message.toString() + ".");
     }
 
     /**
