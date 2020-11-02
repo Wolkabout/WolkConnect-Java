@@ -327,7 +327,7 @@ public class FileManagementProtocolTest {
     }
 
     @Test
-    public void initializationMessageHandlingHappyFlow() throws MqttException {
+    public void initializationMessageHandlingHappyFlow() throws MqttException, InterruptedException {
         // Setup the mock calls
         when(managementMock.getFile(anyString()))
                 .thenReturn(null);
@@ -344,6 +344,9 @@ public class FileManagementProtocolTest {
 
         // Call the method
         protocol.handleFileTransferInitiation(FileManagementProtocol.FILE_UPLOAD_INITIATE + "test", testMessage);
+
+        // Sleep just a tad bit
+        Thread.sleep(10);
 
         // Verify all the mock calls
         verify(managementMock, times(1)).getFile(anyString());
@@ -371,7 +374,41 @@ public class FileManagementProtocolTest {
     }
 
     @Test
-    public void abortMessageHappyFlow() throws MqttException {
+    public void abortMessageFileNamesDontMatch() throws MqttException, InterruptedException {
+        // Create the protocol
+        protocol = new FileManagementProtocol(clientMock, managementMock);
+
+        // Prepare the message
+        FileInit testInitMessage = new FileInit();
+        testInitMessage.setFileName("test-file-message");
+        testInitMessage.setFileSize(1024);
+        testInitMessage.setFileHash("abcde");
+        MqttMessage testMessage = new MqttMessage(JsonUtil.serialize(testInitMessage));
+
+        // Do the call
+        protocol.handleFileTransferInitiation(
+                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(), testMessage);
+
+        // Create the abort message
+        FileAbort testAbortMessage = new FileAbort();
+        testAbortMessage.setFileName("non-matching-name");
+        testMessage = new MqttMessage(JsonUtil.serialize(testAbortMessage));
+
+        // Do the abort
+        protocol.handleFileTransferAbort(
+                FileManagementProtocol.FILE_UPLOAD_ABORT + clientMock.getClientId(), testMessage);
+
+        // Sleep just a tad bit
+        Thread.sleep(10);
+
+        // Verify the mock calls
+        verify(managementMock, times(1)).getFile(anyString());
+        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void abortMessageHappyFlow() throws MqttException, InterruptedException {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
@@ -394,6 +431,9 @@ public class FileManagementProtocolTest {
         // Do the abort
         protocol.handleFileTransferAbort(
                 FileManagementProtocol.FILE_UPLOAD_ABORT + clientMock.getClientId(), testMessage);
+
+        // Sleep just a tad bit
+        Thread.sleep(10);
 
         // Verify the mock calls
         verify(managementMock, times(1)).getFile(anyString());
