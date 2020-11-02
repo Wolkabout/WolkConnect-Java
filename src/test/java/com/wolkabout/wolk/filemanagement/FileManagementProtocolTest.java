@@ -346,7 +346,7 @@ public class FileManagementProtocolTest {
         protocol.handleFileTransferInitiation(FileManagementProtocol.FILE_UPLOAD_INITIATE + "test", testMessage);
 
         // Sleep just a tad bit
-        Thread.sleep(10);
+        Thread.sleep(1000);
 
         // Verify all the mock calls
         verify(managementMock, times(1)).getFile(anyString());
@@ -399,7 +399,7 @@ public class FileManagementProtocolTest {
                 FileManagementProtocol.FILE_UPLOAD_ABORT + clientMock.getClientId(), testMessage);
 
         // Sleep just a tad bit
-        Thread.sleep(10);
+        Thread.sleep(1000);
 
         // Verify the mock calls
         verify(managementMock, times(1)).getFile(anyString());
@@ -433,7 +433,7 @@ public class FileManagementProtocolTest {
                 FileManagementProtocol.FILE_UPLOAD_ABORT + clientMock.getClientId(), testMessage);
 
         // Sleep just a tad bit
-        Thread.sleep(10);
+        Thread.sleep(1000);
 
         // Verify the mock calls
         verify(managementMock, times(1)).getFile(anyString());
