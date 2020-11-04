@@ -58,9 +58,7 @@ public class FileDownloadSession {
     private final List<Byte> bytes;
     private final List<byte[]> hashes;
     // The main indicators of state
-    private boolean running;
-    private boolean success;
-    private boolean aborted;
+    private SessionState state;
     private int currentChunk;
     private int chunkRetryCount;
     private int restartCount;
@@ -87,7 +85,7 @@ public class FileDownloadSession {
 
         this.initMessage = initMessage;
         this.callback = callback;
-        this.running = true;
+        this.state = SessionState.RUNNING;
 
         this.bytes = new ArrayList<>();
         this.hashes = new ArrayList<>();
@@ -138,16 +136,8 @@ public class FileDownloadSession {
         return DigestUtils.sha256(data);
     }
 
-    public boolean isRunning() {
-        return running;
-    }
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public boolean isAborted() {
-        return aborted;
+    public SessionState getState() {
+        return state;
     }
 
     public FileInit getInitMessage() {
@@ -179,38 +169,30 @@ public class FileDownloadSession {
      * successful, it will not be aborted, and if it had already thrown an error, it will not be aborted.
      */
     public synchronized boolean abort() {
-        // If the session has thrown an error
-        if (this.aborted) {
-            LOG.warn("Unable to abort transfer session. Session is already aborted.");
-            return false;
+        switch (this.state) {
+            case FINISHED:
+                LOG.warn("Unable to abort transfer session. Session is done and successful.");
+                return false;
+            case ABORTED:
+                LOG.warn("Unable to abort transfer session. Session is already aborted.");
+                return false;
+            case ERROR:
+                LOG.warn("Unable to abort transfer session. Session is done with error '" + error.toString() + "'.");
+                return false;
+            case RUNNING:
+                state = SessionState.ABORTED;
+
+                currentChunk = 0;
+                bytes.clear();
+
+                status = getCurrentStatus();
+                error = null;
+                executor.execute(new FinishRunnable(status, null));
+
+                return true;
+            default:
+                return false;
         }
-        // If the session was successful
-        if (this.success) {
-            LOG.warn("Unable to abort transfer session. Session is done and successful.");
-            return false;
-        }
-        // If the session is not running
-        if (!this.running) {
-            LOG.warn("Unable to abort transfer session. Session is not running.");
-            return false;
-        }
-
-        // Set the state for aborted
-        this.running = false;
-        this.success = false;
-        this.aborted = true;
-
-        // Reset the values
-        currentChunk = 0;
-        bytes.clear();
-
-        status = getCurrentStatus();
-        error = null;
-
-        // Call the callback
-        executor.execute(new FinishRunnable(status, null));
-
-        return true;
     }
 
     /**
@@ -229,7 +211,7 @@ public class FileDownloadSession {
                 "current chunk count: " + currentChunk + ".");
 
         // Check the session status
-        if (!running)
+        if (this.state != SessionState.RUNNING)
             throw new IllegalStateException("This session is not running anymore, it is not accepting chunks.");
 
         // Check the array size
@@ -288,9 +270,7 @@ public class FileDownloadSession {
             }
 
             // Return everything
-            running = false;
-            success = true;
-
+            state = SessionState.FINISHED;
             status = getCurrentStatus();
             error = null;
             executor.execute(new FinishRunnable(status, null));
@@ -317,21 +297,7 @@ public class FileDownloadSession {
 
         // If we already requested the chunk over the limit, restart the process
         if (chunkRetryCount == MAX_RETRY) {
-            LOG.warn("A single chunk has been re-requested " + chunkRetryCount +
-                    " times, achieving the limit. Restarting the process.");
-            this.running = false;
-            this.success = false;
-            this.aborted = false;
-
-            currentChunk = 0;
-            bytes.clear();
-            chunkSizes.clear();
-            hashes.clear();
-
-            status = getCurrentStatus();
-            error = FileTransferError.RETRY_COUNT_EXCEEDED;
-
-            executor.execute(new FinishRunnable(status, error));
+            announceMaxRetry();
             return false;
         }
 
@@ -339,6 +305,26 @@ public class FileDownloadSession {
         ++chunkRetryCount;
         executor.execute(new RequestRunnable(fileName, chunkIndex, chunkSize));
         return true;
+    }
+
+    /**
+     * This is an internal method that defines the behaviour when the retries have been
+     * used up, and the session should be folded and should return the appropriate error.
+     */
+    private void announceMaxRetry() {
+        LOG.warn("A single chunk has been re-requested " + chunkRetryCount +
+                " times, achieving the limit. Restarting the process.");
+        this.state = SessionState.ERROR;
+
+        currentChunk = 0;
+        bytes.clear();
+        chunkSizes.clear();
+        hashes.clear();
+
+        status = getCurrentStatus();
+        error = FileTransferError.RETRY_COUNT_EXCEEDED;
+
+        executor.execute(new FinishRunnable(status, error));
     }
 
     /**
@@ -350,21 +336,7 @@ public class FileDownloadSession {
 
         // If we already restarted the file obtain too much times, set the state to error and notify
         if (restartCount == MAX_RESTART) {
-            LOG.warn("The session was restarted " + restartCount +
-                    " times, achieving the limit. Returning error.");
-            this.running = false;
-            this.success = false;
-            this.aborted = false;
-
-            currentChunk = 0;
-            bytes.clear();
-            chunkSizes.clear();
-            hashes.clear();
-
-            status = getCurrentStatus();
-            error = FileTransferError.RETRY_COUNT_EXCEEDED;
-
-            executor.execute(new FinishRunnable(status, error));
+            announceMaxRestart();
             return false;
         }
 
@@ -382,25 +354,43 @@ public class FileDownloadSession {
     }
 
     /**
+     * This is an internal method that defines the behaviour when the all restarts have been
+     * used up, and the session should be folded and should return the appropriate error.
+     */
+    private void announceMaxRestart() {
+        LOG.warn("The session was restarted " + restartCount +
+                " times, achieving the limit. Returning error.");
+        this.state = SessionState.ERROR;
+
+        currentChunk = 0;
+        bytes.clear();
+        chunkSizes.clear();
+        hashes.clear();
+
+        status = getCurrentStatus();
+        error = FileTransferError.RETRY_COUNT_EXCEEDED;
+
+        executor.execute(new FinishRunnable(status, error));
+    }
+
+    /**
      * This is an internal method used to calculate based on the state, what is the current File Transfer Status.
      *
      * @return The transfer status described with `FileTransferStatus` enum value.
      */
     private FileTransferStatus getCurrentStatus() {
-        if (this.running) {
-            LOG.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
-            return FileTransferStatus.FILE_TRANSFER;
+        switch (this.state) {
+            case RUNNING:
+                return FileTransferStatus.FILE_TRANSFER;
+            case FINISHED:
+                return FileTransferStatus.FILE_READY;
+            case ABORTED:
+                return FileTransferStatus.ABORTED;
+            case ERROR:
+                return FileTransferStatus.ERROR;
+            default:
+                return FileTransferStatus.UNKNOWN;
         }
-        if (this.aborted) {
-            LOG.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
-            return FileTransferStatus.ABORTED;
-        }
-        if (this.success) {
-            LOG.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
-            return FileTransferStatus.FILE_READY;
-        }
-        LOG.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
-        return FileTransferStatus.ERROR;
     }
 
     /**

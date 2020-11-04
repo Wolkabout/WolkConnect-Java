@@ -162,7 +162,7 @@ public class FileDownloadSessionTest {
         session = new FileDownloadSession(testMessage, callbackMock);
 
         // Check that it is reporting that it is running
-        assertTrue(session.isRunning());
+        assertEquals(SessionState.RUNNING, session.getState());
 
         // Form the payload
         byte[] payload = new byte[testFileSize + CHUNK_EXTRA];
@@ -183,7 +183,7 @@ public class FileDownloadSessionTest {
         }
 
         // Check if it says it is successful
-        assertTrue(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Sleep a tad bit for the mocks to be called
         Thread.sleep(100);
@@ -203,13 +203,13 @@ public class FileDownloadSessionTest {
         assertNull(session.getError());
 
         // It is still not aborted
-        assertFalse(session.isAborted());
+        assertEquals(SessionState.RUNNING, session.getState());
 
         // Abort the transfer
         assertTrue(session.abort());
 
         // Check that it says true
-        assertTrue(session.isAborted());
+        assertEquals(SessionState.ABORTED, session.getState());
 
         // Sleep a tad bit for the mocks to be called
         Thread.sleep(100);

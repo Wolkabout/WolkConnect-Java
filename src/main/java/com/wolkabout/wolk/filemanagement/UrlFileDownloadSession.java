@@ -39,6 +39,7 @@ public class UrlFileDownloadSession {
 
     // The Logger
     private static final Logger LOG = LoggerFactory.getLogger(UrlFileDownloadSession.class);
+    private static final int DEFAULT_DOWNLOAD_CHUNK_SIZE = 16384;
 
     // The executor
     private final ExecutorService executor = Executors.newCachedThreadPool();
@@ -46,10 +47,8 @@ public class UrlFileDownloadSession {
     private final UrlInfo initMessage;
     private final Callback callback;
     private final Future<?> downloadTask;
-    // The main indicators of state
-    private boolean running;
-    private boolean success;
-    private boolean aborted;
+    // The main indicator of state
+    private SessionState state;
     // The end result data
     private byte[] fileData;
     private String fileName;
@@ -75,7 +74,7 @@ public class UrlFileDownloadSession {
 
         this.initMessage = initMessage;
         this.callback = callback;
-        this.running = true;
+        this.state = SessionState.RUNNING;
 
         this.fileData = new byte[0];
 
@@ -85,16 +84,8 @@ public class UrlFileDownloadSession {
         downloadTask = executor.submit(new DownloadRunnable(initMessage.getFileUrl()));
     }
 
-    public boolean isRunning() {
-        return running;
-    }
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public boolean isAborted() {
-        return aborted;
+    public SessionState getState() {
+        return state;
     }
 
     public UrlInfo getInitMessage() {
@@ -126,39 +117,35 @@ public class UrlFileDownloadSession {
      * successful, it will not be aborted, and if it had already thrown an error, it will not be aborted.
      */
     public synchronized boolean abort() {
-        // If the session has thrown an error
-        if (this.aborted) {
-            LOG.warn("Unable to abort transfer session. Session is already aborted.");
-            return false;
+        switch (this.state) {
+            case FINISHED:
+                LOG.warn("Unable to abort transfer session. Session is done and successful.");
+                return false;
+            case ABORTED:
+                LOG.warn("Unable to abort transfer session. Session is already aborted.");
+                return false;
+            case ERROR:
+                LOG.warn("Unable to abort transfer session. Session is not running.");
+                return false;
+            case RUNNING:
+                // Stop the task
+                downloadTask.cancel(true);
+                this.fileData = new byte[0];
+                this.fileName = "";
+
+                // Set the state for aborted
+                this.state = SessionState.ABORTED;
+
+                status = getCurrentStatus();
+                error = null;
+
+                // Call the callback
+                executor.execute(new UrlFileDownloadSession.FinishRunnable(status, null));
+
+                return true;
+            default:
+                return false;
         }
-        // If the session was successful
-        if (this.success) {
-            LOG.warn("Unable to abort transfer session. Session is done and successful.");
-            return false;
-        }
-        // If the session is not running
-        if (!this.running || downloadTask == null || downloadTask.isDone()) {
-            LOG.warn("Unable to abort transfer session. Session is not running.");
-            return false;
-        }
-
-        // Stop the task
-        downloadTask.cancel(true);
-        this.fileData = new byte[0];
-        this.fileName = "";
-
-        // Set the state for aborted
-        this.running = false;
-        this.success = false;
-        this.aborted = true;
-
-        status = getCurrentStatus();
-        error = null;
-
-        // Call the callback
-        executor.execute(new UrlFileDownloadSession.FinishRunnable(status, null));
-
-        return true;
     }
 
     /**
@@ -174,7 +161,7 @@ public class UrlFileDownloadSession {
             final InputStream inputStream = remoteFile.openStream();
             final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
-            byte[] data = new byte[16384];
+            byte[] data = new byte[DEFAULT_DOWNLOAD_CHUNK_SIZE];
             int read;
             while ((read = inputStream.read(data, 0, data.length)) != -1) {
                 buffer.write(data, 0, read);
@@ -189,14 +176,15 @@ public class UrlFileDownloadSession {
         } catch (Exception exception) {
             error = FileTransferError.UNSPECIFIED_ERROR;
         } finally {
-            this.running = false;
-            this.success = this.error == null;
-
+            if (this.error != null) {
+                this.state = SessionState.FINISHED;
+            } else {
+                this.state = SessionState.ERROR;
+            }
             status = getCurrentStatus();
-
             executor.execute(new FinishRunnable(status, error));
         }
-        return this.success;
+        return this.state == SessionState.FINISHED;
     }
 
     /**
@@ -205,20 +193,22 @@ public class UrlFileDownloadSession {
      * @return The transfer status described with `FileTransferStatus` enum value.
      */
     private FileTransferStatus getCurrentStatus() {
-        if (this.running) {
-            LOG.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
-            return FileTransferStatus.FILE_TRANSFER;
+        switch (this.state) {
+            case RUNNING:
+                LOG.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
+                return FileTransferStatus.FILE_TRANSFER;
+            case FINISHED:
+                LOG.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
+                return FileTransferStatus.FILE_READY;
+            case ABORTED:
+                LOG.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
+                return FileTransferStatus.ABORTED;
+            case ERROR:
+                LOG.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
+                return FileTransferStatus.ERROR;
+            default:
+                return FileTransferStatus.UNKNOWN;
         }
-        if (this.aborted) {
-            LOG.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
-            return FileTransferStatus.ABORTED;
-        }
-        if (this.success) {
-            LOG.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
-            return FileTransferStatus.FILE_READY;
-        }
-        LOG.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
-        return FileTransferStatus.ERROR;
     }
 
     /**

@@ -88,7 +88,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.MALFORMED_URL);
-        assertFalse(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Check that the callback was called
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.MALFORMED_URL);
@@ -110,7 +110,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
-        assertFalse(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Check that the callback was called
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
@@ -122,7 +122,7 @@ public class UrlFileDownloadSessionTest {
         session = new UrlFileDownloadSession(testMessage, callbackMock);
 
         // Check that it is running
-        assertTrue(session.isRunning());
+        assertEquals(SessionState.RUNNING, session.getState());
 
         // Wait for the call to be here
         Thread.sleep(1000);
@@ -132,7 +132,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getStatus(), FileTransferStatus.FILE_READY);
         assertNull(session.getError());
         assertEquals(session.getFileName(), "get.docker.com");
-        assertTrue(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Verify that the mock was called with the proper result
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
@@ -153,7 +153,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ABORTED);
         assertNull(session.getError());
-        assertTrue(session.isAborted());
+        assertEquals(SessionState.ABORTED, session.getState());
 
         // Verify the mock call
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
@@ -165,7 +165,7 @@ public class UrlFileDownloadSessionTest {
         session = new UrlFileDownloadSession(testMessage, callbackMock);
 
         // Check that it is running
-        assertTrue(session.isRunning());
+        assertEquals(SessionState.RUNNING, session.getState());
 
         // Wait for the call to be here
         Thread.sleep(1000);
@@ -175,7 +175,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getStatus(), FileTransferStatus.FILE_READY);
         assertNull(session.getError());
         assertEquals(session.getFileName(), "get.docker.com");
-        assertTrue(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Attempt to abort
         assertFalse(session.abort());
@@ -199,7 +199,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ABORTED);
         assertNull(session.getError());
-        assertTrue(session.isAborted());
+        assertEquals(SessionState.ABORTED, session.getState());
 
         // Attempt to abort again
         assertFalse(session.abort());
@@ -224,7 +224,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
-        assertFalse(session.isSuccess());
+        assertEquals(SessionState.FINISHED, session.getState());
 
         // Attempt to abort again
         assertFalse(session.abort());

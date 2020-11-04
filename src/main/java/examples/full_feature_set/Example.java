@@ -45,6 +45,8 @@ public class Example {
     private final static ArrayList<String> VALID_LEVELS = new ArrayList<>(Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
     private final static String CONFIGURATION_FILE_PATH = "src/main/resources/configuration.json";
 
+    private static String version = "1.0";
+
     public static void setLogLevel(String logLevel, String packageName) {
         if (!VALID_LEVELS.contains(logLevel)) {
             System.out.println(" Invalid level : " + logLevel);
@@ -69,14 +71,12 @@ public class Example {
         Configurations configurations = objectMapper.readValue(configurationFile, Configurations.class);
         setLogLevel(configurations.getLogLevel(), "com.wolkabout");
 
-        final String[] version = {"1.0"};
-
         final Wolk wolk = Wolk.builder()
                 .mqtt()
                 .host("ssl://api-demo.wolkabout.com:8883")
                 .sslCertification("ca.crt")
-                .deviceKey("device_key")
-                .password("device_password")
+                .deviceKey("device-key")
+                .password("device-password")
                 .build()
                 .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
                 .enableKeepAliveService(true)
@@ -157,7 +157,7 @@ public class Example {
 
                             Thread.sleep(5000);
                             if (!aborted) {
-                                version[0] = String.valueOf(Double.parseDouble(version[0]) + 1);
+                                version = String.valueOf(Double.parseDouble(version) + 1);
                                 publishStatus(FirmwareUpdateStatus.COMPLETED);
                             }
                             aborted = false;
@@ -174,7 +174,7 @@ public class Example {
 
                     @Override
                     public void onFirmwareVersion() {
-                        publishFirmwareVersion(String.valueOf(version[0]));
+                        publishFirmwareVersion(String.valueOf(version));
                     }
                 })
                 .build();
@@ -183,7 +183,7 @@ public class Example {
         wolk.publishActuatorStatus("SL");
         wolk.publishConfiguration();
         wolk.publishFileList();
-        wolk.publishFirmwareVersion(version[0]);
+        wolk.publishFirmwareVersion(version);
         wolk.publish();
 
         while (true) {
