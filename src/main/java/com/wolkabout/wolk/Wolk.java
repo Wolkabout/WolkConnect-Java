@@ -407,7 +407,7 @@ public class Wolk {
     public static class Builder {
 
         private final String DEFAULT_FILE_LOCATION = "files/";
-        private MqttBuilder mqttBuilder = new MqttBuilder(this);
+        private final MqttBuilder mqttBuilder = new MqttBuilder(this);
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
         private Collection<String> actuatorReferences = new ArrayList<>();
 

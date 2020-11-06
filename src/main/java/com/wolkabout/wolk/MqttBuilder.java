@@ -40,7 +40,7 @@ public class MqttBuilder {
 
     private static final String FACTORY_TYPE = "X.509";
 
-    private WeakReference<Wolk.Builder> wolkBuilder;
+    private final WeakReference<Wolk.Builder> wolkBuilder;
 
     /**
      * URL of the MQTT broker. Must start with "ssl://" or "tcp://"
