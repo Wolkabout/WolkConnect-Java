@@ -406,10 +406,9 @@ public class Wolk {
 
     public static class Builder {
 
+        private final String DEFAULT_FILE_LOCATION = "files/";
         private MqttBuilder mqttBuilder = new MqttBuilder(this);
-
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
-
         private Collection<String> actuatorReferences = new ArrayList<>();
 
         private ActuatorHandler actuatorHandler = new ActuatorHandler() {
@@ -573,7 +572,7 @@ public class Wolk {
                 if (fileManagementEnabled) {
                     // Create the file system management
                     wolk.fileSystemManagement = new FileSystemManagement(
-                            fileManagementLocation.isEmpty() ? "files/" : fileManagementLocation);
+                            fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
 
                     // Create the file management protocol
                     wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
