@@ -16,38 +16,13 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
+public interface FirmwareInstaller {
 
-public abstract class FirmwareInstaller {
+    void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol);
 
-    private FirmwareUpdateProtocol protocol;
+    void onInstallCommandReceived(String fileName);
 
-    void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol) {
-        this.protocol = protocol;
-    }
+    void onAbortCommandReceived();
 
-    protected final void publishStatus(FirmwareUpdateStatus status) {
-        protocol.sendStatusMessage(status);
-        onFirmwareVersion();
-    }
-
-    protected final void publishError(FirmwareUpdateError error) {
-        protocol.sendErrorMessage(error);
-        onFirmwareVersion();
-    }
-
-    protected final void publishFirmwareVersion(String version) {
-        protocol.publishFirmwareVersion(version);
-    }
-
-    public void onInstallCommandReceived(String fileName) {
-        publishStatus(FirmwareUpdateStatus.INSTALLATION);
-    }
-
-    public void onAbortCommandReceived() {
-        publishStatus(FirmwareUpdateStatus.ABORTED);
-    }
-
-    public abstract void onFirmwareVersion();
+    void onFirmwareVersion();
 }

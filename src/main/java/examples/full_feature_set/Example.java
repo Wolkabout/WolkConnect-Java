@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wolkabout.wolk.Wolk;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
 import com.wolkabout.wolk.model.ActuatorCommand;
@@ -145,20 +146,25 @@ public class Example {
 
                     private boolean aborted = false;
 
+                    private FirmwareUpdateProtocol protocol;
+
+                    @Override
+                    public void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol) {
+                        this.protocol = protocol;
+                    }
+
                     @Override
                     public void onInstallCommandReceived(String fileName) {
                         try {
-                            super.onInstallCommandReceived(fileName);
-
                             // Check that we can read the file
                             if (new File(fileName).canRead()) {
-                                publishError(FirmwareUpdateError.FILE_SYSTEM_ERROR);
+                                protocol.sendErrorMessage(FirmwareUpdateError.FILE_SYSTEM_ERROR);
                             }
 
                             Thread.sleep(5000);
                             if (!aborted) {
                                 version = String.valueOf(Double.parseDouble(version) + 1);
-                                publishStatus(FirmwareUpdateStatus.COMPLETED);
+                                protocol.sendStatusMessage(FirmwareUpdateStatus.COMPLETED);
                             }
                             aborted = false;
                         } catch (InterruptedException e) {
@@ -168,13 +174,12 @@ public class Example {
 
                     @Override
                     public void onAbortCommandReceived() {
-                        super.onAbortCommandReceived();
                         aborted = true;
                     }
 
                     @Override
                     public void onFirmwareVersion() {
-                        publishFirmwareVersion(String.valueOf(version));
+                        protocol.publishFirmwareVersion(String.valueOf(version));
                     }
                 })
                 .build();

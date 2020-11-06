@@ -176,7 +176,7 @@ public class UrlFileDownloadSession {
         } catch (Exception exception) {
             error = FileTransferError.UNSPECIFIED_ERROR;
         } finally {
-            if (this.error != null) {
+            if (this.error == null) {
                 this.state = SessionState.FINISHED;
             } else {
                 this.state = SessionState.ERROR;

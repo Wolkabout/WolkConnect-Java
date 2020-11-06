@@ -119,11 +119,11 @@ public class FirmwareUpdateProtocol {
         installer.onAbortCommandReceived();
     }
 
-    void sendStatusMessage(FirmwareUpdateStatus status) {
+    public void sendStatusMessage(FirmwareUpdateStatus status) {
         publish(FIRMWARE_INSTALL_STATUS + client.getClientId(), new UpdateStatus(status));
     }
 
-    void sendErrorMessage(FirmwareUpdateError error) {
+    public void sendErrorMessage(FirmwareUpdateError error) {
         publish(FIRMWARE_INSTALL_STATUS + client.getClientId(), new UpdateStatus(error));
     }
 
