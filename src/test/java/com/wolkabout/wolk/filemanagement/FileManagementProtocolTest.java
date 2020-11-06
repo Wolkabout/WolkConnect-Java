@@ -144,7 +144,6 @@ public class FileManagementProtocolTest {
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
         // Call the method
-        exceptionRule.expect(IllegalArgumentException.class);
         protocol.publishFileList();
 
         // Verify the mock calls
@@ -593,8 +592,8 @@ public class FileManagementProtocolTest {
         Thread.sleep(1000);
 
         // Verify the calls
-        verify(clientMock, times(5)).getClientId();
-        verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
+        verify(clientMock, times(6)).getClientId();
+        verify(clientMock, times(4)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -673,8 +672,8 @@ public class FileManagementProtocolTest {
         Thread.sleep(1000);
 
         // Verify everything was called on the mocks
-        verify(clientMock, times(2)).getClientId();
-        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+        verify(clientMock, times(3)).getClientId();
+        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -878,8 +877,8 @@ public class FileManagementProtocolTest {
         Thread.sleep(1000);
 
         // Check that everything got called
-        verify(clientMock, times(3)).getClientId();
-        verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
+        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(3)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 
     @Test

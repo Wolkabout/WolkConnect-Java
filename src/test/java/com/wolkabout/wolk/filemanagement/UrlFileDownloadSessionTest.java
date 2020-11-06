@@ -88,7 +88,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.MALFORMED_URL);
-        assertEquals(SessionState.FINISHED, session.getState());
+        assertEquals(SessionState.ERROR, session.getState());
 
         // Check that the callback was called
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.MALFORMED_URL);
@@ -110,7 +110,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
-        assertEquals(SessionState.FINISHED, session.getState());
+        assertEquals(SessionState.ERROR, session.getState());
 
         // Check that the callback was called
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
@@ -224,7 +224,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
         assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
-        assertEquals(SessionState.FINISHED, session.getState());
+        assertEquals(SessionState.ERROR, session.getState());
 
         // Attempt to abort again
         assertFalse(session.abort());

@@ -96,7 +96,7 @@ public class FirmwareUpdateProtocolTest {
     @Test
     public void initializationMessageNoFile() throws MqttException, InterruptedException {
         // Setup the return value
-        when(managementMock.getFile(anyString())).thenReturn(null);
+        when(managementMock.fileExists(anyString())).thenReturn(false);
 
         // Setup the protocol
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
@@ -113,7 +113,7 @@ public class FirmwareUpdateProtocolTest {
         Thread.sleep(1000);
 
         // Check all the mock calls
-        verify(managementMock, times(1)).getFile(anyString());
+        verify(managementMock, times(1)).fileExists(anyString());
         verify(clientMock, times(3)).getClientId();
         verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
@@ -121,7 +121,7 @@ public class FirmwareUpdateProtocolTest {
     @Test
     public void initializationHappyFlow() throws MqttException, InterruptedException {
         // Setup the return of the mock
-        when(managementMock.getFile("whatever-file")).thenReturn(fileMock);
+        when(managementMock.fileExists("whatever-file")).thenReturn(true);
 
         // Setup the protocol
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
@@ -138,7 +138,7 @@ public class FirmwareUpdateProtocolTest {
         Thread.sleep(1000);
 
         // Check all the mock calls
-        verify(managementMock, times(1)).getFile(anyString());
+        verify(managementMock, times(1)).fileExists(anyString());
         verify(clientMock, times(2)).getClientId();
         verify(clientMock, never()).publish(anyString(), any(), anyInt(), anyBoolean());
         verify(installerMock, times(1))
