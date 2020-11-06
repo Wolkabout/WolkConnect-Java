@@ -17,12 +17,9 @@
 package com.wolkabout.wolk.firmwareupdate;
 
 public interface FirmwareInstaller {
-
-    void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol);
-
-    void onInstallCommandReceived(String fileName);
+    boolean onInstallCommandReceived(String fileName);
 
     void onAbortCommandReceived();
 
-    void onFirmwareVersion();
+    String onFirmwareVersion();
 }

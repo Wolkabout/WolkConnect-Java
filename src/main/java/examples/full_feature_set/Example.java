@@ -22,9 +22,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wolkabout.wolk.Wolk;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
-import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
-import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Configuration;
@@ -146,30 +143,17 @@ public class Example {
 
                     private boolean aborted = false;
 
-                    private FirmwareUpdateProtocol protocol;
-
                     @Override
-                    public void setFirmwareUpdateProtocol(FirmwareUpdateProtocol protocol) {
-                        this.protocol = protocol;
-                    }
-
-                    @Override
-                    public void onInstallCommandReceived(String fileName) {
+                    public boolean onInstallCommandReceived(String fileName) {
                         try {
-                            // Check that we can read the file
-                            if (new File(fileName).canRead()) {
-                                protocol.sendErrorMessage(FirmwareUpdateError.FILE_SYSTEM_ERROR);
-                            }
-
-                            Thread.sleep(5000);
+                            Thread.sleep(10000);
                             if (!aborted) {
-                                version = String.valueOf(Double.parseDouble(version) + 1);
-                                protocol.sendStatusMessage(FirmwareUpdateStatus.COMPLETED);
+                                System.exit(0);
+                                return true;
                             }
-                            aborted = false;
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
+                        } catch (InterruptedException ignored) {
                         }
+                        return false;
                     }
 
                     @Override
@@ -178,8 +162,8 @@ public class Example {
                     }
 
                     @Override
-                    public void onFirmwareVersion() {
-                        protocol.publishFirmwareVersion(String.valueOf(version));
+                    public String onFirmwareVersion() {
+                        return version;
                     }
                 })
                 .build();

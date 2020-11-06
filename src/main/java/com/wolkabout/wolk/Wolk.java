@@ -105,6 +105,9 @@ public class Wolk {
         }
 
         if (firmwareUpdateProtocol != null) {
+            if (firmwareUpdateProtocol.checkFirmwareVersion()) {
+                publishFileList();
+            }
             publishFirmwareVersion(firmwareVersion);
         }
     }

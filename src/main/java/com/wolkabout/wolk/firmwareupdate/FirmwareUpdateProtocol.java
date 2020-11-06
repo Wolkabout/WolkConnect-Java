@@ -29,6 +29,9 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -36,6 +39,7 @@ public class FirmwareUpdateProtocol {
 
     protected static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocol.class);
     protected static final int QOS = 0;
+    protected static final String FIRMWARE_VERSION_FILE = "lastFirmwareVersion.txt";
     // Listing all the topics
     protected static final String FIRMWARE_INSTALL_INITIALIZE = "p2d/firmware_update_install/d/";
     protected static final String FIRMWARE_INSTALL_ABORT = "p2d/firmware_update_abort/d/";
@@ -55,7 +59,8 @@ public class FirmwareUpdateProtocol {
      * @param management The File System management logic that actually interacts with the file system.
      *                   Passed by the Wolk instance.
      */
-    public FirmwareUpdateProtocol(MqttClient client, FileSystemManagement management, FirmwareInstaller installer) {
+    public FirmwareUpdateProtocol(MqttClient client, FileSystemManagement management,
+                                  FirmwareInstaller installer) {
         if (client == null) {
             throw new IllegalArgumentException("The client cannot be null.");
         }
@@ -70,8 +75,46 @@ public class FirmwareUpdateProtocol {
         this.management = management;
         this.installer = installer;
         // Inject ourselves into the installer
-        this.installer.setFirmwareUpdateProtocol(this);
         this.executor = Executors.newCachedThreadPool();
+    }
+
+    public boolean checkFirmwareVersion() {
+        // Logic for version tracking to report behaviour
+        if (this.management.fileExists(FIRMWARE_VERSION_FILE)) {
+            String loadedVersion;
+            if ((loadedVersion = loadVersionFromFile()) != null) {
+                if (!loadedVersion.equals(installer.onFirmwareVersion())) {
+                    sendStatusMessage(FirmwareUpdateStatus.COMPLETED);
+                } else {
+                    sendErrorMessage(FirmwareUpdateError.INSTALLATION_FAILED);
+                }
+            }
+            this.management.deleteFile(FIRMWARE_VERSION_FILE);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void saveVersionToFile(String version) {
+        try {
+            management.createFile(version.getBytes(), FIRMWARE_VERSION_FILE);
+        } catch (IOException exception) {
+            LOG.error("Failed to save firmware version to persistence for reporting.");
+        }
+    }
+
+    private String loadVersionFromFile() {
+        try {
+            return Files.readAllLines(management.getFile(FIRMWARE_VERSION_FILE).toPath()).get(0);
+        } catch (IOException exception) {
+            LOG.error("Failed to load firmware version from persistence for reporting.");
+            return null;
+        }
+    }
+
+    private void removeVersionFile() {
+        management.deleteFile(FIRMWARE_VERSION_FILE);
     }
 
     /**
@@ -107,8 +150,24 @@ public class FirmwareUpdateProtocol {
             return;
         }
 
+        // Check that it is readable
+        if (new File(init.getFileName()).canRead()) {
+            LOG.error("Received firmware update init message for unreadable file '" + init.getFileName() + "'.");
+            sendErrorMessage(FirmwareUpdateError.FILE_SYSTEM_ERROR);
+            return;
+        }
+
         // Call the installer
-        installer.onInstallCommandReceived(init.getFileName());
+        LOG.info("Received firmware update message for file '" + init.getFileName() + "'.");
+        sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        final String version = installer.onFirmwareVersion();
+        LOG.info("Firmware update installation ongoing. Saving version '" + version + "'.");
+        saveVersionToFile(version);
+        if (!installer.onInstallCommandReceived(init.getFileName())) {
+            LOG.warn("Firmware update installation failed by user.");
+            sendErrorMessage(FirmwareUpdateError.INSTALLATION_FAILED);
+            removeVersionFile();
+        }
     }
 
     void handleFirmwareUpdateAbort(String topic, MqttMessage message) {
@@ -116,6 +175,7 @@ public class FirmwareUpdateProtocol {
         logReceivedMqttMessage(topic, message);
 
         // Call the installer
+        sendStatusMessage(FirmwareUpdateStatus.ABORTED);
         installer.onAbortCommandReceived();
     }
 
