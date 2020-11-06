@@ -76,6 +76,7 @@ public class Wolk {
      */
     private FileManagementProtocol fileManagementProtocol;
     private FirmwareUpdateProtocol firmwareUpdateProtocol;
+    private String firmwareVersion;
     private FileSystemManagement fileSystemManagement;
     private FirmwareInstaller firmwareInstaller;
     /**
@@ -99,6 +100,13 @@ public class Wolk {
         subscribe();
         startPublishingKeepAlive(60);
 
+        if (fileManagementProtocol != null) {
+            publishFileList();
+        }
+
+        if (firmwareUpdateProtocol != null) {
+            publishFirmwareVersion(firmwareVersion);
+        }
     }
 
     /**
@@ -436,6 +444,8 @@ public class Wolk {
 
         private boolean firmwareUpdateEnabled = false;
 
+        private String firmwareVersion = "";
+
         private FirmwareInstaller firmwareInstaller = null;
 
         private boolean keepAliveServiceEnabled = true;
@@ -499,7 +509,7 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
@@ -507,10 +517,12 @@ public class Wolk {
             fileManagementEnabled = true;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(String fileManagementLocation, FirmwareInstaller firmwareInstaller) {
+        public Builder enableFirmwareUpdate(String fileManagementLocation, String firmwareVersion,
+                                            FirmwareInstaller firmwareInstaller) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
@@ -519,6 +531,7 @@ public class Wolk {
             this.fileManagementLocation = fileManagementLocation;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
             return this;
         }
 
@@ -568,6 +581,7 @@ public class Wolk {
                     // Create the firmware update if that is something the user wants
                     if (firmwareUpdateEnabled) {
                         wolk.firmwareInstaller = firmwareInstaller;
+                        wolk.firmwareVersion = firmwareVersion;
                         wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
                                 wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
                     }

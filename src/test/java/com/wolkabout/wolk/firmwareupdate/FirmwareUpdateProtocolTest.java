@@ -39,9 +39,9 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class FirmwareUpdateProtocolTests {
+public class FirmwareUpdateProtocolTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocolTests.class);
+    private static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocolTest.class);
     @Rule
     public ExpectedException exceptionRule = ExpectedException.none();
     FirmwareUpdateProtocol protocol;

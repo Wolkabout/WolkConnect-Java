@@ -141,7 +141,7 @@ public class Example {
                         return currentConfigurations;
                     }
                 })
-                .enableFirmwareUpdate("files/", new FirmwareInstaller() {
+                .enableFirmwareUpdate("files/", version, new FirmwareInstaller() {
 
                     private boolean aborted = false;
 
@@ -182,8 +182,6 @@ public class Example {
         wolk.publishActuatorStatus("SW");
         wolk.publishActuatorStatus("SL");
         wolk.publishConfiguration();
-        wolk.publishFileList();
-        wolk.publishFirmwareVersion(version);
         wolk.publish();
 
         while (true) {
