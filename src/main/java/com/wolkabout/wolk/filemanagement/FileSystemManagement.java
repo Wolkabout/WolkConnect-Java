@@ -85,6 +85,24 @@ public class FileSystemManagement {
     }
 
     /**
+     * This is the method used to check in the contents of our folder, whether a file with passed name can be found.
+     *
+     * @param fileName The name for the file we are looking for.
+     * @return True if file exists, false if it does not.
+     */
+    public boolean fileExists(String fileName) {
+        // List through all the files
+        for (File file : Objects.requireNonNull(folder.listFiles())) {
+            if (file.getName().equals(fileName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+
+    /**
      * This is the method used to attempt to obtain a file found in the folder. If it exists, its instance as File
      * will be returned. Otherwise, a null will be returned.
      *

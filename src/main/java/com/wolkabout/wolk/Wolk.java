@@ -360,11 +360,11 @@ public class Wolk {
      * Publishes the current list of files.
      */
     public void publishFileList() {
-        try {
-            if (fileManagementProtocol == null) {
-                return;
-            }
+        if (fileManagementProtocol == null) {
+            throw new IllegalStateException("File management protocol is not configured.");
+        }
 
+        try {
             fileManagementProtocol.publishFileList();
         } catch (Exception e) {
             LOG.info("Could not publish file list.", e);
@@ -378,7 +378,8 @@ public class Wolk {
      */
     public void publishFirmwareVersion(String version) {
         if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
+            this.firmwareVersion = version;
+            throw new IllegalStateException("Firmware update protocol is not configured.");
         }
 
         try {
@@ -406,7 +407,7 @@ public class Wolk {
 
     public static class Builder {
 
-        private final String DEFAULT_FILE_LOCATION = "files/";
+        private static final String DEFAULT_FILE_LOCATION = "files/";
         private final MqttBuilder mqttBuilder = new MqttBuilder(this);
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
         private Collection<String> actuatorReferences = new ArrayList<>();

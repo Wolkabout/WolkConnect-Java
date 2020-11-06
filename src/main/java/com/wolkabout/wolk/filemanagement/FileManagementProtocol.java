@@ -96,6 +96,7 @@ public class FileManagementProtocol {
      * This is the method that is used to capture the file list and send it.
      */
     public void publishFileList() {
+        LOG.debug("Publishing file list to the platform.");
         publishFileList(FILE_LIST_UPDATE + client.getClientId());
     }
 
@@ -142,66 +143,78 @@ public class FileManagementProtocol {
     }
 
     void handleFileTransferInitiation(String topic, MqttMessage message) {
+        logReceivedMqttMessage(topic, message);
+
+        // If a session is already running, that means the initialization message is not acceptable now.
+        if (isSessionRunning()) {
+            LOG.warn("File transfer session is already ongoing. Ignoring this message...");
+            return;
+        }
+
+        // Parse the initialization message
+        FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
+        LOG.info("Received file transfer session, with file named '" + initMessage.getFileName() + "'.");
+
+        // If there was an error creating the management, report a `FILE_SYSTEM_ERROR`.
+        if (this.management == null) {
+            LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+            publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                    FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+            return;
+        }
+
+        // Check if the file already exists
         try {
-            logReceivedMqttMessage(topic, message);
-            // If a session is already running, that means the initialization message is not acceptable now.
-            if (isSessionRunning()) {
-                LOG.warn("File transfer session is already ongoing. Ignoring this message...");
-                return;
-            }
-
-            // Parse the initialization message
-            FileInit initMessage = JsonUtil.deserialize(message, FileInit.class);
-            LOG.info("Received file transfer session, with file named '" + initMessage.getFileName() + "'.");
-
-            // If there was an error creating the management, report a `FILE_SYSTEM_ERROR`.
-            if (this.management == null) {
-                LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
-                publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
-                        FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
-                return;
-            }
-
-            // Check if the file already exists
-            File file;
-            if ((file = management.getFile(initMessage.getFileName())) != null) {
-                LOG.info("File '" + file.getName() + "' already exists.");
-                byte[] fileBytes = Files.readAllBytes(file.toPath());
-                // Check the file hash, it must be the same one of the new file, if it is not, we need to
-                // report an error.
-                if (Arrays.equals(FileDownloadSession.calculateHashForBytes(fileBytes),
-                        Base64.decodeBase64(initMessage.getFileHash()))) {
-                    LOG.info("File '" + file.getName() + "' hashes match, returning 'FILE_READY'.");
+            Boolean matching = findAndCheckFileHash(initMessage.getFileName(), initMessage.getFileHash());
+            if (matching != null) {
+                if (matching) {
+                    LOG.info("File '" + initMessage.getFileName() + "' hashes match, returning 'FILE_READY'.");
                     publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
                             FileTransferStatus.FILE_READY));
                 } else {
-                    LOG.info("File '" + file.getName() + "' hashes do not match, returning 'FILE_HASH_MISMATCH'.");
+                    LOG.info("File '" +
+                            initMessage.getFileName() + "' hashes do not match, returning 'FILE_HASH_MISMATCH'.");
                     publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
                             FileTransferStatus.ERROR, FileTransferError.FILE_HASH_MISMATCH));
                 }
                 return;
             }
-
-            // Start the session
-            fileDownloadSession = new FileDownloadSession(initMessage, new FileDownloadSession.Callback() {
-                @Override
-                public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
-                    handleFileTransferRequest(fileName, chunkIndex, chunkSize);
-                }
-
-                @Override
-                public void onFinish(FileTransferStatus status, FileTransferError error) {
-                    handleFileTransferFinish(fileDownloadSession, status, error);
-                    fileDownloadSession = null;
-                }
-            });
-
-            // Send the transferring message
+        } catch (IOException exception) {
+            LOG.error("Error occurred during reading of the existing file, returning '" +
+                    FileTransferError.FILE_SYSTEM_ERROR + "'.");
             publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
-                    FileTransferStatus.FILE_TRANSFER));
-        } catch (Exception exception) {
-            LOG.error("Error occurred during handling of file transfer initializer message: " + exception);
+                    FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+            return;
         }
+
+        // Start the session
+        fileDownloadSession = new FileDownloadSession(initMessage, new FileDownloadSession.Callback() {
+            @Override
+            public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+                handleFileTransferRequest(fileName, chunkIndex, chunkSize);
+            }
+
+            @Override
+            public void onFinish(FileTransferStatus status, FileTransferError error) {
+                handleFileTransferFinish(fileDownloadSession, status, error);
+                fileDownloadSession = null;
+            }
+        });
+
+        // Send the transferring message
+        publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                FileTransferStatus.FILE_TRANSFER));
+    }
+
+    Boolean findAndCheckFileHash(String fileName, String fileHash) throws IOException {
+        File file;
+        if ((file = management.getFile(fileName)) != null) {
+            LOG.info("File '" + file.getName() + "' already exists.");
+            byte[] fileBytes = Files.readAllBytes(file.toPath());
+            byte[] existingFileHash = FileDownloadSession.calculateHashForBytes(fileBytes);
+            return Arrays.equals(existingFileHash, Base64.decodeBase64(fileHash));
+        }
+        return null;
     }
 
     void handleFileTransferAbort(String topic, MqttMessage message) {
@@ -270,7 +283,6 @@ public class FileManagementProtocol {
                     new FileStatus(session.getInitMessage().getFileName(), status));
             LOG.info("Reporting file transfer as successful. Downloaded file '" +
                     session.getInitMessage().getFileName() + "'.");
-            publishFileList();
         } catch (IOException exception) {
             // Announce a file system error has occurred
             publish(FILE_UPLOAD_STATUS + client.getClientId(),
@@ -278,6 +290,8 @@ public class FileManagementProtocol {
                             FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             LOG.info("Reporting file transfer as '" + FileTransferStatus.ERROR +
                     "' with error '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+        } finally {
+            publishFileList();
         }
     }
 
@@ -285,39 +299,35 @@ public class FileManagementProtocol {
      * This is the method that defines the behaviour when a FILE_URL_DOWNLOAD_INITIATE message is received.
      */
     void handleUrlDownloadInitiation(String topic, MqttMessage message) {
-        try {
+        logReceivedMqttMessage(topic, message);
+        // If a session is already running, that means the initialization message is not acceptable now.
+        if (isSessionRunning()) {
             logReceivedMqttMessage(topic, message);
-            // If a session is already running, that means the initialization message is not acceptable now.
-            if (isSessionRunning()) {
-                logReceivedMqttMessage(topic, message);
-                LOG.warn("File transfer session is already ongoing. Ignoring this message...");
-                return;
-            }
-
-            // Parse the initialization message
-            UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
-            LOG.info("Received URL file download session, with URL '" + urlInit.getFileUrl() + "'.");
-
-            // If there is no management, return FILE_SYSTEM_ERROR immediately.
-            if (this.management == null) {
-                LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
-                publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
-                        FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
-                return;
-            }
-
-            // Give the transfer message
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
-                    new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
-
-            // Create the session
-            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
-                handleUrlSessionFinish(urlFileDownloadSession, status, error);
-                urlFileDownloadSession = null;
-            });
-        } catch (Exception exception) {
-            LOG.error("Error occurred during handling of file transfer initializer message: " + exception);
+            LOG.warn("File transfer session is already ongoing. Ignoring this message...");
+            return;
         }
+
+        // Parse the initialization message
+        UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
+        LOG.info("Received URL file download session, with URL '" + urlInit.getFileUrl() + "'.");
+
+        // If there is no management, return FILE_SYSTEM_ERROR immediately.
+        if (this.management == null) {
+            LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
+                    FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
+            return;
+        }
+
+        // Give the transfer message
+        publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
+                new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
+
+        // Create the session
+        urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
+            handleUrlSessionFinish(urlFileDownloadSession, status, error);
+            urlFileDownloadSession = null;
+        });
     }
 
     /**
@@ -374,7 +384,6 @@ public class FileManagementProtocol {
                     session.getFileName());
             publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
             LOG.info("Reporting URL file download as successful. Downloaded file '" + statusMessage.getFileName() + "'.");
-            publishFileList();
         } catch (IOException exception) {
             // Announce a file system error has occurred
             publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
@@ -382,6 +391,8 @@ public class FileManagementProtocol {
                             FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             LOG.info("Reporting URL file download as '" + FileTransferStatus.ERROR +
                     "' with error '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
+        } finally {
+            publishFileList();
         }
     }
 
@@ -434,23 +445,28 @@ public class FileManagementProtocol {
      * @param topic The topic to which the message will be sent.
      */
     private void publishFileList(String topic) {
+        // Stored values;
+        List<String> files;
+        List<FileInformation> payload;
+
+        // Acquire all the files
         try {
-            // Acquire all the files
-            List<String> files = management.listAllFiles();
+            files = management.listAllFiles();
             LOG.trace("Peeked the file system to find files, found " + files.size() + " files.");
-
-            // Place them all in the payload
-            List<FileInformation> payload = new ArrayList<>();
-            for (String file : files) {
-                payload.add(new FileInformation(file));
-            }
-            LOG.trace("Created payload to announce '" + payload + "'.");
-
-            // Send everything
-            publish(topic, payload);
         } catch (IOException exception) {
-            LOG.error("Error occurred during reading of folder contents. " + exception);
+            LOG.error("Error occurred during reading of folder contents.", exception);
+            return;
         }
+
+        // Place them all in the payload
+        payload = new ArrayList<>();
+        for (String file : files) {
+            payload.add(new FileInformation(file));
+        }
+        LOG.trace("Created payload to announce '" + payload + "'.");
+
+        // Send everything
+        publish(topic, payload);
     }
 
     /**
@@ -485,8 +501,14 @@ public class FileManagementProtocol {
         try {
             LOG.debug("Publishing to '" + topic + "' payload: " + payload);
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
+        } catch (MqttException e) {
+            final String message = "MQTT error occurred while publishing a message to topic : '" +
+                    topic + "' with payload: '" + payload + "'.";
+            LOG.error(message, e);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);
+            final String message = "Could not publish message to topic: '" +
+                    topic + "' with payload: '" + payload + "'.";
+            LOG.error(message, e);
         }
     }
 }

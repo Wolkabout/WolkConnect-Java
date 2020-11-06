@@ -101,7 +101,7 @@ public class FirmwareUpdateProtocol {
         UpdateInit init = JsonUtil.deserialize(message, UpdateInit.class);
 
         // Check that the file actually exists
-        if (management.getFile(init.getFileName()) == null) {
+        if (!management.fileExists(init.getFileName())) {
             LOG.error("Received firmware update init message for file that does not exist '" + init.getFileName() + "'.");
             sendErrorMessage(FirmwareUpdateError.FILE_NOT_PRESENT);
             return;
