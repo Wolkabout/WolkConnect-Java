@@ -1,0 +1,10 @@
+*WolkConnect-Java RELEASE NOTES**
+--------------------------
+
+*WolkAbout Technology s.r.o.*
+
+Java library which provides easy connectivity to WolkAbout IoT Platform.
+
+**Version 3.1.0**
+- [FEATURE] - Implemented the Firmware Update feature.
+- [FEATURE] - Implemented the File Management feature.
