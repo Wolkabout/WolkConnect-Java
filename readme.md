@@ -234,7 +234,6 @@ final Wolk wolk = Wolk.builder()
         .sslCertification("ca.crt")
         .deviceKey("device_key")
         .password("some_password")
-        .build()
         .enableKeepAliveService(false)
         .build();
 ```
@@ -246,6 +245,73 @@ This timestamp will be saved and updated for each response, and can be accessed 
 ```java
 long platformTimestamp = wolk.getPlatformTimestamp();
 ```
+
 ### File management & firmware update
 
-*Note:* These features will be available in a later release.
+To enable these features, you need to invoke the methods in the builder.
+
+##### File Management
+
+```java
+final Wolk wolk = Wolk.builder()
+    .mqtt()
+    .host("ssl://api-demo.wolkabout.com:8883")
+    .sslCertification("ca.crt")
+    .deviceKey("device_key")
+    .password("some_password")
+    .enableFileManagement();
+
+/** You can use
+    enableFileManagement() - use everything default
+    enableFileManagement(String fileManagementLocation) - use a specific file location
+    enableFileManagement(UrlFileDownloader urlFileDownloader) - use a custom url file downloader
+    enableFileManagement(String fileManagementLocation, UrlFileDownloader urlFileDownloader) - use both custom **/
+```
+
+You might want to implement a custom `UrlFileDownloader` object. This allows you to inject custom logic for downloading
+the file, based on the given URL. The default HTTP location will just target the request with GET method, without any
+arguments/headers.
+
+The [interface](https://github.com/Wolkabout/WolkConnect-Java/blob/master/src/main/java/com/wolkabout/wolk/filemanagement/UrlFileDownloader.java)
+looks like this:
+```java
+public interface UrlFileDownloader {
+    Map.Entry<FileTransferStatus, FileTransferError> downloadFile(String fileUrl);
+}
+```
+
+##### Firmware Update
+*Very important note* - if you have not enabled the file management, this will enable it. You can pass arguments through
+this call to, to configure the file management in the way you want.
+
+```java
+final FirmwareInstaller firmwareInstaller = ...;
+String firmwareVersion = ...;
+
+final Wolk wolk = Wolk.builder()
+    .mqtt()
+    .host("ssl://api-demo.wolkabout.com:8883")
+    .sslCertification("ca.crt")
+    .deviceKey("device_key")
+    .password("some_password")
+    .enableFirmwareUpdate(firmwareInstaller, firmwareVersion);
+
+/** You can use
+    enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) - use default file management, and pass the firmware installer and firmware version
+    enableFirmwareUpdate(String fileManagementLocation, String firmwareVersion, FirmwareInstaller firmwareInstaller) - configure the file management with the location
+    enableFirmwareUpdate(UrlFileDownloader urlFileDownloader, String firmwareVersion, FirmwareInstaller firmwareInstaller) - configure the file management with the url file downloader
+    enableFirmwareUpdate(String fileManagementLocation, UrlFileDownloader urlFileDownloader, String firmwareVersion, FirmwareInstaller firmwareInstaller) - configure the file management with everything custom **/
+```
+
+You do need to implement a object from `FirmwareInstaller` interface. This allows you to implement some logic for your
+use case to handle the incoming firmware update initialization messages, abort messages and to provide a firmware version.
+
+The [interface](https://github.com/Wolkabout/WolkConnect-Java/blob/master/src/main/java/com/wolkabout/wolk/firmwareupdate/FirmwareInstaller.java)
+looks like this:
+```java
+public interface FirmwareInstaller {
+    boolean onInstallCommandReceived(String fileName);
+    void onAbortCommandReceived();
+    String onFirmwareVersion();
+}
+```
