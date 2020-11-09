@@ -259,7 +259,8 @@ final Wolk wolk = Wolk.builder()
     .sslCertification("ca.crt")
     .deviceKey("device_key")
     .password("some_password")
-    .enableFileManagement();
+    .enableFileManagement()
+    .build();
 
 /** You can use
     enableFileManagement() - use everything default
@@ -294,7 +295,8 @@ final Wolk wolk = Wolk.builder()
     .sslCertification("ca.crt")
     .deviceKey("device_key")
     .password("some_password")
-    .enableFirmwareUpdate(firmwareInstaller, firmwareVersion);
+    .enableFirmwareUpdate(firmwareInstaller, firmwareVersion)
+    .build();
 
 /** You can use
     enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) - use default file management, and pass the firmware installer and firmware version
