@@ -14,10 +14,13 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement.model.platform2device;
 
-package com.wolkabout.wolk.filemanagement.model.command;
-
-public class FileInfo {
+/**
+ * This class represents the payload sent by the platform to the device
+ * to the `p2d/file_upload_initiate/d/` endpoint to receive a new uploaded file.
+ */
+public class FileInit {
 
     private String fileName;
     private long fileSize;
@@ -49,7 +52,7 @@ public class FileInfo {
 
     @Override
     public String toString() {
-        return "FileInfo{" +
+        return "FileInit{" +
                 "fileName='" + fileName + '\'' +
                 ", fileSize=" + fileSize +
                 ", fileHash='" + fileHash + '\'' +

@@ -14,25 +14,12 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement.model;
+package com.wolkabout.wolk.firmwareupdate;
 
-/**
- * Possible statuses for file management.
- */
-public enum FileTransferStatus {
+public interface FirmwareInstaller {
+    boolean onInstallCommandReceived(String fileName);
 
-    // Transfer still in progress
-    FILE_TRANSFER,
+    void onAbortCommandReceived();
 
-    // File ready to be installed
-    FILE_READY,
-
-    // Error occurred during transfer
-    ERROR,
-
-    // Aborted from the server
-    ABORTED,
-
-    // Unknown error
-    UNKNOWN
+    String onFirmwareVersion();
 }

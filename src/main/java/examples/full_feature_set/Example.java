@@ -21,6 +21,7 @@ import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.model.ActuatorCommand;
 import com.wolkabout.wolk.model.ActuatorStatus;
 import com.wolkabout.wolk.model.Configuration;
@@ -41,6 +42,8 @@ public class Example {
     private static final Logger LOG = LoggerFactory.getLogger(Example.class);
     private final static ArrayList<String> VALID_LEVELS = new ArrayList<>(Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
     private final static String CONFIGURATION_FILE_PATH = "src/main/resources/configuration.json";
+
+    private static String version = "1.0";
 
     public static void setLogLevel(String logLevel, String packageName) {
         if (!VALID_LEVELS.contains(logLevel)) {
@@ -70,8 +73,8 @@ public class Example {
                 .mqtt()
                 .host("ssl://api-demo.wolkabout.com:8883")
                 .sslCertification("ca.crt")
-                .deviceKey("device_key")
-                .password("some_password")
+                .deviceKey("device-key")
+                .password("device-password")
                 .build()
                 .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
                 .enableKeepAliveService(true)
@@ -134,6 +137,33 @@ public class Example {
                         currentConfigurations.add(new Configuration("HB", String.valueOf(configurations.getHeartBeat())));
 
                         return currentConfigurations;
+                    }
+                })
+                .enableFirmwareUpdate("files/", version, new FirmwareInstaller() {
+
+                    private boolean aborted = false;
+
+                    @Override
+                    public boolean onInstallCommandReceived(String fileName) {
+                        try {
+                            Thread.sleep(10000);
+                            if (!aborted) {
+                                System.exit(0);
+                                return true;
+                            }
+                        } catch (InterruptedException ignored) {
+                        }
+                        return false;
+                    }
+
+                    @Override
+                    public void onAbortCommandReceived() {
+                        aborted = true;
+                    }
+
+                    @Override
+                    public String onFirmwareVersion() {
+                        return version;
                     }
                 })
                 .build();

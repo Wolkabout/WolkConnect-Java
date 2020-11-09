@@ -14,20 +14,20 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement.model;
+package com.wolkabout.wolk.firmwareupdate.model;
 
 /**
- * Possible statuses for file management.
+ * Possible statuses for firmware update.
  */
-public enum FileTransferStatus {
+public enum FirmwareUpdateStatus {
 
-    // Transfer still in progress
-    FILE_TRANSFER,
+    // Installation is still in progress
+    INSTALLATION,
 
     // File ready to be installed
-    FILE_READY,
+    COMPLETED,
 
-    // Error occurred during transfer
+    // Error occurred during installation
     ERROR,
 
     // Aborted from the server

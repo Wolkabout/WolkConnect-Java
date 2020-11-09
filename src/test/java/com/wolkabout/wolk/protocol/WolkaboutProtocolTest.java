@@ -46,7 +46,7 @@ public class WolkaboutProtocolTest {
         Reading reading = new Reading("reference", "value");
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
         wolkaboutProtocol.publishReading(reading);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -56,7 +56,7 @@ public class WolkaboutProtocolTest {
         List<Reading> readings = new ArrayList<Reading>();
         readings.add(reading);
         wolkaboutProtocol.publishReadings(readings);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -64,7 +64,7 @@ public class WolkaboutProtocolTest {
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
         Alarm alarm = new Alarm("reference", false);
         wolkaboutProtocol.publishAlarm(alarm);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -74,7 +74,7 @@ public class WolkaboutProtocolTest {
         List<Alarm> alarms = new ArrayList<Alarm>();
         alarms.add(alarm);
         wolkaboutProtocol.publishAlarms(alarms);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -84,7 +84,7 @@ public class WolkaboutProtocolTest {
         List<Configuration> configurations = new ArrayList<Configuration>();
         configurations.add(configuration);
         wolkaboutProtocol.publishConfiguration(configurations);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 
     @Test
@@ -92,6 +92,6 @@ public class WolkaboutProtocolTest {
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
         ActuatorStatus actuatorStatus = new ActuatorStatus(ActuatorStatus.Status.READY, "value", "reference");
         wolkaboutProtocol.publishActuatorStatus(actuatorStatus);
-        verify(clientMock, atMostOnce()).publish(anyString(),any(byte[].class), anyInt(), anyBoolean());
+        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 }

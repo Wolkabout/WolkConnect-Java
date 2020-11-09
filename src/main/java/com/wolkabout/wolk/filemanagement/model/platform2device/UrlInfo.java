@@ -14,29 +14,27 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement;
+package com.wolkabout.wolk.filemanagement.model.platform2device;
 
-import com.wolkabout.wolk.Wolk;
+/**
+ * This class represents the payload sent by the platform to the device
+ * to the `p2d/file_upload_initiate/d/` endpoint to receive a new uploaded file.
+ */
+public class UrlInfo {
 
-import java.lang.ref.WeakReference;
+    private String fileUrl;
 
-public abstract class FirmwareInstaller {
-
-    private WeakReference<Wolk> wolk;
-
-    protected Wolk getWolk() {
-        return wolk.get();
+    public String getFileUrl() {
+        return fileUrl;
     }
 
-    public void setWolk(Wolk wolk) {
-        if (this.wolk != null) {
-            throw new IllegalStateException("Wolk instance already set.");
-        }
-
-        this.wolk = new WeakReference<>(wolk);
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
     }
 
-    public abstract void onInstallCommandReceived();
-
-    public abstract void onAbortCommandReceived();
+    @Override
+    public String toString() {
+        return "UrlInfo{" +
+                "fileUrl='" + fileUrl + '\'' + '}';
+    }
 }

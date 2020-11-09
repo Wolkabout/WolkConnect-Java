@@ -14,25 +14,27 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.filemanagement.model;
+package com.wolkabout.wolk.filemanagement.model.platform2device;
 
 /**
- * Possible statuses for file management.
+ * This class represents the payload sent by the platform to the device
+ * to the `p2d/file_url_download_abort/d/` endpoint to abort a file url download.
  */
-public enum FileTransferStatus {
+public class UrlAbort {
 
-    // Transfer still in progress
-    FILE_TRANSFER,
+    private String fileUrl;
 
-    // File ready to be installed
-    FILE_READY,
+    public String getFileUrl() {
+        return fileUrl;
+    }
 
-    // Error occurred during transfer
-    ERROR,
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
 
-    // Aborted from the server
-    ABORTED,
-
-    // Unknown error
-    UNKNOWN
+    @Override
+    public String toString() {
+        return "UrlAbort{" +
+                "fileUrl='" + fileUrl + '\'' + '}';
+    }
 }

@@ -14,53 +14,38 @@
  * limitations under the License.
  *
  */
-
 package com.wolkabout.wolk.filemanagement.model;
 
+/**
+ * All possible values found in the `error` value for status transfer messages.
+ */
 public enum FileTransferError {
 
-    /**
-     * An error not predicted by the protocol.
-     */
+    // An unexpected error occurred.
     UNSPECIFIED_ERROR(0),
 
-    /**
-     * File upload disabled on the device.
-     */
-    FILE_UPLOAD_DISABLED(1),
+    // Requested file transfer protocol is not supported on the device.
+    TRANSFER_PROTOCOL_DISABLED(1),
 
-    /**
-     * File size was not supported by the device
-     */
+    // File size is greater than that supported by the device.
     UNSUPPORTED_FILE_SIZE(2),
 
-    /**
-     * Error occurred while installing firmware
-     */
-    INSTALLATION_FAILED(3),
+    // Given file URL is malformed.
+    MALFORMED_URL(3),
 
-    /**
-     * Given file URL is malformed.
-     */
-    MALFORMED_URL(4),
+    // File with the same name but different hash is already present on the device.
+    FILE_HASH_MISMATCH(4),
 
-    /**
-     * File system error.
-     */
+    // Firmware file cannot be handled on the device due to a file system error.
     FILE_SYSTEM_ERROR(5),
 
-    /**
-     * The protocol tried to auto recover from an error 3 times.
-     */
+    // A device has failed to recover from error 3 times in a row during upload/download.
     RETRY_COUNT_EXCEEDED(10);
 
-    private int code;
+    // Error code value as int
+    private final int code;
 
     FileTransferError(int code) {
         this.code = code;
-    }
-
-    public int getCode() {
-        return code;
     }
 }

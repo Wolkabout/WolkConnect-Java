@@ -19,6 +19,8 @@ package com.wolkabout.wolk.util;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
+import java.nio.charset.StandardCharsets;
+
 public class JsonUtil {
 
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -34,7 +36,7 @@ public class JsonUtil {
 
     private static String extractPayload(MqttMessage message) {
         try {
-            return new String(message.getPayload(), "UTF-8");
+            return new String(message.getPayload(), StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new IllegalArgumentException("Unable to extract payload from: " + message, e);
         }
@@ -50,7 +52,7 @@ public class JsonUtil {
 
     public static byte[] serialize(Object object) {
         try {
-            return mapper.writeValueAsString(object).getBytes("UTF-8");
+            return mapper.writeValueAsString(object).getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not serialize: " + object, e);
         }

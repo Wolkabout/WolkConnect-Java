@@ -2,8 +2,6 @@ package com.wolkabout.wolk;
 
 import org.junit.Test;
 
-import static org.junit.Assert.*;
-
 public class WolkTest {
 
     @Test

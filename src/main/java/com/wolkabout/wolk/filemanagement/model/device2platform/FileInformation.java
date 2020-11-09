@@ -14,15 +14,18 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement.model.device2platform;
 
-package com.wolkabout.wolk.filemanagement.model;
-
-
-public class ChunkRequest {
-
+/**
+ * This class represents the payload sent by the device to the platform
+ * used in arrays to be send to 'd2p/file_list_response/d/' or 'd2p/file_list_update/d/'.
+ */
+public class FileInformation {
     private String fileName;
-    private int chunkSize;
-    private int chunkIndex;
+
+    public FileInformation(String fileName) {
+        this.fileName = fileName;
+    }
 
     public String getFileName() {
         return fileName;
@@ -32,28 +35,9 @@ public class ChunkRequest {
         this.fileName = fileName;
     }
 
-    public int getChunkSize() {
-        return chunkSize;
-    }
-
-    public void setChunkSize(int chunkSize) {
-        this.chunkSize = chunkSize;
-    }
-
-    public int getChunkIndex() {
-        return chunkIndex;
-    }
-
-    public void setChunkIndex(int chunkIndex) {
-        this.chunkIndex = chunkIndex;
-    }
-
     @Override
     public String toString() {
-        return "ChunkRequest{" +
-                "fileName='" + fileName + '\'' +
-                ", chunkSize=" + chunkSize +
-                ", chunkIndex=" + chunkIndex +
-                '}';
+        return "FileInformation={" +
+                "fileName='" + fileName + '\'' + '}';
     }
 }

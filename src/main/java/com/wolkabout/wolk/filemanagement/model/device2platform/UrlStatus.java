@@ -14,17 +14,44 @@
  * limitations under the License.
  *
  */
+package com.wolkabout.wolk.filemanagement.model.device2platform;
 
-package com.wolkabout.wolk.filemanagement.model;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.wolkabout.wolk.filemanagement.model.FileTransferError;
+import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 
 import java.util.Objects;
 
-public class StatusResponse {
+/**
+ * This class represents the payload sent by the device to the platform
+ * to the `d2p/file_url_download_status/d/` endpoint to notify of the file download status.
+ */
+public class UrlStatus {
 
     private FileTransferStatus status;
-    private FileTransferError error;
-    private String fileName;
     private String fileUrl;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private FileTransferError error;
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String fileName;
+
+    public UrlStatus(String fileUrl, FileTransferStatus status) {
+        this.status = status;
+        this.fileUrl = fileUrl;
+    }
+
+    public UrlStatus(String fileUrl, FileTransferStatus status, FileTransferError error) {
+        this.status = status;
+        this.error = error;
+        this.fileUrl = fileUrl;
+    }
+
+    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName) {
+        this.status = status;
+        this.fileName = fileName;
+        this.fileUrl = fileUrl;
+    }
 
     public FileTransferStatus getStatus() {
         return status;
@@ -71,8 +98,8 @@ public class StatusResponse {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof StatusResponse)) return false;
-        StatusResponse that = (StatusResponse) o;
+        if (!(o instanceof UrlStatus)) return false;
+        UrlStatus that = (UrlStatus) o;
         return error == that.error &&
                 status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
     }

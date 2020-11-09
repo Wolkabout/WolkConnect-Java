@@ -34,9 +34,10 @@ public class ConfigurationCommand {
     private Map<String, Object> values;
 
     @JsonIgnore
-    private Collection<Configuration> parsedValues = new HashSet<>();
+    private final Collection<Configuration> parsedValues = new HashSet<>();
 
-    public ConfigurationCommand() {}
+    public ConfigurationCommand() {
+    }
 
     public ConfigurationCommand(CommandType commandType, Map<String, Object> values) {
         this.command = commandType;
@@ -44,7 +45,7 @@ public class ConfigurationCommand {
     }
 
     public CommandType getType() {
-       return command;
+        return command;
     }
 
     public void setCommand(CommandType command) {
@@ -52,7 +53,9 @@ public class ConfigurationCommand {
     }
 
     @JsonIgnore
-    public Collection<Configuration> getValues() { return parsedValues; }
+    public Collection<Configuration> getValues() {
+        return parsedValues;
+    }
 
     public void setValues(Map<String, Object> values) {
         this.values = values;

@@ -17,10 +17,10 @@
 package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
-import com.wolkabout.wolk.filemanagement.FirmwareInstaller;
+import com.wolkabout.wolk.filemanagement.FileSystemManagement;
 import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
-import com.wolkabout.wolk.filemanagement.model.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -47,56 +47,48 @@ import java.util.stream.Collectors;
  */
 public class Wolk {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
-
     public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
     public static final String WOLK_DEMO_CA = "ca.crt";
-
-
-    private boolean keepAliveServiceEnabled = true;
+    private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
-    private final Runnable publishTask = new Runnable() {
-        @Override
-        public void run() {
-            publish();
-        }
-    };
-
+    private boolean keepAliveServiceEnabled = true;
+    private ScheduledFuture<?> runningPublishTask;
+    private ScheduledFuture<?> runningPublishKeepAliveTask;
+    /**
+     * MQTT client.
+     */
+    private MqttClient client;
+    /**
+     * MQTT connect options
+     */
+    private MqttConnectOptions options;
+    /**
+     * Protocol for sending and receiving data.
+     */
+    private Protocol protocol;
     private final Runnable publishKeepAlive = new Runnable() {
         @Override
         public void run() {
             protocol.publishKeepAlive();
         }
     };
-    private ScheduledFuture<?> runningPublishTask;
-    private ScheduledFuture<?> runningPublishKeepAliveTask;
-
-
     /**
-     * MQTT client.
-     */
-    private MqttClient client;
-
-    /**
-     * MQTT connect options
-     */
-    private MqttConnectOptions options;
-
-    /**
-     * Protocol for sending and receiving data.
-     */
-    private Protocol protocol;
-
-    /**
-     * Protocol for receiving firmware updates.
+     * Everything regarding the File Management/Firmware Update.
      */
     private FileManagementProtocol fileManagementProtocol;
-
+    private FirmwareUpdateProtocol firmwareUpdateProtocol;
+    private String firmwareVersion;
+    private FileSystemManagement fileSystemManagement;
+    private FirmwareInstaller firmwareInstaller;
     /**
      * Persistence mechanism for storing and retrieving data.
      */
     private Persistence persistence;
+    private final Runnable publishTask = this::publish;
 
+    public static Builder builder() {
+        return new Builder();
+    }
 
     public void connect() {
         try {
@@ -109,6 +101,14 @@ public class Wolk {
         subscribe();
         startPublishingKeepAlive(60);
 
+        if (fileManagementProtocol != null) {
+            publishFileList();
+
+            if (firmwareUpdateProtocol != null) {
+                firmwareUpdateProtocol.checkFirmwareVersion();
+                publishFirmwareVersion(firmwareVersion);
+            }
+        }
     }
 
     /**
@@ -359,54 +359,35 @@ public class Wolk {
     }
 
     /**
+     * Publishes the current list of files.
+     */
+    public void publishFileList() {
+        if (fileManagementProtocol == null) {
+            throw new IllegalStateException("File management protocol is not configured.");
+        }
+
+        try {
+            fileManagementProtocol.publishFileList();
+        } catch (Exception e) {
+            LOG.info("Could not publish file list.", e);
+        }
+    }
+
+    /**
      * Publishes the new version of the firmware.
      *
      * @param version current firmware version.
      */
     public void publishFirmwareVersion(String version) {
         if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
+            this.firmwareVersion = version;
+            throw new IllegalStateException("Firmware update protocol is not configured.");
         }
 
         try {
-//            fileManagementProtocol.publishFirmwareVersion(version);
+            firmwareUpdateProtocol.publishFirmwareVersion(version);
         } catch (Exception e) {
             LOG.info("Could not publish firmware version", e);
-        }
-    }
-
-    /**
-     * Publishes the progress of file transfer.
-     * To publish an error state use {link {@link #publishFileTransferStatus(FileTransferError)}}
-     *
-     * @param status Status of the file transfer.
-     */
-    public void publishFileTransferStatus(FileTransferStatus status) {
-        if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
-        }
-
-        try {
-//            fileManagementProtocol.publishFlowStatus(status);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware update status", e);
-        }
-    }
-
-    /**
-     * Publishes an error that occurred during firmware update.
-     *
-     * @param error Error that terminated firmware update.
-     */
-    public void publishFileTransferStatus(FileTransferError error) {
-        if (fileManagementProtocol == null) {
-            throw new IllegalStateException("Firmware update protocol not configured.");
-        }
-
-        try {
-            fileManagementProtocol.publishFlowStatus(error);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware update status", e);
         }
     }
 
@@ -417,21 +398,20 @@ public class Wolk {
             if (fileManagementProtocol != null) {
                 fileManagementProtocol.subscribe();
             }
+
+            if (firmwareUpdateProtocol != null) {
+                firmwareUpdateProtocol.subscribe();
+            }
         } catch (Exception e) {
             LOG.debug("Unable to subscribe to all required topics.", e);
         }
     }
 
-    public static Builder builder() {
-        return new Builder();
-    }
-
     public static class Builder {
 
-        private MqttBuilder mqttBuilder = new MqttBuilder(this);
-
+        private static final String DEFAULT_FILE_LOCATION = "files/";
+        private final MqttBuilder mqttBuilder = new MqttBuilder(this);
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
-
         private Collection<String> actuatorReferences = new ArrayList<>();
 
         private ActuatorHandler actuatorHandler = new ActuatorHandler() {
@@ -460,11 +440,17 @@ public class Wolk {
 
         private Persistence persistence = new InMemoryPersistence();
 
+        private boolean fileManagementEnabled = false;
+
+        private String fileManagementLocation = null;
+
         private boolean firmwareUpdateEnabled = false;
 
-        private FirmwareInstaller firmwareInstaller = null;
+        private String firmwareVersion = "";
 
-        private UrlFileDownloader urlFileDownloader = new UrlFileDownloader();
+        private UrlFileDownloader urlFileDownloader = null;
+
+        private FirmwareInstaller firmwareInstaller = null;
 
         private boolean keepAliveServiceEnabled = true;
 
@@ -516,24 +502,82 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
-            if (firmwareInstaller == null) {
-                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
-            }
-
-            firmwareUpdateEnabled = true;
-            this.firmwareInstaller = firmwareInstaller;
+        public Builder enableFileManagement() {
+            fileManagementEnabled = true;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, UrlFileDownloader urlFileDownloader) {
+        public Builder enableFileManagement(String fileManagementLocation) {
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            return this;
+        }
+
+        public Builder enableFileManagement(UrlFileDownloader urlFileDownloader) {
+            fileManagementEnabled = true;
+            this.urlFileDownloader = urlFileDownloader;
+            return this;
+        }
+
+        public Builder enableFileManagement(String fileManagementLocation, UrlFileDownloader urlFileDownloader) {
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            this.urlFileDownloader = urlFileDownloader;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
+            fileManagementEnabled = true;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(String fileManagementLocation, String firmwareVersion,
+                                            FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(UrlFileDownloader urlFileDownloader, String firmwareVersion,
+                                            FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            fileManagementEnabled = true;
             this.urlFileDownloader = urlFileDownloader;
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(String fileManagementLocation, UrlFileDownloader urlFileDownloader,
+                                            String firmwareVersion, FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            this.urlFileDownloader = urlFileDownloader;
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
             return this;
         }
 
@@ -572,9 +616,27 @@ public class Wolk {
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
 
-                if (firmwareUpdateEnabled) {
-                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, urlFileDownloader);
-                    firmwareInstaller.setWolk(wolk);
+                if (fileManagementEnabled) {
+                    // Create the file system management
+                    wolk.fileSystemManagement = new FileSystemManagement(
+                            fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
+
+                    // Create the file management protocol
+                    if (this.urlFileDownloader == null) {
+                        wolk.fileManagementProtocol =
+                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+                    } else {
+                        wolk.fileManagementProtocol =
+                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                    }
+
+                    // Create the firmware update if that is something the user wants
+                    if (firmwareUpdateEnabled) {
+                        wolk.firmwareInstaller = firmwareInstaller;
+                        wolk.firmwareVersion = firmwareVersion;
+                        wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
+                                wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
+                    }
                 }
 
                 actuatorHandler.setWolk(wolk);
