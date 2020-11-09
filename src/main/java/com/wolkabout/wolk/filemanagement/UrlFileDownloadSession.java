@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
+import com.sun.tools.javac.util.Pair;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
@@ -47,8 +48,7 @@ public class UrlFileDownloadSession {
     private final UrlInfo initMessage;
     private final Callback callback;
     private final Future<?> downloadTask;
-    // The main indicator of state
-    private SessionState state;
+    private final UrlFileDownloader urlFileDownloader;
     // The end result data
     private byte[] fileData;
     private String fileName;
@@ -74,18 +74,46 @@ public class UrlFileDownloadSession {
 
         this.initMessage = initMessage;
         this.callback = callback;
-        this.state = SessionState.RUNNING;
 
         this.fileData = new byte[0];
 
+        this.urlFileDownloader = this::defaultDownloadFile;
+
         // Start the download
-        status = getCurrentStatus();
+        status = FileTransferStatus.FILE_TRANSFER;
         error = null;
         downloadTask = executor.submit(new DownloadRunnable(initMessage.getFileUrl()));
     }
 
-    public SessionState getState() {
-        return state;
+    /**
+     * The constructor for the class that allows custom URL download logic.
+     * Bases the download session off the passed message data
+     * which contains a single URL we need to target as a GET HTTP request to obtain the file, and place
+     * all the acquired bytes into a local file.
+     *
+     * @param initMessage       The parsed message object that contains the url.
+     * @param callback          The object containing external calls for notifying of finish.
+     * @param urlFileDownloader The implementation of the interface that allows custom URL download logic.
+     */
+    public UrlFileDownloadSession(UrlInfo initMessage, Callback callback, UrlFileDownloader urlFileDownloader) {
+        if (initMessage == null) {
+            throw new IllegalArgumentException("The initial message object can not be null.");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("The callback object can not be null.");
+        }
+
+        this.initMessage = initMessage;
+        this.callback = callback;
+
+        this.fileData = new byte[0];
+
+        this.urlFileDownloader = urlFileDownloader;
+
+        // Start the download
+        status = FileTransferStatus.FILE_TRANSFER;
+        error = null;
+        downloadTask = executor.submit(new DownloadRunnable(initMessage.getFileUrl()));
     }
 
     public UrlInfo getInitMessage() {
@@ -117,8 +145,8 @@ public class UrlFileDownloadSession {
      * successful, it will not be aborted, and if it had already thrown an error, it will not be aborted.
      */
     public synchronized boolean abort() {
-        switch (this.state) {
-            case FINISHED:
+        switch (this.status) {
+            case FILE_READY:
                 LOG.warn("Unable to abort transfer session. Session is done and successful.");
                 return false;
             case ABORTED:
@@ -127,16 +155,14 @@ public class UrlFileDownloadSession {
             case ERROR:
                 LOG.warn("Unable to abort transfer session. Session is not running.");
                 return false;
-            case RUNNING:
+            case FILE_TRANSFER:
                 // Stop the task
                 downloadTask.cancel(true);
                 this.fileData = new byte[0];
                 this.fileName = "";
 
                 // Set the state for aborted
-                this.state = SessionState.ABORTED;
-
-                status = getCurrentStatus();
+                this.status = FileTransferStatus.ABORTED;
                 error = null;
 
                 // Call the callback
@@ -156,8 +182,21 @@ public class UrlFileDownloadSession {
      * is successful, the data will be set into variables inside the object, obtainable through getters.
      */
     public synchronized boolean downloadFile(String url) {
+        // Obtain the status and do the operation
+        Pair<FileTransferStatus, FileTransferError> pair = urlFileDownloader.downloadFile(url);
+        // Store the result
+        status = pair.fst;
+        error = pair.snd;
+        // Call the returns with appropriate values
+        executor.execute(new FinishRunnable(status, error));
+        return status == FileTransferStatus.FILE_READY;
+    }
+
+    public Pair<FileTransferStatus, FileTransferError> defaultDownloadFile(String fileUrl) {
+        FileTransferStatus state = null;
+        FileTransferError error = null;
         try {
-            final URL remoteFile = new URL(url);
+            final URL remoteFile = new URL(fileUrl);
             final InputStream inputStream = remoteFile.openStream();
             final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 
@@ -168,7 +207,7 @@ public class UrlFileDownloadSession {
             }
             buffer.flush();
 
-            final String[] urlParts = url.split("/");
+            final String[] urlParts = fileUrl.split("/");
             fileName = urlParts[urlParts.length - 1];
             fileData = buffer.toByteArray();
         } catch (MalformedURLException exception) {
@@ -176,39 +215,13 @@ public class UrlFileDownloadSession {
         } catch (Exception exception) {
             error = FileTransferError.UNSPECIFIED_ERROR;
         } finally {
-            if (this.error == null) {
-                this.state = SessionState.FINISHED;
+            if (error == null) {
+                state = FileTransferStatus.FILE_READY;
             } else {
-                this.state = SessionState.ERROR;
+                state = FileTransferStatus.ERROR;
             }
-            status = getCurrentStatus();
-            executor.execute(new FinishRunnable(status, error));
         }
-        return this.state == SessionState.FINISHED;
-    }
-
-    /**
-     * This is an internal method used to calculate based on the state, what is the current File Transfer Status.
-     *
-     * @return The transfer status described with `FileTransferStatus` enum value.
-     */
-    private FileTransferStatus getCurrentStatus() {
-        switch (this.state) {
-            case RUNNING:
-                LOG.debug("The session status now is '" + FileTransferStatus.FILE_TRANSFER.name() + "'.");
-                return FileTransferStatus.FILE_TRANSFER;
-            case FINISHED:
-                LOG.debug("The session status now is '" + FileTransferStatus.FILE_READY.name() + "'.");
-                return FileTransferStatus.FILE_READY;
-            case ABORTED:
-                LOG.debug("The session status now is '" + FileTransferStatus.ABORTED.name() + "'.");
-                return FileTransferStatus.ABORTED;
-            case ERROR:
-                LOG.debug("The session status now is '" + FileTransferStatus.ERROR.name() + "'.");
-                return FileTransferStatus.ERROR;
-            default:
-                return FileTransferStatus.UNKNOWN;
-        }
+        return new Pair<>(state, error);
     }
 
     /**

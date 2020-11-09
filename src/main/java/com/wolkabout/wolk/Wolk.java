@@ -18,6 +18,7 @@ package com.wolkabout.wolk;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FileSystemManagement;
+import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.model.*;
@@ -449,6 +450,8 @@ public class Wolk {
 
         private String firmwareVersion = "";
 
+        private UrlFileDownloader urlFileDownloader = null;
+
         private FirmwareInstaller firmwareInstaller = null;
 
         private boolean keepAliveServiceEnabled = true;
@@ -512,6 +515,19 @@ public class Wolk {
             return this;
         }
 
+        public Builder enableFileManagement(UrlFileDownloader urlFileDownloader) {
+            fileManagementEnabled = true;
+            this.urlFileDownloader = urlFileDownloader;
+            return this;
+        }
+
+        public Builder enableFileManagement(String fileManagementLocation, UrlFileDownloader urlFileDownloader) {
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            this.urlFileDownloader = urlFileDownloader;
+            return this;
+        }
+
         public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
@@ -532,6 +548,35 @@ public class Wolk {
 
             fileManagementEnabled = true;
             this.fileManagementLocation = fileManagementLocation;
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(UrlFileDownloader urlFileDownloader, String firmwareVersion,
+                                            FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            fileManagementEnabled = true;
+            this.urlFileDownloader = urlFileDownloader;
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(String fileManagementLocation, UrlFileDownloader urlFileDownloader,
+                                            String firmwareVersion, FirmwareInstaller firmwareInstaller) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            fileManagementEnabled = true;
+            this.fileManagementLocation = fileManagementLocation;
+            this.urlFileDownloader = urlFileDownloader;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
             this.firmwareVersion = firmwareVersion;
@@ -579,7 +624,13 @@ public class Wolk {
                             fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
 
                     // Create the file management protocol
-                    wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+                    if (this.urlFileDownloader == null) {
+                        wolk.fileManagementProtocol =
+                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+                    } else {
+                        wolk.fileManagementProtocol =
+                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                    }
 
                     // Create the firmware update if that is something the user wants
                     if (firmwareUpdateEnabled) {

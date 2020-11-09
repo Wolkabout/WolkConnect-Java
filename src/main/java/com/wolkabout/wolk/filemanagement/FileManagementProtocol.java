@@ -71,6 +71,7 @@ public class FileManagementProtocol {
     protected final FileSystemManagement management;
     protected FileDownloadSession fileDownloadSession;
     protected UrlFileDownloadSession urlFileDownloadSession;
+    private final UrlFileDownloader urlFileDownloader;
 
     /**
      * This is the constructor for the FileManagement feature.
@@ -89,6 +90,31 @@ public class FileManagementProtocol {
 
         this.client = client;
         this.management = management;
+        this.urlFileDownloader = null;
+        this.executor = Executors.newCachedThreadPool();
+    }
+
+    /**
+     * This is the constructor for the FileManagement feature.
+     * This one does allow the custom url file downloader implementation.
+     *
+     * @param client            The MQTT client passed to by the Wolk instance.
+     * @param management        The File System management logic that actually interacts with the file system.
+     *                          Passed by the Wolk instance.
+     * @param urlFileDownloader The custom URL file downloader implementation.
+     */
+    public FileManagementProtocol(MqttClient client, FileSystemManagement management,
+                                  UrlFileDownloader urlFileDownloader) {
+        if (client == null) {
+            throw new IllegalArgumentException("The client cannot be null.");
+        }
+        if (management == null) {
+            throw new IllegalArgumentException("The file management cannot be null.");
+        }
+
+        this.client = client;
+        this.management = management;
+        this.urlFileDownloader = urlFileDownloader;
         this.executor = Executors.newCachedThreadPool();
     }
 
@@ -324,10 +350,17 @@ public class FileManagementProtocol {
                 new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
 
         // Create the session
-        urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
-            handleUrlSessionFinish(urlFileDownloadSession, status, error);
-            urlFileDownloadSession = null;
-        });
+        if (this.urlFileDownloader == null) {
+            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
+                handleUrlSessionFinish(urlFileDownloadSession, status, error);
+                urlFileDownloadSession = null;
+            });
+        } else {
+            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
+                handleUrlSessionFinish(urlFileDownloadSession, status, error);
+                urlFileDownloadSession = null;
+            }, urlFileDownloader);
+        }
     }
 
     /**
