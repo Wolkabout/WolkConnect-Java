@@ -16,7 +16,6 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
-import com.sun.tools.javac.util.Pair;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
@@ -28,7 +27,6 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.AbstractMap;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
