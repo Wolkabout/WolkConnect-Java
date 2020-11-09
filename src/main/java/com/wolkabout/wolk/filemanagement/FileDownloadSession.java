@@ -58,7 +58,6 @@ public class FileDownloadSession {
     private final List<Byte> bytes;
     private final List<byte[]> hashes;
     // The main indicators of state
-    private SessionState state;
     private int currentChunk;
     private int chunkRetryCount;
     private int restartCount;
@@ -85,7 +84,6 @@ public class FileDownloadSession {
 
         this.initMessage = initMessage;
         this.callback = callback;
-        this.state = SessionState.RUNNING;
 
         this.bytes = new ArrayList<>();
         this.hashes = new ArrayList<>();
@@ -106,7 +104,7 @@ public class FileDownloadSession {
         LOG.trace("Calculated chunk count for this file: " + chunkSizes.size());
 
         // Request the first chunk
-        status = getCurrentStatus();
+        status = FileTransferStatus.FILE_TRANSFER;
         error = null;
         LOG.trace("Requesting first chunk of data.");
         executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
@@ -134,10 +132,6 @@ public class FileDownloadSession {
      */
     public static byte[] calculateHashForBytes(byte[] data) {
         return DigestUtils.sha256(data);
-    }
-
-    public SessionState getState() {
-        return state;
     }
 
     public FileInit getInitMessage() {
@@ -169,8 +163,8 @@ public class FileDownloadSession {
      * successful, it will not be aborted, and if it had already thrown an error, it will not be aborted.
      */
     public synchronized boolean abort() {
-        switch (this.state) {
-            case FINISHED:
+        switch (this.status) {
+            case FILE_READY:
                 LOG.warn("Unable to abort transfer session. Session is done and successful.");
                 return false;
             case ABORTED:
@@ -179,13 +173,11 @@ public class FileDownloadSession {
             case ERROR:
                 LOG.warn("Unable to abort transfer session. Session is done with error '" + error.toString() + "'.");
                 return false;
-            case RUNNING:
-                state = SessionState.ABORTED;
-
+            case FILE_TRANSFER:
                 currentChunk = 0;
                 bytes.clear();
 
-                status = getCurrentStatus();
+                status = FileTransferStatus.ABORTED;
                 error = null;
                 executor.execute(new FinishRunnable(status, null));
 
@@ -211,7 +203,7 @@ public class FileDownloadSession {
                 "current chunk count: " + currentChunk + ".");
 
         // Check the session status
-        if (this.state != SessionState.RUNNING)
+        if (this.status != FileTransferStatus.FILE_TRANSFER)
             throw new IllegalStateException("This session is not running anymore, it is not accepting chunks.");
 
         // Check the array size
@@ -270,8 +262,7 @@ public class FileDownloadSession {
             }
 
             // Return everything
-            state = SessionState.FINISHED;
-            status = getCurrentStatus();
+            status = FileTransferStatus.FILE_READY;
             error = null;
             executor.execute(new FinishRunnable(status, null));
             return true;
@@ -314,14 +305,12 @@ public class FileDownloadSession {
     private void announceMaxRetry() {
         LOG.warn("A single chunk has been re-requested " + chunkRetryCount +
                 " times, achieving the limit. Restarting the process.");
-        this.state = SessionState.ERROR;
-
         currentChunk = 0;
         bytes.clear();
         chunkSizes.clear();
         hashes.clear();
 
-        status = getCurrentStatus();
+        status = FileTransferStatus.ERROR;
         error = FileTransferError.RETRY_COUNT_EXCEEDED;
 
         executor.execute(new FinishRunnable(status, error));
@@ -360,37 +349,15 @@ public class FileDownloadSession {
     private void announceMaxRestart() {
         LOG.warn("The session was restarted " + restartCount +
                 " times, achieving the limit. Returning error.");
-        this.state = SessionState.ERROR;
-
         currentChunk = 0;
         bytes.clear();
         chunkSizes.clear();
         hashes.clear();
 
-        status = getCurrentStatus();
+        status = FileTransferStatus.ERROR;
         error = FileTransferError.RETRY_COUNT_EXCEEDED;
 
         executor.execute(new FinishRunnable(status, error));
-    }
-
-    /**
-     * This is an internal method used to calculate based on the state, what is the current File Transfer Status.
-     *
-     * @return The transfer status described with `FileTransferStatus` enum value.
-     */
-    private FileTransferStatus getCurrentStatus() {
-        switch (this.state) {
-            case RUNNING:
-                return FileTransferStatus.FILE_TRANSFER;
-            case FINISHED:
-                return FileTransferStatus.FILE_READY;
-            case ABORTED:
-                return FileTransferStatus.ABORTED;
-            case ERROR:
-                return FileTransferStatus.ERROR;
-            default:
-                return FileTransferStatus.UNKNOWN;
-        }
     }
 
     /**
