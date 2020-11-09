@@ -27,6 +27,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.AbstractMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -47,7 +50,7 @@ public class UrlFileDownloadSession {
     // The input data
     private final UrlInfo initMessage;
     private final Callback callback;
-    private final Future<?> downloadTask;
+    private Future<?> downloadTask;
     private final UrlFileDownloader urlFileDownloader;
     // The end result data
     private byte[] fileData;
@@ -157,7 +160,9 @@ public class UrlFileDownloadSession {
                 return false;
             case FILE_TRANSFER:
                 // Stop the task
-                downloadTask.cancel(true);
+                if (!downloadTask.isCancelled() && !downloadTask.isDone()) {
+                    downloadTask.cancel(true);
+                }
                 this.fileData = new byte[0];
                 this.fileName = "";
 
@@ -183,16 +188,21 @@ public class UrlFileDownloadSession {
      */
     public synchronized boolean downloadFile(String url) {
         // Obtain the status and do the operation
-        Pair<FileTransferStatus, FileTransferError> pair = urlFileDownloader.downloadFile(url);
+        Map.Entry<FileTransferStatus, FileTransferError> pair = urlFileDownloader.downloadFile(url);
+        if (status == FileTransferStatus.ABORTED) {
+            fileData = new byte[0];
+            fileName = "";
+            return false;
+        }
         // Store the result
-        status = pair.fst;
-        error = pair.snd;
+        status = pair.getKey();
+        error = pair.getValue();
         // Call the returns with appropriate values
         executor.execute(new FinishRunnable(status, error));
         return status == FileTransferStatus.FILE_READY;
     }
 
-    public Pair<FileTransferStatus, FileTransferError> defaultDownloadFile(String fileUrl) {
+    public Map.Entry<FileTransferStatus, FileTransferError> defaultDownloadFile(String fileUrl) {
         FileTransferStatus state = null;
         FileTransferError error = null;
         try {
@@ -221,7 +231,7 @@ public class UrlFileDownloadSession {
                 state = FileTransferStatus.ERROR;
             }
         }
-        return new Pair<>(state, error);
+        return new AbstractMap.SimpleEntry<>(state, error);
     }
 
     /**
