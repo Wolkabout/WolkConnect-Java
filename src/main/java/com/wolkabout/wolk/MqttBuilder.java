@@ -212,7 +212,8 @@ public class MqttBuilder {
         }
     }
 
-    private TrustManagerFactory getTrustManagerFactory(Certificate certificate, String ca) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
+    private TrustManagerFactory getTrustManagerFactory(Certificate certificate, String ca)
+            throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         // Creating a KeyStore containing our trusted CAs
         final String keyStoreType = KeyStore.getDefaultType();
         final KeyStore keyStore = KeyStore.getInstance(keyStoreType);

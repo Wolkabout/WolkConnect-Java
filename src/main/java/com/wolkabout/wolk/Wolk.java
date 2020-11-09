@@ -398,10 +398,10 @@ public class Wolk {
 
             if (fileManagementProtocol != null) {
                 fileManagementProtocol.subscribe();
+            }
 
-                if (firmwareUpdateProtocol != null) {
-                    firmwareUpdateProtocol.subscribe();
-                }
+            if (firmwareUpdateProtocol != null) {
+                firmwareUpdateProtocol.subscribe();
             }
         } catch (Exception e) {
             LOG.debug("Unable to subscribe to all required topics.", e);
