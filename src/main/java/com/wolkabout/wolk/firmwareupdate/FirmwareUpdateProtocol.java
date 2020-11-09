@@ -16,7 +16,6 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FileSystemManagement;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
@@ -35,11 +34,12 @@ import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.wolkabout.wolk.filemanagement.FileSystemManagement.FIRMWARE_VERSION_FILE;
+
 public class FirmwareUpdateProtocol {
 
     protected static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocol.class);
     protected static final int QOS = 0;
-    protected static final String FIRMWARE_VERSION_FILE = "lastFirmwareVersion.txt";
     // Listing all the topics
     protected static final String FIRMWARE_INSTALL_INITIALIZE = "p2d/firmware_update_install/d/";
     protected static final String FIRMWARE_INSTALL_ABORT = "p2d/firmware_update_abort/d/";
@@ -79,7 +79,7 @@ public class FirmwareUpdateProtocol {
         this.executor = Executors.newCachedThreadPool();
     }
 
-    public boolean checkFirmwareVersion() {
+    public void checkFirmwareVersion() {
         // Logic for version tracking to report behaviour
         if (this.management.fileExists(FIRMWARE_VERSION_FILE)) {
             LOG.debug("Detected a firmware version file.");
@@ -94,9 +94,6 @@ public class FirmwareUpdateProtocol {
                 }
             }
             this.management.deleteFile(FIRMWARE_VERSION_FILE);
-            return true;
-        } else {
-            return false;
         }
     }
 

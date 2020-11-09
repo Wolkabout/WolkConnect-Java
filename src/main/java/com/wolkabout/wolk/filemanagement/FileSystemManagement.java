@@ -34,6 +34,7 @@ import java.util.Objects;
 public class FileSystemManagement {
 
     private static final Logger LOG = LoggerFactory.getLogger(FileSystemManagement.class);
+    public static final String FIRMWARE_VERSION_FILE = "version.rcrd";
 
     // Constants
     private static final String SEPARATOR = "/";
@@ -71,6 +72,10 @@ public class FileSystemManagement {
         try {
             // List through all the files
             for (File file : Objects.requireNonNull(folder.listFiles())) {
+                if (file.getName().equals(FIRMWARE_VERSION_FILE)) {
+                    continue;
+                }
+
                 if (file.isFile()) {
                     files.add(file.getName());
                 }

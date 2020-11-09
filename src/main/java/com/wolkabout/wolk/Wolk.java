@@ -102,12 +102,12 @@ public class Wolk {
         startPublishingKeepAlive(60);
 
         if (fileManagementProtocol != null) {
+            publishFileList();
+
             if (firmwareUpdateProtocol != null) {
                 firmwareUpdateProtocol.checkFirmwareVersion();
                 publishFirmwareVersion(firmwareVersion);
             }
-
-            publishFileList();
         }
     }
 
