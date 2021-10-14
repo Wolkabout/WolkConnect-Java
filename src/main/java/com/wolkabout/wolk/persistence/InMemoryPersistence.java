@@ -16,8 +16,7 @@
  */
 package com.wolkabout.wolk.persistence;
 
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.model.Feed;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,65 +26,37 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class InMemoryPersistence implements Persistence {
 
-    private final Queue<Reading> store = new LinkedBlockingQueue<>();
-    private final Queue<Alarm> alarmStore = new LinkedBlockingQueue<>();
+    private final Queue<Feed> store = new LinkedBlockingQueue<>();
 
     @Override
-    public void addReading(Reading reading) {
-        store.add(reading);
+    public void addFeed(Feed feed) {
+        store.add(feed);
     }
 
     @Override
-    public void addReadings(Collection<Reading> readings) {
-        store.addAll(readings);
+    public void addFeeds(Collection<Feed> feeds) {
+        store.addAll(feeds);
     }
 
     @Override
-    public Reading poll() {
+    public Feed poll() {
         return store.poll();
     }
 
     @Override
-    public List<Reading> getAll() {
-        final ArrayList<Reading> readings = new ArrayList<>(store);
+    public List<Feed> getAll() {
+        final ArrayList<Feed> feeds = new ArrayList<>(store);
         store.clear();
-        return readings;
+        return feeds;
     }
 
     @Override
-    public void remove(Reading reading) {
-        store.remove(reading);
+    public void remove(Feed feed) {
+        store.remove(feed);
     }
 
     @Override
     public void removeAll() {
-        store.clear();
-    }
-
-    @Override
-    public void addAlarm(Alarm alarm) {
-        alarmStore.add(alarm);
-    }
-
-    @Override
-    public Alarm pollAlarms() {
-        return alarmStore.poll();
-    }
-
-    @Override
-    public List<Alarm> getAllAlarms() {
-        final ArrayList<Alarm> alarms = new ArrayList<>(alarmStore);
-        alarmStore.clear();
-        return alarms;
-    }
-
-    @Override
-    public void removeAlarm(Alarm alarm) {
-        alarmStore.remove(alarm);
-    }
-
-    @Override
-    public void removeAllAlarms() {
         store.clear();
     }
 

@@ -16,9 +16,9 @@
  */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.*;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.model.Parameter;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
@@ -32,17 +32,11 @@ import java.util.Map;
 
 public class WolkaboutProtocol extends Protocol {
 
-    private static final String ACTUATOR_SET = "p2d/actuator_set/d/";
-    private static final String ACTUATOR_STATUS = "d2p/actuator_status/d/";
+    private static final String OUT_DIRECTION = "d2p/";
+    private static final String IN_DIRECTION = "p2d/";
 
-    private static final String CONFIGURATION_SET = "p2d/configuration_set/d/";
-    private static final String CONFIGURATION_STATUS = "d2p/configuration_get/d/";
-
-    private static final String SENSOR_READING = "d2p/sensor_reading/d/";
-    private static final String ALARM = "d2p/events/d/";
-
-    private static final String KEEP_ALIVE_REQUEST = "ping/";
-    private static final String KEEP_ALIVE_RESPONSE = "pong/";
+    private static final String FEED_VALUES = "/feed_values";
+    private static final String PARAMETERS = "/parameters";
 
     public long getPlatformTimestamp() {
         return platformTimestamp;
@@ -53,130 +47,83 @@ public class WolkaboutProtocol extends Protocol {
     }
 
 
-    public WolkaboutProtocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
-        super(client, actuatorHandler, configurationHandler);
+    public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler) {
+        super(client, feedHandler);
     }
 
     @Override
     public void subscribe() throws Exception {
-        client.subscribe(ACTUATOR_SET + client.getClientId() + "/r/#", QOS, new IMqttMessageListener() {
+        client.subscribe(IN_DIRECTION + client.getClientId() + FEED_VALUES, QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> actuation = JsonUtil.deserialize(message, HashMap.class);
-                final Object value = actuation.get("value");
-
-                final String reference = topic.substring((ACTUATOR_SET + client.getClientId() + "/r/").length());
-                final ActuatorCommand actuatorCommand = new ActuatorCommand();
-                actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
-                actuatorCommand.setReference(reference);
-                actuatorCommand.setValue(value.toString());
-                actuatorHandler.onActuationReceived(actuatorCommand);
-
-                publishActuatorStatus(reference);
+                final HashMap<String, Object> inValues = JsonUtil.deserialize(message, HashMap.class);
+//
+//                final String reference = topic.substring((ACTUATOR_SET + client.getClientId() + "/r/").length());
+//                final ActuatorCommand actuatorCommand = new ActuatorCommand();
+//                actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
+//                actuatorCommand.setReference(reference);
+//                actuatorCommand.setValue(value.toString());
+//                actuatorHandler.onActuationReceived(actuatorCommand);
+//
+//                publishActuatorStatus(reference);
             }
         });
-
-        client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
-                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
-
-                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
-
-                publishCurrentConfig();
-            }
-        });
-
-        client.subscribe(KEEP_ALIVE_RESPONSE + client.getClientId(), QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> response = JsonUtil.deserialize(message, HashMap.class);
-                setPlatformTimestamp((long) response.get("value"));
-
-            }
-        });
+//
+//        client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
+//            @Override
+//            public void messageArrived(String topic, MqttMessage message) throws Exception {
+//                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
+//                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
+//
+//                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
+//
+//                publishCurrentConfig();
+//            }
+//        });
     }
 
     @Override
-    public void publishReading(Reading reading) {
-        publish(SENSOR_READING + client.getClientId() + "/r/" + reading.getReference(), reading);
+    public void publishFeed(Feed feed) {
+        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, feed);
     }
 
     @Override
-    public void publishReadings(Collection<Reading> readings) {
-        if (readings.isEmpty()) {
+    public void publishFeeds(Collection<Feed> feeds) {
+        if (feeds.isEmpty()) {
             return;
         }
 
         final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
-        for (Reading reading : readings) {
-            if (payloadByTime.containsKey(reading.getUtc())) {
-                final Map<String, Object> readingMap = payloadByTime.get(reading.getUtc());
-                if (!readingMap.containsKey(reading.getReference())) {
-                    readingMap.put(reading.getReference(), JsonMultivalueSerializer.valuesToString(reading.getValues()));
+        for (Feed feed : feeds) {
+            if (payloadByTime.containsKey(feed.getUtc())) {
+                final Map<String, Object> readingMap = payloadByTime.get(feed.getUtc());
+                if (!readingMap.containsKey(feed.getReference())) {
+                    readingMap.put(feed.getReference(), JsonMultivalueSerializer.valuesToString(feed.getValues()));
                 }
             } else {
                 final HashMap<String, Object> readingMap = new HashMap<>();
-                readingMap.put("utc", reading.getUtc());
-                readingMap.put(reading.getReference(), JsonMultivalueSerializer.valuesToString(reading.getValues()));
-                payloadByTime.put(reading.getUtc(), readingMap);
+                readingMap.put("utc", feed.getUtc());
+                readingMap.put(feed.getReference(), JsonMultivalueSerializer.valuesToString(feed.getValues()));
+                payloadByTime.put(feed.getUtc(), readingMap);
             }
         }
 
-        publish(SENSOR_READING + client.getClientId(), new ArrayList<>(payloadByTime.values()));
+        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, new ArrayList<>(payloadByTime.values()));
     }
 
     @Override
-    public void publishAlarm(Alarm alarm) {
-        publish(ALARM + client.getClientId() + "/r/" + alarm.getReference(), alarm);
-    }
+    public void updateParameters(Collection<Parameter> parameters) {
+        final HashMap<String, Object> payload = new HashMap<>();
 
-    @Override
-    public void publishAlarms(Collection<Alarm> alarms) {
-        if (alarms.isEmpty()) {
-            return;
+        for (Parameter param : parameters) {
+            payload.put(param.getReference(), param.getValue());
         }
 
-        final HashMap<Long, Map<String, Object>> payloadByTime = new HashMap<>();
-        for (Alarm alarm : alarms) {
-            if (payloadByTime.containsKey(alarm.getUtc())) {
-                final Map<String, Object> alarmMap = payloadByTime.get(alarm.getUtc());
-                if (!alarmMap.containsKey(alarm.getReference())) {
-                    alarmMap.put(alarm.getReference(), alarm.getActive());
-                }
-            } else {
-                final HashMap<String, Object> alarmMap = new HashMap<>();
-                alarmMap.put("utc", alarm.getUtc());
-                alarmMap.put(alarm.getReference(), alarm.getActive());
-                payloadByTime.put(alarm.getUtc(), alarmMap);
-            }
-        }
-
-        publish(ALARM + client.getClientId(), new ArrayList<>(payloadByTime.values()));
+        publish(OUT_DIRECTION + client.getClientId() + PARAMETERS, payload);
     }
 
     @Override
-    public void publishConfiguration(Collection<Configuration> configurations) {
-        final HashMap<String, Map<String, String>> payload = new HashMap<>();
-        final HashMap<String, String> values = new HashMap<>();
+    public void registerAttributes() {
 
-        for (Configuration conf : configurations) {
-            values.put(conf.getReference(), conf.getValue());
-        }
-
-        payload.put("values", values);
-
-        publish(CONFIGURATION_STATUS + client.getClientId(), payload);
-    }
-
-    @Override
-    public void publishActuatorStatus(ActuatorStatus actuatorStatus) {
-        publish(ACTUATOR_STATUS + client.getClientId() + "/r/" + actuatorStatus.getReference(), actuatorStatus);
-    }
-
-    @Override
-    public void publishKeepAlive() {
-        publish(KEEP_ALIVE_REQUEST + client.getClientId(), null);
     }
 }

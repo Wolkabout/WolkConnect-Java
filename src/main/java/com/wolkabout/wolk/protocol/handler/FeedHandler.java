@@ -17,12 +17,12 @@
 package com.wolkabout.wolk.protocol.handler;
 
 import com.wolkabout.wolk.Wolk;
-import com.wolkabout.wolk.model.ActuatorCommand;
-import com.wolkabout.wolk.model.ActuatorStatus;
+import com.wolkabout.wolk.model.Feed;
 
 import java.lang.ref.WeakReference;
+import java.util.Collection;
 
-public abstract class ActuatorHandler {
+public abstract class FeedHandler {
 
     private WeakReference<Wolk> wolk;
 
@@ -39,18 +39,16 @@ public abstract class ActuatorHandler {
     }
 
     /**
-     * When the actuation command is given from the platform, it will be delivered to this method.
-     * This method should pass the new value for the actuator to device.
+     * Called when configuration is received.
      *
-     * @param actuatorCommand {@link ActuatorCommand}
+     * @param configuration Collection of key-value pair of references and values.
      */
-    public abstract void onActuationReceived(ActuatorCommand actuatorCommand);
+    public abstract void onFeedsReceived(Collection<Feed> configuration);
 
     /**
-     * Reads the status of actuator from device and returns it as ActuatorStatus object.
+     * Called when configuration is requested by server.
      *
-     * @param ref of the actuator.
-     * @return ActuatorStatus object.
+     * @return Collection of key-value pairs of references and values.
      */
-    public abstract ActuatorStatus getActuatorStatus(String ref);
+    public abstract Feed getFeedValue(String reference);
 }

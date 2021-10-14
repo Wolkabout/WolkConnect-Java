@@ -27,8 +27,7 @@ import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.Protocol;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.WolkaboutProtocol;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,7 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "ca.crt";
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
-    private boolean keepAliveServiceEnabled = true;
+    private OutboundDataMode mode;
     private ScheduledFuture<?> runningPublishTask;
     private ScheduledFuture<?> runningPublishKeepAliveTask;
     /**
@@ -66,19 +65,15 @@ public class Wolk {
      * Protocol for sending and receiving data.
      */
     private Protocol protocol;
-    private final Runnable publishKeepAlive = new Runnable() {
-        @Override
-        public void run() {
-            protocol.publishKeepAlive();
-        }
-    };
+
     /**
      * Everything regarding the File Management/Firmware Update.
      */
+    private boolean fileTransferUrlEnabled;
     private FileManagementProtocol fileManagementProtocol;
-    private FirmwareUpdateProtocol firmwareUpdateProtocol;
-    private String firmwareVersion;
     private FileSystemManagement fileSystemManagement;
+    private String firmwareVersion;
+    private FirmwareUpdateProtocol firmwareUpdateProtocol;
     private FirmwareInstaller firmwareInstaller;
     /**
      * Persistence mechanism for storing and retrieving data.
@@ -86,20 +81,27 @@ public class Wolk {
     private Persistence persistence;
     private final Runnable publishTask = this::publish;
 
-    public static Builder builder() {
-        return new Builder();
+    private boolean firstConnect = true;
+
+    public static Builder builder(OutboundDataMode mode) {
+        return new Builder(mode);
     }
 
-    public void connect() {
+    public boolean connect() {
         try {
             client.connect(options);
         } catch (Exception e) {
             LOG.info("Could not connect to MQTT broker.", e);
-            return;
+            return false;
         }
 
         subscribe();
-        startPublishingKeepAlive(60);
+
+        if (firstConnect) {
+            publishParameters();
+
+            firstConnect = false;
+        }
 
         if (fileManagementProtocol != null) {
             publishFileList();
@@ -109,6 +111,8 @@ public class Wolk {
                 publishFirmwareVersion(firmwareVersion);
             }
         }
+
+        return true;
     }
 
     /**
@@ -117,10 +121,8 @@ public class Wolk {
     public void disconnect() {
         try {
             if (client.isConnected()) {
-                client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
                 client.disconnect();
             }
-            stopPublishingKeepAlive();
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
@@ -161,34 +163,6 @@ public class Wolk {
     }
 
     /**
-     * Start automatic reading publishing keep alive messages.
-     * Messages are published every X seconds.
-     *
-     * @param seconds Time in seconds between 2 publishes.
-     */
-    public void startPublishingKeepAlive(int seconds) {
-        if (!keepAliveServiceEnabled) {
-            return;
-        }
-        if (runningPublishKeepAliveTask != null && !runningPublishKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningPublishKeepAliveTask = executor.scheduleAtFixedRate(publishKeepAlive, 0, seconds, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Stop publishing keep alive messages.
-     */
-    public void stopPublishingKeepAlive() {
-        if (runningPublishKeepAliveTask == null || runningPublishKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningPublishKeepAliveTask.cancel(true);
-    }
-
-    /**
      * Manually publish stored readings.
      * Requires a persistence store.
      */
@@ -198,15 +172,9 @@ public class Wolk {
         }
 
         try {
-            protocol.publishReadings(persistence.getAll());
+            protocol.publishFeeds(persistence.getAll());
         } catch (Exception e) {
-            LOG.info("Could not publish readings", e);
-        }
-
-        try {
-            protocol.publishAlarms(persistence.getAllAlarms());
-        } catch (Exception e) {
-            LOG.info("Could not publish alarms", e);
+            LOG.info("Could not publish feeds", e);
         }
     }
 
@@ -217,44 +185,44 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param value     Value obtained by the reading
      */
-    public void addReading(String reference, boolean value) {
-        final Reading reading = new Reading(reference, Boolean.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, boolean value) {
+        final Feed feed = new Feed(reference, Boolean.toString(value));
+        addFeed(feed);
     }
 
-    public void addReading(String reference, boolean value, long timestamp) {
-        final Reading reading = new Reading(reference, Boolean.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, boolean value, long timestamp) {
+        final Feed feed = new Feed(reference, Boolean.toString(value), timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, long value) {
-        final Reading reading = new Reading(reference, Long.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, long value) {
+        final Feed feed = new Feed(reference, Long.toString(value));
+        addFeed(feed);
     }
 
-    public void addReading(String reference, long value, long timestamp) {
-        final Reading reading = new Reading(reference, Long.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, long value, long timestamp) {
+        final Feed feed = new Feed(reference, Long.toString(value), timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, double value) {
-        final Reading reading = new Reading(reference, Double.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, double value) {
+        final Feed feed = new Feed(reference, Double.toString(value));
+        addFeed(feed);
     }
 
-    public void addReading(String reference, double value, long timestamp) {
-        final Reading reading = new Reading(reference, Double.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, double value, long timestamp) {
+        final Feed feed = new Feed(reference, Double.toString(value), timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, String value) {
-        final Reading reading = new Reading(reference, value);
-        addReading(reading);
+    public void addFeed(String reference, String value) {
+        final Feed feed = new Feed(reference, value);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, String value, long timestamp) {
-        final Reading reading = new Reading(reference, value, timestamp);
-        addReading(reading);
+    public void addFeed(String reference, String value, long timestamp) {
+        final Feed feed = new Feed(reference, value, timestamp);
+        addFeed(feed);
     }
 
     /**
@@ -264,32 +232,32 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param values    Values obtained by the reading
      */
-    public void addReading(String reference, List<Object> values) {
-        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()));
-        addReading(reading);
+    public void addFeed(String reference, List<Object> values) {
+        final Feed feed = new Feed(reference, values.stream().map(Object::toString).collect(Collectors.toList()));
+        addFeed(feed);
     }
 
-    public void addReading(String reference, List<Object> values, long timestamp) {
-        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, List<Object> values, long timestamp) {
+        final Feed feed = new Feed(reference, values.stream().map(Object::toString).collect(Collectors.toList()), timestamp);
+        addFeed(feed);
     }
 
     /**
      * Adds readings to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
-     * @param reading {@link Reading}
+     * @param feed {@link Feed}
      */
-    public void addReading(Reading reading) {
+    public void addFeed(Feed feed) {
         if (persistence != null) {
-            persistence.addReading(reading);
+            persistence.addFeed(feed);
             return;
         }
 
         try {
-            protocol.publishReading(reading);
+            protocol.publishFeed(feed);
         } catch (Exception e) {
-            LOG.info("Could not publish reading: " + reading.getReference(), e);
+            LOG.info("Could not publish reading: " + feed.getReference(), e);
         }
     }
 
@@ -297,64 +265,18 @@ public class Wolk {
      * Adds a reading collection to be published.
      * If the persistence store is set, readings will be stored. Otherwise, they will be published immediately.
      *
-     * @param readings A collection of {@link Reading}
+     * @param feeds A collection of {@link Feed}
      */
-    public void addReadings(Collection<Reading> readings) {
+    public void addFeeds(Collection<Feed> feeds) {
         if (persistence != null) {
-            persistence.addReadings(readings);
+            persistence.addFeeds(feeds);
             return;
         }
 
         try {
-            protocol.publishReadings(readings);
+            protocol.publishFeeds(feeds);
         } catch (Exception e) {
-            LOG.info("Could not publish readings", e);
-        }
-    }
-
-    /**
-     * Adds alarm to be published.
-     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-     *
-     * @param reference Reference of the alarm
-     * @param active    Current state of the alarm
-     */
-    public void addAlarm(String reference, boolean active) {
-        final Alarm alarm = new Alarm(reference, active);
-
-        if (persistence != null) {
-            persistence.addAlarm(alarm);
-            return;
-        }
-
-        try {
-            protocol.publishAlarm(alarm);
-        } catch (Exception e) {
-            LOG.info("Could not publish alarm: " + reference, e);
-        }
-    }
-
-    /**
-     * Publishes current configuration.
-     */
-    public void publishConfiguration() {
-        try {
-            protocol.publishCurrentConfig();
-        } catch (Exception e) {
-            LOG.info("Could not publish configuration", e);
-        }
-    }
-
-    /**
-     * Publishes current actuator status for the given reference.
-     *
-     * @param ref actuator reference.
-     */
-    public void publishActuatorStatus(String ref) {
-        try {
-            protocol.publishActuatorStatus(ref);
-        } catch (Exception e) {
-            LOG.info("Could not publish actuator status for actuator: " + ref, e);
+            LOG.info("Could not publish feeds", e);
         }
     }
 
@@ -407,35 +329,41 @@ public class Wolk {
         }
     }
 
+    private void publishParameters() {
+        List<Parameter> parameters = new ArrayList<>();
+
+        parameters.add(new Parameter(Parameter.Name.OUTBOUND_DATA_MODE.name(), mode));
+
+        final boolean fileEnabled = fileSystemManagement != null;
+        parameters.add(new Parameter(Parameter.Name.FILE_TRANSFER_PLATFORM_ENABLED.name(), fileEnabled));
+        parameters.add(new Parameter(Parameter.Name.FILE_TRANSFER_URL_ENABLED.name(), fileEnabled && fileTransferUrlEnabled));
+
+        final boolean firmwareEnabled = firmwareInstaller != null;
+        parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_ENABLED.name(), firmwareEnabled));
+
+        if (firmwareEnabled) {
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareVersion));
+        }
+
+        protocol.updateParameters(parameters);
+    }
+
     public static class Builder {
 
         private static final String DEFAULT_FILE_LOCATION = "files/";
         private final MqttBuilder mqttBuilder = new MqttBuilder(this);
+        private OutboundDataMode mode;
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
         private Collection<String> actuatorReferences = new ArrayList<>();
 
-        private ActuatorHandler actuatorHandler = new ActuatorHandler() {
+        private FeedHandler feedHandler = new FeedHandler() {
             @Override
-            public void onActuationReceived(ActuatorCommand actuatorCommand) {
-                LOG.trace("Actuation received: " + actuatorCommand);
+            public void onFeedsReceived(Collection<Feed> feeds) {
+                LOG.trace("Feeds received: " + feeds);
             }
 
             @Override
-            public ActuatorStatus getActuatorStatus(String ref) {
-                return null;
-            }
-        };
-
-        private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
-            @Override
-            public void onConfigurationReceived(Collection<Configuration> configuration) {
-                LOG.trace("Configuration received: " + configuration);
-            }
-
-            @Override
-            public Collection<Configuration> getConfigurations() {
-                return new ArrayList<>();
-            }
+            public Feed getFeedValue(String reference) { return null; }
         };
 
         private Persistence persistence = new InMemoryPersistence();
@@ -452,9 +380,8 @@ public class Wolk {
 
         private FirmwareInstaller firmwareInstaller = null;
 
-        private boolean keepAliveServiceEnabled = true;
-
-        private Builder() {
+        private Builder(OutboundDataMode mode) {
+            this.mode = mode;
         }
 
         public MqttBuilder mqtt() {
@@ -470,26 +397,26 @@ public class Wolk {
             return this;
         }
 
-        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
-            if (actuatorReferences.isEmpty()) {
-                throw new IllegalArgumentException("Actuator references must be set.");
+//        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
+//            if (actuatorReferences.isEmpty()) {
+//                throw new IllegalArgumentException("Actuator references must be set.");
+//            }
+//
+//            if (actuatorHandler == null) {
+//                throw new IllegalArgumentException("Actuator handler must be set.");
+//            }
+//
+//            this.actuatorReferences = actuatorReferences;
+//            this.actuatorHandler = actuatorHandler;
+//            return this;
+//        }
+
+        public Builder feed(FeedHandler feedHandler) {
+            if (feedHandler == null) {
+                throw new IllegalArgumentException("Feed handler must be set.");
             }
 
-            if (actuatorHandler == null) {
-                throw new IllegalArgumentException("Actuator handler must be set.");
-            }
-
-            this.actuatorReferences = actuatorReferences;
-            this.actuatorHandler = actuatorHandler;
-            return this;
-        }
-
-        public Builder configuration(ConfigurationHandler configurationHandler) {
-            if (configurationHandler == null) {
-                throw new IllegalArgumentException("Configuration handler must be set.");
-            }
-
-            this.configurationHandler = configurationHandler;
+            this.feedHandler = feedHandler;
             return this;
         }
 
@@ -581,15 +508,11 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableKeepAliveService(boolean enable) {
-            this.keepAliveServiceEnabled = enable;
-            return this;
-        }
-
         public Wolk build() {
 
             try {
                 final Wolk wolk = new Wolk();
+                wolk.mode = mode;
                 wolk.client = mqttBuilder.client();
                 wolk.client.setCallback(new MqttCallbackExtended() {
                     @Override
@@ -625,9 +548,11 @@ public class Wolk {
                     if (this.urlFileDownloader == null) {
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+                        wolk.fileTransferUrlEnabled = false;
                     } else {
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                        wolk.fileTransferUrlEnabled = true;
                     }
 
                     // Create the firmware update if that is something the user wants
@@ -639,10 +564,7 @@ public class Wolk {
                     }
                 }
 
-                actuatorHandler.setWolk(wolk);
-                configurationHandler.setWolk(wolk);
-
-                wolk.keepAliveServiceEnabled = keepAliveServiceEnabled;
+                feedHandler.setWolk(wolk);
 
                 return wolk;
             } catch (MqttException mqttException) {
@@ -652,7 +574,7 @@ public class Wolk {
 
         private Protocol getProtocol(MqttClient client) {
             if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
-                return new WolkaboutProtocol(client, actuatorHandler, configurationHandler);
+                return new WolkaboutProtocol(client, feedHandler);
             }
             throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
 

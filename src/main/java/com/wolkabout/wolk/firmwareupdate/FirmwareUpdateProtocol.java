@@ -39,7 +39,7 @@ import static com.wolkabout.wolk.filemanagement.FileSystemManagement.FIRMWARE_VE
 public class FirmwareUpdateProtocol {
 
     protected static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocol.class);
-    protected static final int QOS = 0;
+    protected static final int QOS = 2;
     // Listing all the topics
     protected static final String FIRMWARE_INSTALL_INITIALIZE = "p2d/firmware_update_install/d/";
     protected static final String FIRMWARE_INSTALL_ABORT = "p2d/firmware_update_abort/d/";

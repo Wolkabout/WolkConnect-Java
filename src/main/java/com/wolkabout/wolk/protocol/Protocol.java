@@ -16,12 +16,9 @@
  */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Configuration;
-import com.wolkabout.wolk.model.Reading;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.model.Parameter;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.slf4j.Logger;
@@ -35,8 +32,7 @@ public abstract class Protocol {
     private static final Logger LOG = LoggerFactory.getLogger(Protocol.class);
 
     protected final MqttClient client;
-    protected final ActuatorHandler actuatorHandler;
-    protected final ConfigurationHandler configurationHandler;
+    protected final FeedHandler feedHandler;
 
     protected long platformTimestamp;
 
@@ -44,12 +40,11 @@ public abstract class Protocol {
 
     public abstract void setPlatformTimestamp(long platformTimestamp);
 
-    protected static final int QOS = 0;
+    protected static final int QOS = 2;
 
-    public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
+    public Protocol(MqttClient client, FeedHandler feedHandler) {
         this.client = client;
-        this.actuatorHandler = actuatorHandler;
-        this.configurationHandler = configurationHandler;
+        this.feedHandler = feedHandler;
     }
 
     public abstract void subscribe() throws Exception;
@@ -64,28 +59,22 @@ public abstract class Protocol {
     }
 
     public void publishCurrentConfig() {
-        final Collection<Configuration> configurations = configurationHandler.getConfigurations();
-        if (configurations.size() != 0) {
-            publishConfiguration(configurations);
-        }
+//        final Collection<Parameter> configurations = configurationHandler.getConfigurations();
+//        if (configurations.size() != 0) {
+//            publishConfiguration(configurations);
+//        }
     }
 
     public void publishActuatorStatus(String ref) {
-        final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
-        publishActuatorStatus(actuatorStatus);
+//        final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
+//        publishActuatorStatus(actuatorStatus);
     }
 
-    public abstract void publishReading(Reading reading);
+    public abstract void publishFeed(Feed feed);
 
-    public abstract void publishReadings(Collection<Reading> readings);
+    public abstract void publishFeeds(Collection<Feed> feeds);
 
-    public abstract void publishAlarm(Alarm alarm);
+    public abstract void updateParameters(Collection<Parameter> parameters);
 
-    public abstract void publishAlarms(Collection<Alarm> alarms);
-
-    public abstract void publishConfiguration(Collection<Configuration> configurations);
-
-    public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
-
-    public abstract void publishKeepAlive();
+    public abstract void registerAttributes();
 }

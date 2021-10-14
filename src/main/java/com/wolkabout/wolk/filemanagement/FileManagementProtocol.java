@@ -43,7 +43,7 @@ import java.util.concurrent.Executors;
 public class FileManagementProtocol {
 
     protected static final Logger LOG = LoggerFactory.getLogger(FileManagementProtocol.class);
-    protected static final int QOS = 0;
+    protected static final int QOS = 2;
     // File upload initiation and input/output topics
     protected static final String FILE_UPLOAD_INITIATE = "p2d/file_upload_initiate/d/";
     protected static final String FILE_UPLOAD_STATUS = "d2p/file_upload_status/d/";

@@ -16,33 +16,22 @@
  */
 package com.wolkabout.wolk.persistence;
 
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Reading;
+import com.wolkabout.wolk.model.Feed;
 
 import java.util.Collection;
 import java.util.List;
 
 public interface Persistence {
 
-    void addReading(Reading reading);
+    void addFeed(Feed feed);
 
-    void addReadings(Collection<Reading> readings);
+    void addFeeds(Collection<Feed> feeds);
 
-    Reading poll();
+    Feed poll();
 
-    List<Reading> getAll();
+    List<Feed> getAll();
 
-    void remove(Reading reading);
+    void remove(Feed feed);
 
     void removeAll();
-
-    void addAlarm(Alarm alarm);
-
-    Alarm pollAlarms();
-
-    List<Alarm> getAllAlarms();
-
-    void removeAlarm(Alarm alarm);
-
-    void removeAllAlarms();
 }

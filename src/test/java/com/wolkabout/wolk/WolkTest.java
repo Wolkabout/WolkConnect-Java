@@ -1,12 +1,13 @@
 package com.wolkabout.wolk;
 
+import com.wolkabout.wolk.model.OutboundDataMode;
 import org.junit.Test;
 
 public class WolkTest {
 
     @Test
     public void connect() {
-        Wolk wolk = Wolk.builder()
+        Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
                 .host("ssl://api-demo.wolkabout.com:8883")
                 .sslCertification("ca.crt")

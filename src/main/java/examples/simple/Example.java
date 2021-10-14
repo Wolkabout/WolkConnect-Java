@@ -17,18 +17,19 @@
 package examples.simple;
 
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.model.OutboundDataMode;
 
 import java.util.concurrent.TimeUnit;
 
 public class Example {
     public static void main(String[] args) {
 
-        final Wolk wolk = Wolk.builder()
+        final Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host("ssl://api-demo.wolkabout.com:8883")
+                .host("ssl://integration5.wolkabout.com:8883")
                 .sslCertification("ca.crt")
-                .deviceKey("device_key")
-                .password("some_password")
+                .deviceKey("54507ee6-8437-487e-bbd9-4f7b948b528f")
+                .password("6BBIJG1GA8")
                 .build()
                 .build();
 
@@ -38,7 +39,7 @@ public class Example {
             try {
                 double randomTemp = Math.random() * 100 - 20; // random number between -20 and 80
 
-                wolk.addReading("T", Double.toString(randomTemp));
+                wolk.addFeed("T", Double.toString(randomTemp));
 
                 wolk.publish();
 

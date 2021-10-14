@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 WolkAbout Technology s.r.o.
+ * Copyright (c) 2018 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,27 +16,41 @@
  */
 package com.wolkabout.wolk.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 
+import java.util.Arrays;
 import java.util.List;
 
-public class Configuration {
+public class Feed {
 
-
+    @JsonIgnore
     private final String reference;
-    private final List<String> values;
-    private final String value;
 
-    public Configuration(String reference, String value) {
-        this.reference = reference;
-        this.value = value;
-        this.values = JsonMultivalueSerializer.valuesFromString(value);
+    @JsonProperty("data")
+    @JsonSerialize(using = JsonMultivalueSerializer.class)
+    private final List<String> values;
+
+    private final long utc;
+
+    public Feed(String reference, String value) {
+        this(reference, Arrays.asList(value), System.currentTimeMillis());
     }
 
-    public Configuration(String reference, List<String> values) {
+    public Feed(String reference, String value, long utc) {
+        this(reference, Arrays.asList(value), utc);
+    }
+
+    public Feed(String reference, List<String> values) {
+        this(reference, values, System.currentTimeMillis());
+    }
+
+    public Feed(String reference, List<String> values, long utc) {
         this.reference = reference;
-        this.value = JsonMultivalueSerializer.valuesToString(values);
         this.values = values;
+        this.utc = utc;
     }
 
     public String getReference() {
@@ -47,15 +61,16 @@ public class Configuration {
         return values;
     }
 
-    public String getValue() {
-        return value;
+    public long getUtc() {
+        return utc;
     }
 
     @Override
     public String toString() {
-        return "Configuration{" +
+        return "Reading{" +
                 "reference='" + reference + '\'' +
-                ", value='" + value + '\'' +
+                ", values=" + values +
+                ", utc=" + utc +
                 '}';
     }
 }

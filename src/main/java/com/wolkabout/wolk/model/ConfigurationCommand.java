@@ -34,7 +34,7 @@ public class ConfigurationCommand {
     private Map<String, Object> values;
 
     @JsonIgnore
-    private final Collection<Configuration> parsedValues = new HashSet<>();
+    private final Collection<Parameter> parsedValues = new HashSet<>();
 
     public ConfigurationCommand() {
     }
@@ -53,7 +53,7 @@ public class ConfigurationCommand {
     }
 
     @JsonIgnore
-    public Collection<Configuration> getValues() {
+    public Collection<Parameter> getValues() {
         return parsedValues;
     }
 
@@ -61,7 +61,7 @@ public class ConfigurationCommand {
         this.values = values;
 
         for (Map.Entry<String, Object> entry : values.entrySet()) {
-            parsedValues.add(new Configuration(entry.getKey(), entry.getValue().toString()));
+            parsedValues.add(new Parameter(entry.getKey(), entry.getValue().toString()));
         }
     }
 
