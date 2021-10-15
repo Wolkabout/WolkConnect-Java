@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.protocol;
 
+import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
 import com.wolkabout.wolk.model.Parameter;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
@@ -33,12 +34,6 @@ public abstract class Protocol {
 
     protected final MqttClient client;
     protected final FeedHandler feedHandler;
-
-    protected long platformTimestamp;
-
-    public abstract long getPlatformTimestamp();
-
-    public abstract void setPlatformTimestamp(long platformTimestamp);
 
     protected static final int QOS = 2;
 
@@ -74,7 +69,13 @@ public abstract class Protocol {
 
     public abstract void publishFeeds(Collection<Feed> feeds);
 
+    public abstract void pullFeeds();
+
     public abstract void updateParameters(Collection<Parameter> parameters);
 
-    public abstract void registerAttributes();
+    public abstract void pullParameters();
+
+    public abstract void registerAttributes(Collection<Attribute> attributes);
+
+    public abstract void pullTime();
 }

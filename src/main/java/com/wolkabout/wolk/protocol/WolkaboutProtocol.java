@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.protocol;
 
+import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
 import com.wolkabout.wolk.model.Parameter;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
@@ -24,28 +25,28 @@ import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.function.Predicate;
 
 public class WolkaboutProtocol extends Protocol {
+
+    private static final Logger LOG = LoggerFactory.getLogger(WolkaboutProtocol.class);
 
     private static final String OUT_DIRECTION = "d2p/";
     private static final String IN_DIRECTION = "p2d/";
 
     private static final String FEED_VALUES = "/feed_values";
+    private static final String FEED_PULL = "/pull_feed_values";
     private static final String PARAMETERS = "/parameters";
+    private static final String PARAMETERS_PULL = "/pull_parameters";
+    private static final String ATTRIBUTE_REGISTER = "/attribute_registration";
+    private static final String TIME = "/time";
 
-    public long getPlatformTimestamp() {
-        return platformTimestamp;
-    }
-
-    public void setPlatformTimestamp(long platformTimestamp) {
-        this.platformTimestamp = platformTimestamp;
-    }
-
+    private static final String TIMESTAMP = "utc";
 
     public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler) {
         super(client, feedHandler);
@@ -56,16 +57,37 @@ public class WolkaboutProtocol extends Protocol {
         client.subscribe(IN_DIRECTION + client.getClientId() + FEED_VALUES, QOS, new IMqttMessageListener() {
             @Override
             public void messageArrived(String topic, MqttMessage message) throws Exception {
-                final HashMap<String, Object> inValues = JsonUtil.deserialize(message, HashMap.class);
-//
-//                final String reference = topic.substring((ACTUATOR_SET + client.getClientId() + "/r/").length());
-//                final ActuatorCommand actuatorCommand = new ActuatorCommand();
-//                actuatorCommand.setCommand(ActuatorCommand.CommandType.SET);
-//                actuatorCommand.setReference(reference);
-//                actuatorCommand.setValue(value.toString());
-//                actuatorHandler.onActuationReceived(actuatorCommand);
-//
-//                publishActuatorStatus(reference);
+                LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+
+                List<Feed> feeds = new ArrayList<>();
+
+                try {
+                    final HashMap<String, Object>[] inValues = JsonUtil.deserialize(message, HashMap[].class);
+
+                    for (HashMap<String, Object> feed : inValues) {
+                        String reference = feed.keySet().stream().filter(s -> !Objects.equals(s, TIMESTAMP)).findFirst().get();
+
+                        Object value = feed.get(reference);
+
+                        if (feed.containsKey(TIMESTAMP)) {
+                            long utc = (long) feed.get(TIMESTAMP);
+
+                            feeds.add(new Feed(reference, value.toString(), utc));
+                        }
+                        else
+                        {
+                            feeds.add(new Feed(reference, value.toString()));
+                        }
+                    }
+
+                } catch (Exception e) {
+                    LOG.error("Failed to deserialize message from '" + topic + "' payload: " + message.toString());
+                    LOG.error(e.getMessage());
+
+                    return;
+                }
+
+                feedHandler.onFeedsReceived(feeds);
             }
         });
 //
@@ -112,6 +134,11 @@ public class WolkaboutProtocol extends Protocol {
     }
 
     @Override
+    public void pullFeeds() {
+        publish(OUT_DIRECTION + client.getClientId() + FEED_PULL, "");
+    }
+
+    @Override
     public void updateParameters(Collection<Parameter> parameters) {
         final HashMap<String, Object> payload = new HashMap<>();
 
@@ -123,7 +150,23 @@ public class WolkaboutProtocol extends Protocol {
     }
 
     @Override
-    public void registerAttributes() {
+    public void pullParameters() {
+        publish(OUT_DIRECTION + client.getClientId() + PARAMETERS_PULL, "");
+    }
 
+    @Override
+    public void registerAttributes(Collection<Attribute> attributes) {
+        final HashMap<String, Map.Entry<String, String>> payload = new HashMap<>();
+
+        for (Attribute attribute : attributes) {
+            payload.put(attribute.getName(), new AbstractMap.SimpleImmutableEntry<String, String>(attribute.getDataType().name(), attribute.getValue()));
+        }
+
+        publish(OUT_DIRECTION + client.getClientId() + ATTRIBUTE_REGISTER, payload);
+    }
+
+    @Override
+    public void pullTime() {
+        publish(OUT_DIRECTION + client.getClientId() + TIME, "");
     }
 }

@@ -43,7 +43,7 @@ public abstract class FeedHandler {
      *
      * @param configuration Collection of key-value pair of references and values.
      */
-    public abstract void onFeedsReceived(Collection<Feed> configuration);
+    public abstract void onFeedsReceived(Collection<Feed> feeds);
 
     /**
      * Called when configuration is requested by server.

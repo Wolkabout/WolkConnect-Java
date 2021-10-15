@@ -67,7 +67,7 @@ public class Feed {
 
     @Override
     public String toString() {
-        return "Reading{" +
+        return "Feed{" +
                 "reference='" + reference + '\'' +
                 ", values=" + values +
                 ", utc=" + utc +

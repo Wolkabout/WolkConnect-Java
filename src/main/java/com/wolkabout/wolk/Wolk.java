@@ -112,6 +112,11 @@ public class Wolk {
             }
         }
 
+        if (mode == OutboundDataMode.PULL) {
+            pullParameters();
+            pullFeeds();
+        }
+
         return true;
     }
 
@@ -126,10 +131,6 @@ public class Wolk {
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
-    }
-
-    public long getPlatformTimestamp() {
-        return this.protocol.getPlatformTimestamp();
     }
 
     /**
@@ -311,6 +312,39 @@ public class Wolk {
         } catch (Exception e) {
             LOG.info("Could not publish firmware version", e);
         }
+    }
+
+    public void pullFeeds() {
+        protocol.pullFeeds();
+    }
+
+    public void pullParameters() {
+        protocol.pullParameters();
+    }
+
+    public void pullTime() {
+        protocol.pullTime();
+    }
+
+    /**
+     * Register new attribute or update an existing one
+     * @param attribute
+     */
+    public void registerAttribute(Attribute attribute) {
+        List<Attribute> attributes = new ArrayList<>();
+        attributes.add(attribute);
+
+        protocol.registerAttributes(attributes);
+    }
+
+    /**
+     * Register new attribute or update an existing one
+     * @param name
+     * @param type
+     * @param value
+     */
+    public void registerAttribute(String name, DataType type, String value) {
+        registerAttribute(new Attribute(name, type, value));
     }
 
     private void subscribe() {
