@@ -24,6 +24,13 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.DatatypeConverter;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -107,31 +114,39 @@ public class FileDownloadSession {
         status = FileTransferStatus.FILE_TRANSFER;
         error = null;
         LOG.trace("Requesting first chunk of data.");
-        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk));
     }
 
     /**
      * This is an internal method used to define how a chunk of bytes is hashed.
      *
-     * @param data Input bytes to be calculated a SHA256 hash from.
-     * @return The SHA256 hash of input data as byte array.
+     * @param data Input bytes to be calculated a MD5 hash from.
+     * @return The MD5 hash of input data as byte array.
      */
     public static byte[] calculateHashForBytes(List<Byte> data) {
         byte[] bytes = new byte[data.size()];
         for (int i = 0; i < data.size(); i++) {
             bytes[i] = data.get(i);
         }
-        return DigestUtils.sha256(bytes);
+        return calculateHashForBytes(bytes);
     }
 
     /**
      * This is an internal method used to define how a chunk of bytes is hashed.
      *
-     * @param data Input bytes to be calculated a SHA256 hash from.
-     * @return The SHA256 hash of input data as byte array.
+     * @param data Input bytes to be calculated a MD5 hash from.
+     * @return The MD5 hash of input data as byte array.
      */
     public static byte[] calculateHashForBytes(byte[] data) {
-        return DigestUtils.sha256(data);
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            InputStream is = new ByteArrayInputStream(data);
+            DigestInputStream dis = new DigestInputStream(is, md);
+
+            return md.digest();
+        } catch (NoSuchAlgorithmException exception) {
+            return null;
+        }
     }
 
     public FileInit getInitMessage() {
@@ -222,7 +237,7 @@ public class FileDownloadSession {
             // Analyze the first hash to be all zeroes.
             if (!Arrays.equals(previousHash, new byte[32])) {
                 LOG.warn("Invalid header for first chunk, previous hash is not 0.");
-                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+                return requestChunkAgain(initMessage.getFileName(), currentChunk);
             }
         } else {
             // Analyze the hash of last chunk with the hash received in this message for chunk before.
@@ -236,7 +251,7 @@ public class FileDownloadSession {
                         break;
                     bytes.remove(bytes.size() - 1);
                 }
-                return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+                return requestChunkAgain(initMessage.getFileName(), currentChunk);
             }
         }
 
@@ -244,7 +259,7 @@ public class FileDownloadSession {
         byte[] calculatedHash = calculateHashForBytes(chunkData);
         if (!Arrays.equals(calculatedHash, currentHash)) {
             LOG.warn("Hash of the current chunk calculated does not match the sent hash.");
-            return requestChunkAgain(initMessage.getFileName(), currentChunk, chunkSizes.get(currentChunk));
+            return requestChunkAgain(initMessage.getFileName(), currentChunk);
         }
 
         // Append all the chunk data into the bytes
@@ -269,13 +284,8 @@ public class FileDownloadSession {
         }
 
         // Request the next chunk
-        if (chunkSizes.size() > 1) {
-            executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk,
-                    CHUNK_SIZE + PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
-        } else {
-            executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk,
-                    chunkSizes.get(currentChunk)));
-        }
+        executor.execute(new RequestRunnable(initMessage.getFileName(), currentChunk));
+
         return true;
     }
 
@@ -283,7 +293,7 @@ public class FileDownloadSession {
      * This is an internal method used to define how a chunk for
      * which the current hash is invalid, will be re-obtained.
      */
-    private boolean requestChunkAgain(String fileName, int chunkIndex, int chunkSize) {
+    private boolean requestChunkAgain(String fileName, int chunkIndex) {
         LOG.debug("Requesting a chunk again(" + chunkIndex + ").");
 
         // If we already requested the chunk over the limit, restart the process
@@ -294,7 +304,7 @@ public class FileDownloadSession {
 
         // Increment the counter, and request the chunk again
         ++chunkRetryCount;
-        executor.execute(new RequestRunnable(fileName, chunkIndex, chunkSize));
+        executor.execute(new RequestRunnable(fileName, chunkIndex));
         return true;
     }
 
@@ -338,7 +348,7 @@ public class FileDownloadSession {
 
         // Request the first chunk again
         LOG.debug("Requesting first chunk after restart.");
-        executor.execute(new RequestRunnable(initMessage.getFileName(), 0, chunkSizes.get(0)));
+        executor.execute(new RequestRunnable(initMessage.getFileName(), 0));
         return true;
     }
 
@@ -366,7 +376,7 @@ public class FileDownloadSession {
      * session.
      */
     public interface Callback {
-        void sendRequest(String fileName, int chunkIndex, int chunkSize);
+        void sendRequest(String fileName, int chunkIndex);
 
         void onFinish(FileTransferStatus status, FileTransferError error);
     }
@@ -378,17 +388,15 @@ public class FileDownloadSession {
 
         private final String fileName;
         private final int currentChunk;
-        private final int chunkSize;
 
-        public RequestRunnable(String fileName, int currentChunk, int chunkSize) {
+        public RequestRunnable(String fileName, int currentChunk) {
             this.fileName = fileName;
             this.currentChunk = currentChunk;
-            this.chunkSize = chunkSize;
         }
 
         @Override
         public void run() {
-            callback.sendRequest(fileName, currentChunk, chunkSize);
+            callback.sendRequest(fileName, currentChunk);
         }
     }
 

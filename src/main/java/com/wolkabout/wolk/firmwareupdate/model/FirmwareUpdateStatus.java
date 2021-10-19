@@ -21,11 +21,15 @@ package com.wolkabout.wolk.firmwareupdate.model;
  */
 public enum FirmwareUpdateStatus {
 
-    // Installation is still in progress
-    INSTALLATION,
+    // Command has been issued, but the device hasn’t accepted the command yet.
+    // Not included since it should not be sent by device
+    // AWAITING_DEVICE,
 
-    // File ready to be installed
-    COMPLETED,
+    // Installation is still in progress
+    INSTALLING,
+
+    //  The installation was completed successfully
+    SUCCESS,
 
     // Error occurred during installation
     ERROR,

@@ -87,7 +87,7 @@ public class FirmwareUpdateProtocol {
             if ((loadedVersion = loadVersionFromFile()) != null) {
                 if (!loadedVersion.equals(installer.onFirmwareVersion())) {
                     LOG.debug("Detected firmware versions are different. Firmware installation was successful.");
-                    sendStatusMessage(FirmwareUpdateStatus.COMPLETED);
+                    sendStatusMessage(FirmwareUpdateStatus.SUCCESS);
                 } else {
                     LOG.debug("Detected firmware versions are the same. Firmware installation has failed.");
                     sendErrorMessage(FirmwareUpdateError.INSTALLATION_FAILED);
@@ -147,25 +147,25 @@ public class FirmwareUpdateProtocol {
         // Check that the file actually exists
         if (!management.fileExists(init.getFileName())) {
             LOG.error("Received firmware update init message for file that does not exist '" + init.getFileName() + "'.");
-            sendErrorMessage(FirmwareUpdateError.FILE_NOT_PRESENT);
+            sendErrorMessage(FirmwareUpdateError.UNKNOWN_FILE);
             return;
         }
 
         // Check that it is readable
         if (new File(init.getFileName()).canRead()) {
             LOG.error("Received firmware update init message for unreadable file '" + init.getFileName() + "'.");
-            sendErrorMessage(FirmwareUpdateError.FILE_SYSTEM_ERROR);
+            sendErrorMessage(FirmwareUpdateError.UNKNOWN_FILE);
             return;
         }
 
         // Call the installer
         LOG.info("Received firmware update message for file '" + init.getFileName() + "'.");
-        sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
         final String version = installer.onFirmwareVersion();
         LOG.info("Firmware update installation ongoing. Saving version '" + version + "'.");
         saveVersionToFile(version);
         if (!installer.onInstallCommandReceived(init.getFileName())
-                && lastSentStatus == FirmwareUpdateStatus.INSTALLATION) {
+                && lastSentStatus == FirmwareUpdateStatus.INSTALLING) {
             LOG.warn("Firmware update installation failed by user.");
             sendErrorMessage(FirmwareUpdateError.INSTALLATION_FAILED);
             removeVersionFile();

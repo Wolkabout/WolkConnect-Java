@@ -18,19 +18,19 @@ package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.model.FeedTemplate;
 import com.wolkabout.wolk.model.Parameter;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 import com.wolkabout.wolk.util.JsonUtil;
-import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.function.Predicate;
 
 public class WolkaboutProtocol extends Protocol {
 
@@ -41,6 +41,8 @@ public class WolkaboutProtocol extends Protocol {
 
     private static final String FEED_VALUES = "/feed_values";
     private static final String FEED_PULL = "/pull_feed_values";
+    private static final String FEED_REGISTRATION = "/feed_registration";
+    private static final String FEED_REMOVAL = "/feed_removal";
     private static final String PARAMETERS = "/parameters";
     private static final String PARAMETERS_PULL = "/pull_parameters";
     private static final String ATTRIBUTE_REGISTER = "/attribute_registration";
@@ -48,60 +50,17 @@ public class WolkaboutProtocol extends Protocol {
 
     private static final String TIMESTAMP = "utc";
 
-    public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler) {
-        super(client, feedHandler);
+    public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler) {
+        super(client, feedHandler, timeHandler, parameterHandler);
     }
 
     @Override
     public void subscribe() throws Exception {
-        client.subscribe(IN_DIRECTION + client.getClientId() + FEED_VALUES, QOS, new IMqttMessageListener() {
-            @Override
-            public void messageArrived(String topic, MqttMessage message) throws Exception {
-                LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+        client.subscribe(IN_DIRECTION + client.getClientId() + FEED_VALUES, QOS, this::handleFeedValues);
 
-                List<Feed> feeds = new ArrayList<>();
+        client.subscribe(IN_DIRECTION + client.getClientId() + PARAMETERS, QOS, this::handleParameters);
 
-                try {
-                    final HashMap<String, Object>[] inValues = JsonUtil.deserialize(message, HashMap[].class);
-
-                    for (HashMap<String, Object> feed : inValues) {
-                        String reference = feed.keySet().stream().filter(s -> !Objects.equals(s, TIMESTAMP)).findFirst().get();
-
-                        Object value = feed.get(reference);
-
-                        if (feed.containsKey(TIMESTAMP)) {
-                            long utc = (long) feed.get(TIMESTAMP);
-
-                            feeds.add(new Feed(reference, value.toString(), utc));
-                        }
-                        else
-                        {
-                            feeds.add(new Feed(reference, value.toString()));
-                        }
-                    }
-
-                } catch (Exception e) {
-                    LOG.error("Failed to deserialize message from '" + topic + "' payload: " + message.toString());
-                    LOG.error(e.getMessage());
-
-                    return;
-                }
-
-                feedHandler.onFeedsReceived(feeds);
-            }
-        });
-//
-//        client.subscribe(CONFIGURATION_SET + client.getClientId(), QOS, new IMqttMessageListener() {
-//            @Override
-//            public void messageArrived(String topic, MqttMessage message) throws Exception {
-//                final HashMap<String, Object> config = JsonUtil.deserialize(message, HashMap.class);
-//                final ConfigurationCommand configurationCommand = new ConfigurationCommand(ConfigurationCommand.CommandType.SET, config);
-//
-//                configurationHandler.onConfigurationReceived(configurationCommand.getValues());
-//
-//                publishCurrentConfig();
-//            }
-//        });
+        client.subscribe(IN_DIRECTION + client.getClientId() + TIME, QOS, this::handleTime);
     }
 
     @Override
@@ -130,7 +89,17 @@ public class WolkaboutProtocol extends Protocol {
             }
         }
 
-        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, new ArrayList<>(payloadByTime.values()));
+        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, payloadByTime.values());
+    }
+
+    @Override
+    public void registerFeeds(Collection<FeedTemplate> feeds) {
+        publish(OUT_DIRECTION + client.getClientId() + FEED_REGISTRATION, feeds);
+    }
+
+    @Override
+    public void removeFeeds(Collection<String> feedReferences) {
+        publish(OUT_DIRECTION + client.getClientId() + FEED_REMOVAL, feedReferences);
     }
 
     @Override
@@ -168,5 +137,77 @@ public class WolkaboutProtocol extends Protocol {
     @Override
     public void pullTime() {
         publish(OUT_DIRECTION + client.getClientId() + TIME, "");
+    }
+
+    private void handleFeedValues(String topic, MqttMessage message) {
+        LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+
+        List<Feed> feeds = new ArrayList<>();
+
+        try {
+            final HashMap<String, Object>[] inValues = JsonUtil.deserialize(message, HashMap[].class);
+
+            for (HashMap<String, Object> feed : inValues) {
+                String reference = feed.keySet().stream().filter(s -> !Objects.equals(s, TIMESTAMP)).findFirst().get();
+
+                Object value = feed.get(reference);
+
+                if (feed.containsKey(TIMESTAMP)) {
+                    long utc = (long) feed.get(TIMESTAMP);
+
+                    feeds.add(new Feed(reference, value.toString(), utc));
+                }
+                else
+                {
+                    feeds.add(new Feed(reference, value.toString()));
+                }
+            }
+
+        } catch (Exception e) {
+            LOG.error("Failed to deserialize message from '" + topic + "' payload: " + message.toString());
+            LOG.error(e.getMessage());
+
+            return;
+        }
+
+        feedHandler.onFeedsReceived(feeds);
+    }
+
+    private void handleParameters(String topic, MqttMessage message) {
+        LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+
+        List<Parameter> parameters = new ArrayList<>();
+
+        try {
+            final HashMap<String, Object> inValues = JsonUtil.deserialize(message, HashMap.class);
+
+            for (String key : inValues.keySet()) {
+                parameters.add(new Parameter(key, inValues.get(key)));
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to deserialize message from '" + topic + "' payload: " + message.toString());
+            LOG.error(e.getMessage());
+
+            return;
+        }
+
+        parameterHandler.onParametersReceived(parameters);
+    }
+
+    private void handleTime(String topic, MqttMessage message) {
+        LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+
+        long timestamp;
+
+        try {
+            timestamp = Long.parseLong(message.toString());
+        } catch (Exception e) {
+            LOG.error("Failed to deserialize message from '" + topic + "' payload: " + message.toString());
+            LOG.error(e.getMessage());
+
+            return;
+        }
+
+        timeHandler.onTimeReceived(timestamp);
     }
 }

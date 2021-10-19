@@ -22,25 +22,11 @@ package com.wolkabout.wolk.firmwareupdate.model;
 public enum FirmwareUpdateError {
 
     // An unexpected error occurred.
-    UNSPECIFIED_ERROR(0),
+    UNKNOWN,
 
     // Requested file is not found on the device.
-    FILE_NOT_PRESENT(1),
-
-    // Error that occurred is caused by the file system.
-    FILE_SYSTEM_ERROR(2),
+    UNKNOWN_FILE,
 
     // The installation process has was not successful.
-    INSTALLATION_FAILED(3),
-
-    // The child device targeted is not present.
-    // Exists by protocol, but does not have a use in a connector.
-    SUBDEVICE_NOT_PRESENT(4);
-
-    // Error code value as int
-    private final int code;
-
-    FirmwareUpdateError(int code) {
-        this.code = code;
-    }
+    INSTALLATION_FAILED
 }

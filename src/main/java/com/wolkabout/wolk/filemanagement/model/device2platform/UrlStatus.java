@@ -33,23 +33,23 @@ public class UrlStatus {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private FileTransferError error;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String fileName;
 
     public UrlStatus(String fileUrl, FileTransferStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
         this.status = status;
         this.fileUrl = fileUrl;
     }
 
     public UrlStatus(String fileUrl, FileTransferStatus status, FileTransferError error) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
         this.status = status;
         this.error = error;
-        this.fileUrl = fileUrl;
-    }
-
-    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName) {
-        this.status = status;
-        this.fileName = fileName;
         this.fileUrl = fileUrl;
     }
 
@@ -77,20 +77,11 @@ public class UrlStatus {
         this.fileUrl = fileUrl;
     }
 
-    public String getFileName() {
-        return fileName;
-    }
-
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-
     @Override
     public String toString() {
         return "StatusResponse{" +
                 "status=" + status +
                 ", error=" + error +
-                ", fileName='" + fileName +
                 "', fileUrl='" + fileUrl +
                 '}';
     }
@@ -101,7 +92,7 @@ public class UrlStatus {
         if (!(o instanceof UrlStatus)) return false;
         UrlStatus that = (UrlStatus) o;
         return error == that.error &&
-                status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
+                status == that.status && fileUrl.equals(that.fileUrl);
     }
 
     @Override

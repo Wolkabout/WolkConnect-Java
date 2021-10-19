@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileInformation;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -111,7 +112,7 @@ public class FileSystemManagementTest {
         management = new FileSystemManagement(testFolderPath);
 
         // Receive the file list
-        List<String> files = management.listAllFiles();
+        List<FileInformation> files = management.listAllFiles();
         assertEquals(files.size(), 0);
 
         // Touch a file
@@ -133,7 +134,7 @@ public class FileSystemManagementTest {
         assertTrue(newFile.createNewFile());
 
         // Fetch the list again
-        List<String> files = management.listAllFiles();
+        List<FileInformation> files = management.listAllFiles();
         assertEquals(files.size(), 1);
 
         // Purge the directory

@@ -108,11 +108,11 @@ public class UrlFileDownloadSessionTest {
         // Check that there is no data
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
-        assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
+        assertEquals(session.getError(), FileTransferError.UNKNOWN);
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNKNOWN);
     }
 
     @Test
@@ -222,13 +222,13 @@ public class UrlFileDownloadSessionTest {
         // Check that there is no data
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
-        assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
+        assertEquals(session.getError(), FileTransferError.UNKNOWN);
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Attempt to abort again
         assertFalse(session.abort());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNKNOWN);
     }
 }

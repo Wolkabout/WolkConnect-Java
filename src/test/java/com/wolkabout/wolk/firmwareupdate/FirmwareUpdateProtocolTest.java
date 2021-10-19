@@ -102,7 +102,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Setup the test init message
-        UpdateInit initMessage = new UpdateInit(new String[]{clientMock.getClientId()}, "whatever-file");
+        UpdateInit initMessage = new UpdateInit("whatever-file");
 
         // Do the call
         protocol.handleFirmwareUpdateInitiation(
@@ -128,7 +128,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Setup the test init message
-        UpdateInit initMessage = new UpdateInit(new String[]{clientMock.getClientId()}, "whatever-file");
+        UpdateInit initMessage = new UpdateInit("whatever-file");
 
         // Do the call
         protocol.handleFirmwareUpdateInitiation(
@@ -164,7 +164,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Send the firmware version
-        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -182,7 +182,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Send the firmware version
         exceptionRule.expect(IllegalArgumentException.class);
-        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -194,7 +194,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Send the firmware version
-        protocol.sendErrorMessage(FirmwareUpdateError.UNSPECIFIED_ERROR);
+        protocol.sendErrorMessage(FirmwareUpdateError.UNKNOWN);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -212,7 +212,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Send the firmware version
         exceptionRule.expect(IllegalArgumentException.class);
-        protocol.sendErrorMessage(FirmwareUpdateError.UNSPECIFIED_ERROR);
+        protocol.sendErrorMessage(FirmwareUpdateError.UNKNOWN);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();

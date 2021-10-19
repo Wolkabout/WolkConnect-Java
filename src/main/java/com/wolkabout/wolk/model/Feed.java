@@ -21,8 +21,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Feed {
 
@@ -36,11 +37,11 @@ public class Feed {
     private final long utc;
 
     public Feed(String reference, String value) {
-        this(reference, Arrays.asList(value), System.currentTimeMillis());
+        this(reference, Collections.singletonList(value), System.currentTimeMillis());
     }
 
     public Feed(String reference, String value, long utc) {
-        this(reference, Arrays.asList(value), utc);
+        this(reference, Collections.singletonList(value), utc);
     }
 
     public Feed(String reference, List<String> values) {
@@ -59,6 +60,26 @@ public class Feed {
 
     public List<String> getValues() {
         return values;
+    }
+
+    public String getValue() {
+        return values.get(0);
+    }
+
+    public List<Double> getNumericValues() {
+        return values.stream().map(Double::parseDouble).collect(Collectors.toList());
+    }
+
+    public Double getNumericValue() {
+        return Double.parseDouble(values.get(0));
+    }
+
+    public List<Boolean> getBooleanValues() {
+        return values.stream().map(Boolean::parseBoolean).collect(Collectors.toList());
+    }
+
+    public Boolean getBooleanValue() {
+        return Boolean.parseBoolean(values.get(0));
     }
 
     public long getUtc() {

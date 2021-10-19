@@ -16,231 +16,143 @@
  */
 package examples.full_feature_set;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.LoggerContext;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.model.*;
+
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 public class Example {
     private static final Logger LOG = LoggerFactory.getLogger(Example.class);
-    private final static ArrayList<String> VALID_LEVELS = new ArrayList<>(Arrays.asList("TRACE", "DEBUG", "INFO", "WARN", "ERROR"));
-    private final static String CONFIGURATION_FILE_PATH = "src/main/resources/configuration.json";
 
-    private static String version = "1.0";
-
-    public static void setLogLevel(String logLevel, String packageName) {
-        if (!VALID_LEVELS.contains(logLevel)) {
-            System.out.println(" Invalid level : " + logLevel);
-            return;
-        }
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        ch.qos.logback.classic.Logger logger = loggerContext.getLogger(packageName);
-
-        if (logger.getLevel() == Level.toLevel(logLevel)) {
-            return;
-        }
-
-        System.out.println(packageName + " - current logger level: " + logger.getLevel());
-        System.out.println("Setting logger level : " + logLevel);
-        logger.setLevel(Level.toLevel(logLevel));
-    }
+    private static final String NEW_FEED_REF = "NF";
+    private static final String version = "1.0";
 
     public static void main(String... args) throws IOException {
 
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        File configurationFile = new File(CONFIGURATION_FILE_PATH);
-//        Feeds feeds = objectMapper.readValue(configurationFile, Feeds.class);
-//        setLogLevel(configurations.getLogLevel(), "com.wolkabout");
-//
-//        final Wolk wolk = Wolk.builder()
-//                .mqtt()
-//                .host("ssl://api-demo.wolkabout.com:8883")
-//                .sslCertification("ca.crt")
-//                .deviceKey("device-key")
-//                .password("device-password")
-//                .build()
-//                .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
-//                .enableKeepAliveService(true)
-//                .actuator(Arrays.asList("SW", "SL"), new ActuatorHandler() {
-//                    @Override
-//                    public void onActuationReceived(ActuatorCommand actuatorCommand) {
-//                        LOG.info("Actuation received " + actuatorCommand.getReference() + " " +
-//                                actuatorCommand.getCommand() + " " + actuatorCommand.getValue());
-//
-//                        if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
-//                            if (actuatorCommand.getReference().equals("SL")) {
-//                                ActuatorValues.sliderValue = Double.parseDouble(actuatorCommand.getValue());
-//                            } else if (actuatorCommand.getReference().equals("SW")) {
-//                                ActuatorValues.switchValue = Boolean.parseBoolean(actuatorCommand.getValue());
-//                            }
-//                        }
-//                    }
-//
-//                    @Override
-//                    public ActuatorStatus getActuatorStatus(String ref) {
-//                        if (ref.equals("SL")) {
-//                            return new ActuatorStatus(ActuatorStatus.Status.READY, String.valueOf(ActuatorValues.sliderValue), "SL");
-//                        } else if (ref.equals("SW")) {
-//                            return new ActuatorStatus(ActuatorStatus.Status.READY, String.valueOf(ActuatorValues.switchValue), "SW");
-//                        }
-//
-//                        return new ActuatorStatus(ActuatorStatus.Status.ERROR, "", "");
-//                    }
-//                })
-//                .feed(new FeedHandler() {
-//                    @Override
-//                    public void onFeedsReceived(Collection<Feed> feeds) {
-//                        LOG.info("Parameter received " + feeds);
-//                        for (Parameter configuration : receivedConfigurations) {
-//                            if (configuration.getReference().equals("HB")) {
-//                                configurations.setHeartBeat(Integer.parseInt(configuration.getValue()));
-//                                continue;
-//                            }
-//                            if (configuration.getReference().equals("LL")) {
-//                                configurations.setLogLevel(configuration.getValue());
-//                                continue;
-//                            }
-//                            if (configuration.getReference().equals("EF")) {
-//                                configurations.setEnabledFeeds(new ArrayList<>(Arrays.asList(configuration.getValue().split(","))));
-//                            }
-//                        }
-//                        try {
-//                            objectMapper.writeValue(configurationFile, configurations);
-//                        } catch (IOException e) {
-//                            e.printStackTrace();
-//                            System.out.println("Failed to save received configuration to file");
-//                        }
-//                    }
-//
-//                    @Override
-//                    public Collection<Parameter> getConfigurations() {
-//                        Collection<Parameter> currentConfigurations = new ArrayList<>();
-//                        currentConfigurations.add(new Parameter("LL", configurations.getLogLevel()));
-//                        currentConfigurations.add(new Parameter("EF", configurations.getEnabledFeeds()));
-//                        currentConfigurations.add(new Parameter("HB", String.valueOf(configurations.getHeartBeat())));
-//
-//                        return currentConfigurations;
-//                    }
-//                })
-//                .enableFirmwareUpdate("files/", version, new FirmwareInstaller() {
-//
-//                    private boolean aborted = false;
-//
-//                    @Override
-//                    public boolean onInstallCommandReceived(String fileName) {
-//                        try {
-//                            Thread.sleep(10000);
-//                            if (!aborted) {
-//                                System.exit(0);
-//                                return true;
-//                            }
-//                        } catch (InterruptedException ignored) {
-//                        }
-//                        return false;
-//                    }
-//
-//                    @Override
-//                    public void onAbortCommandReceived() {
-//                        aborted = true;
-//                    }
-//
-//                    @Override
-//                    public String onFirmwareVersion() {
-//                        return version;
-//                    }
-//                })
-//                .build();
-//        wolk.connect();
-//        wolk.publishActuatorStatus("SW");
-//        wolk.publishActuatorStatus("SL");
-//        wolk.publishConfiguration();
-//        wolk.publish();
-//
-//        while (true) {
-//            try {
-//                int heartBeat = configurations.getHeartBeat();
-//                if (configurations.getEnabledFeeds().size() > 0) {
-//                    System.out.println("Sending sensor readings:");
-//                }
-//                if (configurations.getEnabledFeeds().contains("T")) {
-//                    double temperature = (Math.random() * (85 + 1)) + 0;
-//                    wolk.addReading("T", temperature);
-//                    System.out.printf("\tTemperature: %s °C%n", temperature);
-//                }
-//                if (configurations.getEnabledFeeds().contains("P")) {
-//                    double pressure = (Math.random() * ((1030 - 975) + 1)) + 975;
-//                    wolk.addReading("P", pressure);
-//                    System.out.printf("\tPressure: %s  mbar%n", pressure);
-//                }
-//                if (configurations.getEnabledFeeds().contains("H")) {
-//                    double humidity = (Math.random() * (100 + 1)) + 0;
-//                    wolk.addReading("H", humidity);
-//                    System.out.printf("\tHumidity: %s  %%%n", humidity);
-//                    wolk.addAlarm("HH", humidity > 90.0);
-//                }
-//                if (configurations.getEnabledFeeds().contains("ACL")) {
-//                    double xAxis = (Math.random() * (5 + 1)) + 0;
-//                    double yAxis = (Math.random() * (5 + 1)) + 0;
-//                    double zAxis = (Math.random() * (5 + 1)) + 0;
-//                    System.out.printf("\tHumidity: %s g, %s g, %s g%n", xAxis, yAxis, zAxis);
-//                    wolk.addReading("ACL", Arrays.asList(xAxis, yAxis, zAxis));
-//                }
-//                wolk.publish();
-//                TimeUnit.SECONDS.sleep(heartBeat);
-//                long platformTimestamp = wolk.getPlatformTimestamp();
-//                System.out.println("Last Platform timestamp received: " + platformTimestamp);
-//            } catch (Exception e) {
-//                System.out.println(e.getLocalizedMessage());
-//            }
-//        }
+        final InOutFeeds feeds = new InOutFeeds();
+
+        final Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
+                .mqtt()
+                .host("ssl://api-demo.wolkabout.com:8883")
+                .sslCertification("ca.crt")
+                .deviceKey("device-key")
+                .password("device-password")
+                .build()
+                .feed(new FeedHandler() {
+                    @Override
+                    public void onFeedsReceived(Collection<Feed> receivedFeeds) {
+                        LOG.info("Feeds received " + receivedFeeds);
+                        for (Feed feed : receivedFeeds) {
+                            if (feed.getReference().equals(feeds.getHeartbeatReference())) {
+                                feeds.setHeartbeatValue(feed.getNumericValue().longValue());
+                            }
+                            else if (feed.getReference().equals(feeds.getSwitchReference())) {
+                                feeds.setSwitchValue(feed.getBooleanValue());
+                            }
+                        }
+                    }
+
+                    @Override
+                    public Feed getFeedValue(String reference) {
+                        if (reference.equals(feeds.getHeartbeatReference())) {
+                            return new Feed(feeds.heartbeatReference, String.valueOf(feeds.heartbeatValue));
+                        }
+                        else if (reference.equals(feeds.getSwitchReference())) {
+                            return new Feed(feeds.getSwitchReference(), String.valueOf(feeds.switchValue));
+                        }
+
+                        return null;
+                    }
+                })
+                .enableFirmwareUpdate("files/", version, new FirmwareInstaller() {
+
+                    private boolean aborted = false;
+
+                    @Override
+                    public boolean onInstallCommandReceived(String fileName) {
+                        try {
+                            Thread.sleep(10000);
+                            if (!aborted) {
+                                System.exit(0);
+                                return true;
+                            }
+                        } catch (InterruptedException ignored) {
+                        }
+                        return false;
+                    }
+
+                    @Override
+                    public void onAbortCommandReceived() {
+                        aborted = true;
+                    }
+
+                    @Override
+                    public String onFirmwareVersion() {
+                        return version;
+                    }
+                })
+                .build();
+
+        wolk.connect();
+
+        wolk.registerFeed("New Feed", FeedType.IN, Unit.NUMERIC, NEW_FEED_REF);
+
+        wolk.registerAttribute("Device activation timestamp", DataType.NUMERIC, String.valueOf(System.currentTimeMillis()));
+
+        while (true) {
+
+            try {
+                double temperature = Math.random() * 100 - 20; // random number between -20 and 80
+                wolk.addFeed("T", temperature);
+
+                double randomValue = Math.random() * 100;
+                wolk.addFeed(NEW_FEED_REF, randomValue);
+
+                wolk.publish();
+
+                TimeUnit.SECONDS.sleep(feeds.getHeartbeatValue());
+            } catch (Exception e) {
+                System.out.println(e.getLocalizedMessage());
+            }
+        }
     }
 }
 
-class ActuatorValues {
-    static double sliderValue = 0;
-    static boolean switchValue = false;
-}
+class InOutFeeds {
+    final String switchReference = new String("SW");
+    boolean switchValue = false;
 
-class Feeds {
-    @JsonProperty("LL")
-    private String logLevel;
-    @JsonProperty("HB")
-    private int heartBeat;
-    @JsonProperty("EF")
-    private ArrayList<String> enabledFeeds;
+    final String heartbeatReference = new String("HB");
+    long heartbeatValue = 0;
 
-    @JsonProperty("LL")
-    public String getLogLevel() {
-        return logLevel;
+    public String getSwitchReference() {
+        return switchReference;
     }
 
-    @JsonProperty("LL")
-    public void setLogLevel(String logLevel) {
-        this.logLevel = logLevel;
+    public String getHeartbeatReference() {
+        return heartbeatReference;
     }
 
-    @JsonProperty("HB")
-    public int getHeartBeat() {
-        return heartBeat;
+    public boolean getSwitchValue() {
+        return switchValue;
     }
 
-    @JsonProperty("HB")
-    public void setHeartBeat(int heartBeat) {
-        this.heartBeat = heartBeat;
+    public void setSwitchValue(boolean switchValue) {
+        this.switchValue = switchValue;
     }
 
-    @JsonProperty("EF")
-    public ArrayList<String> getEnabledFeeds() {
-        return enabledFeeds;
+    public long getHeartbeatValue() {
+        return heartbeatValue;
     }
 
-    @JsonProperty("EF")
-    public void setEnabledFeeds(ArrayList<String> enabledFeeds) {
-        this.enabledFeeds = enabledFeeds;
+    public void setHeartbeatValue(long heartbeatValue) {
+        this.heartbeatValue = heartbeatValue;
     }
 }

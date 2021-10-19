@@ -21,23 +21,46 @@ package com.wolkabout.wolk.filemanagement.model.device2platform;
  * used in arrays to be send to 'd2p/file_list_response/d/' or 'd2p/file_list_update/d/'.
  */
 public class FileInformation {
-    private String fileName;
+    private String name;
+    private long size;
+    private String hash;
 
-    public FileInformation(String fileName) {
-        this.fileName = fileName;
+    public FileInformation(String name, long size, String hash) {
+        this.name = name;
+        this.size = size;
+        this.hash = hash;
     }
 
     public String getFileName() {
-        return fileName;
+        return name;
     }
 
     public void setFileName(String fileName) {
-        this.fileName = fileName;
+        this.name = fileName;
+    }
+
+    public long getSize() {
+        return size;
+    }
+
+    public void setSize(long size) {
+        this.size = size;
+    }
+
+    public String getHash() {
+        return hash;
+    }
+
+    public void setHash(String hash) {
+        this.hash = hash;
     }
 
     @Override
     public String toString() {
         return "FileInformation={" +
-                "fileName='" + fileName + '\'' + '}';
+                "name='" + name + '\'' +
+                ", size=" + size +
+                ", hash='" + hash + '\'' +
+                '}';
     }
 }

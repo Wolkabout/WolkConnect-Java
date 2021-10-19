@@ -28,12 +28,15 @@ import com.wolkabout.wolk.protocol.Protocol;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.WolkaboutProtocol;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -101,14 +104,14 @@ public class Wolk {
             publishParameters();
 
             firstConnect = false;
-        }
 
-        if (fileManagementProtocol != null) {
-            publishFileList();
+            if (fileManagementProtocol != null) {
+                publishFileList();
 
-            if (firmwareUpdateProtocol != null) {
-                firmwareUpdateProtocol.checkFirmwareVersion();
-                publishFirmwareVersion(firmwareVersion);
+                if (firmwareUpdateProtocol != null) {
+                    firmwareUpdateProtocol.checkFirmwareVersion();
+                    publishFirmwareVersion(firmwareVersion);
+                }
             }
         }
 
@@ -326,15 +329,28 @@ public class Wolk {
         protocol.pullTime();
     }
 
-    /**
-     * Register new attribute or update an existing one
-     * @param attribute
-     */
-    public void registerAttribute(Attribute attribute) {
-        List<Attribute> attributes = new ArrayList<>();
-        attributes.add(attribute);
+    public void registerFeed(String name, FeedType type, String unit, String reference) {
+        registerFeed(new FeedTemplate(name, type, unit, reference));
+    }
 
-        protocol.registerAttributes(attributes);
+    public void registerFeed(String name, FeedType type, Unit unit, String reference) {
+        registerFeed(new FeedTemplate(name, type, unit, reference));
+    }
+
+    public void registerFeed(FeedTemplate feed) {
+        registerFeeds(Collections.singletonList(feed));
+    }
+
+    public void registerFeeds(Collection<FeedTemplate> feeds) {
+        protocol.registerFeeds(feeds);
+    }
+
+    public void removeFeed(String feedReference) {
+        removeFeeds(Collections.singletonList(feedReference));
+    }
+
+    public void removeFeeds(Collection<String> feedReferences) {
+        protocol.removeFeeds(feedReferences);
     }
 
     /**
@@ -345,6 +361,22 @@ public class Wolk {
      */
     public void registerAttribute(String name, DataType type, String value) {
         registerAttribute(new Attribute(name, type, value));
+    }
+
+    /**
+     * Register new attribute or update an existing one
+     * @param attribute
+     */
+    public void registerAttribute(Attribute attribute) {
+        protocol.registerAttributes(Collections.singletonList(attribute));
+    }
+
+    /**
+     * Register new attributes or update the existing ones
+     * @param attributes
+     */
+    public void registerAttributes(Collection<Attribute> attributes) {
+        protocol.registerAttributes(attributes);
     }
 
     private void subscribe() {
@@ -400,6 +432,20 @@ public class Wolk {
             public Feed getFeedValue(String reference) { return null; }
         };
 
+        private TimeHandler timeHandler = new TimeHandler() {
+            @Override
+            public void onTimeReceived(long timestamp) {
+                LOG.trace("Time received: " + timestamp);
+            }
+        };
+
+        private ParameterHandler parameterHandler = new ParameterHandler() {
+            @Override
+            public void onParametersReceived(Collection<Parameter> parameters) {
+                LOG.trace("Parameters received: " + parameters);
+            }
+        };
+
         private Persistence persistence = new InMemoryPersistence();
 
         private boolean fileManagementEnabled = false;
@@ -431,26 +477,21 @@ public class Wolk {
             return this;
         }
 
-//        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
-//            if (actuatorReferences.isEmpty()) {
-//                throw new IllegalArgumentException("Actuator references must be set.");
-//            }
-//
-//            if (actuatorHandler == null) {
-//                throw new IllegalArgumentException("Actuator handler must be set.");
-//            }
-//
-//            this.actuatorReferences = actuatorReferences;
-//            this.actuatorHandler = actuatorHandler;
-//            return this;
-//        }
-
         public Builder feed(FeedHandler feedHandler) {
             if (feedHandler == null) {
                 throw new IllegalArgumentException("Feed handler must be set.");
             }
 
             this.feedHandler = feedHandler;
+            return this;
+        }
+
+        public Builder time(TimeHandler timeHandler) {
+            if (timeHandler == null) {
+                throw new IllegalArgumentException("Time handler must be set.");
+            }
+
+            this.timeHandler = timeHandler;
             return this;
         }
 
@@ -598,8 +639,6 @@ public class Wolk {
                     }
                 }
 
-                feedHandler.setWolk(wolk);
-
                 return wolk;
             } catch (MqttException mqttException) {
                 throw new IllegalArgumentException("Unable to create MQTT connection.", mqttException);
@@ -608,7 +647,7 @@ public class Wolk {
 
         private Protocol getProtocol(MqttClient client) {
             if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
-                return new WolkaboutProtocol(client, feedHandler);
+                return new WolkaboutProtocol(client, feedHandler, timeHandler, parameterHandler);
             }
             throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
 

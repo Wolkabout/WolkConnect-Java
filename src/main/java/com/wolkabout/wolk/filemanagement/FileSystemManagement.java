@@ -16,12 +16,19 @@
  */
 package com.wolkabout.wolk.filemanagement;
 
+import com.wolkabout.wolk.filemanagement.model.device2platform.FileInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -64,10 +71,10 @@ public class FileSystemManagement {
      *
      * @return List of all direct file names as an ArrayList.
      */
-    public List<String> listAllFiles() throws IOException {
+    public List<FileInformation> listAllFiles() throws IOException {
         // Create the list where to store all the file names
         LOG.debug("Peeking the file system for all files.");
-        ArrayList<String> files = new ArrayList<>();
+        ArrayList<FileInformation> files = new ArrayList<>();
 
         try {
             // List through all the files
@@ -77,10 +84,19 @@ public class FileSystemManagement {
                 }
 
                 if (file.isFile()) {
-                    files.add(file.getName());
+                    long size = file.length();
+
+                    MessageDigest md = MessageDigest.getInstance("MD5");
+                    InputStream is = Files.newInputStream(file.toPath());
+                    DigestInputStream dis = new DigestInputStream(is, md);
+
+                    byte[] digest = md.digest();
+                    String hash = DatatypeConverter.printHexBinary(digest).toUpperCase();
+
+                    files.add(new FileInformation(file.getName(), size, hash));
                 }
             }
-        } catch (NullPointerException exception) {
+        } catch (NullPointerException | NoSuchAlgorithmException exception) {
             throw new IOException("Could not read folder contents.");
         }
 

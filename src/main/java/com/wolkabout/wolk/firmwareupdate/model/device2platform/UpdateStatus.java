@@ -30,7 +30,6 @@ public class UpdateStatus {
     private FirmwareUpdateStatus status;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonFormat(shape = JsonFormat.Shape.NUMBER_INT)
     private FirmwareUpdateError error;
 
     public UpdateStatus() {

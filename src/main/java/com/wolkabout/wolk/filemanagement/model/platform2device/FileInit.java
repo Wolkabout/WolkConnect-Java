@@ -18,44 +18,43 @@ package com.wolkabout.wolk.filemanagement.model.platform2device;
 
 /**
  * This class represents the payload sent by the platform to the device
- * to the `p2d/file_upload_initiate/d/` endpoint to receive a new uploaded file.
+ * to the `file_upload_initiate` endpoint to receive a new uploaded file.
  */
 public class FileInit {
-
-    private String fileName;
-    private long fileSize;
-    private String fileHash;
+    private String name;
+    private long size;
+    private String hash;
 
     public String getFileName() {
-        return fileName;
-    }
-
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
+        return name;
     }
 
     public long getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
+        return size;
     }
 
     public String getFileHash() {
-        return fileHash;
+        return hash;
     }
 
-    public void setFileHash(String fileHash) {
-        this.fileHash = fileHash;
+    public void setFileName(String name) {
+        this.name = name;
+    }
+
+    public void setFileSize(long size) {
+        this.size = size;
+    }
+
+    public void setFileHash(String hash) {
+        this.hash = hash;
     }
 
     @Override
     public String toString() {
         return "FileInit{" +
-                "fileName='" + fileName + '\'' +
-                ", fileSize=" + fileSize +
-                ", fileHash='" + fileHash + '\'' +
+                "name='" + name + '\'' +
+                ", size=" + size +
+                ", hash='" + hash + '\'' +
                 '}';
     }
 }

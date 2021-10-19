@@ -210,7 +210,7 @@ public class FileManagementProtocolTest {
         sessionField.setAccessible(true);
         sessionField.set(protocol, new FileDownloadSession(testInitMessage, new FileDownloadSession.Callback() {
             @Override
-            public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+            public void sendRequest(String fileName, int chunkIndex) {
 
             }
 
@@ -470,7 +470,7 @@ public class FileManagementProtocolTest {
         protocol.handleFileTransferFinish(new FileDownloadSession(testInitMessage,
                 new FileDownloadSession.Callback() {
                     @Override
-                    public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+                    public void sendRequest(String fileName, int chunkIndex) {
 
                     }
 
@@ -950,7 +950,7 @@ public class FileManagementProtocolTest {
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
         // Call the method
-        protocol.handleFileListRequest(FileManagementProtocol.FILE_LIST_REQUEST + clientMock.getClientId(),
+        protocol.handleFileListRequest(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_LIST,
                 new MqttMessage());
 
         // Verify the mocks have been called

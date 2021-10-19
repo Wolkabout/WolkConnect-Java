@@ -18,8 +18,11 @@ package com.wolkabout.wolk.protocol;
 
 import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.model.FeedTemplate;
 import com.wolkabout.wolk.model.Parameter;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.slf4j.Logger;
@@ -34,12 +37,16 @@ public abstract class Protocol {
 
     protected final MqttClient client;
     protected final FeedHandler feedHandler;
+    protected final TimeHandler timeHandler;
+    protected final ParameterHandler parameterHandler;
 
     protected static final int QOS = 2;
 
-    public Protocol(MqttClient client, FeedHandler feedHandler) {
+    public Protocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler) {
         this.client = client;
         this.feedHandler = feedHandler;
+        this.timeHandler = timeHandler;
+        this.parameterHandler = parameterHandler;
     }
 
     public abstract void subscribe() throws Exception;
@@ -53,21 +60,13 @@ public abstract class Protocol {
         }
     }
 
-    public void publishCurrentConfig() {
-//        final Collection<Parameter> configurations = configurationHandler.getConfigurations();
-//        if (configurations.size() != 0) {
-//            publishConfiguration(configurations);
-//        }
-    }
-
-    public void publishActuatorStatus(String ref) {
-//        final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
-//        publishActuatorStatus(actuatorStatus);
-    }
-
     public abstract void publishFeed(Feed feed);
 
     public abstract void publishFeeds(Collection<Feed> feeds);
+
+    public abstract void registerFeeds(Collection<FeedTemplate> feeds);
+
+    public abstract void removeFeeds(Collection<String> feedReferences);
 
     public abstract void pullFeeds();
 

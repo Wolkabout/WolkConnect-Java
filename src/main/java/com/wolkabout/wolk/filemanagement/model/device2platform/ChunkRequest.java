@@ -22,22 +22,20 @@ package com.wolkabout.wolk.filemanagement.model.device2platform;
  */
 public class ChunkRequest {
 
-    private String fileName;
+    private String name;
     private int chunkIndex;
-    private int chunkSize;
 
-    public ChunkRequest(String fileName, int chunkIndex, int chunkSize) {
-        this.fileName = fileName;
+    public ChunkRequest(String fileName, int chunkIndex) {
+        this.name = fileName;
         this.chunkIndex = chunkIndex;
-        this.chunkSize = chunkSize;
     }
 
     public String getFileName() {
-        return fileName;
+        return name;
     }
 
     public void setFileName(String fileName) {
-        this.fileName = fileName;
+        this.name = fileName;
     }
 
     public int getChunkIndex() {
@@ -48,20 +46,11 @@ public class ChunkRequest {
         this.chunkIndex = chunkIndex;
     }
 
-    public int getChunkSize() {
-        return chunkSize;
-    }
-
-    public void setChunkSize(int chunkSize) {
-        this.chunkSize = chunkSize;
-    }
-
     @Override
     public String toString() {
         return "ChunkRequest{" +
-                "fileName='" + fileName + '\'' +
+                "name='" + name + '\'' +
                 ", chunkIndex=" + chunkIndex +
-                ", chunkSize=" + chunkSize +
                 '}';
     }
 }

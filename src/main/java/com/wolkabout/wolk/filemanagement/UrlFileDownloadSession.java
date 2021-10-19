@@ -221,7 +221,7 @@ public class UrlFileDownloadSession {
         } catch (MalformedURLException exception) {
             error = FileTransferError.MALFORMED_URL;
         } catch (Exception exception) {
-            error = FileTransferError.UNSPECIFIED_ERROR;
+            error = FileTransferError.UNKNOWN;
         } finally {
             if (error == null) {
                 state = FileTransferStatus.FILE_READY;

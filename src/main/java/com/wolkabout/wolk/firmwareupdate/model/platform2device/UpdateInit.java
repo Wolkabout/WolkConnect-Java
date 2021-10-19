@@ -24,23 +24,13 @@ import java.util.Arrays;
  */
 public class UpdateInit {
 
-    private String[] devices;
     private String fileName;
 
     public UpdateInit() {
     }
 
-    public UpdateInit(String[] devices, String fileName) {
-        this.devices = devices;
+    public UpdateInit(String fileName) {
         this.fileName = fileName;
-    }
-
-    public String[] getDevices() {
-        return devices;
-    }
-
-    public void setDevices(String[] devices) {
-        this.devices = devices;
     }
 
     public String getFileName() {
@@ -54,8 +44,7 @@ public class UpdateInit {
     @Override
     public String toString() {
         return "UpdateInit{" +
-                "devices=" + Arrays.toString(devices) +
-                ", fileName='" + fileName + '\'' +
+                "fileName='" + fileName + '\'' +
                 '}';
     }
 }

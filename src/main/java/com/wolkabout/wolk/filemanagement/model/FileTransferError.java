@@ -22,30 +22,23 @@ package com.wolkabout.wolk.filemanagement.model;
 public enum FileTransferError {
 
     // An unexpected error occurred.
-    UNSPECIFIED_ERROR(0),
+    UNKNOWN,
 
     // Requested file transfer protocol is not supported on the device.
-    TRANSFER_PROTOCOL_DISABLED(1),
+    TRANSFER_PROTOCOL_DISABLED,
 
     // File size is greater than that supported by the device.
-    UNSUPPORTED_FILE_SIZE(2),
+    UNSUPPORTED_FILE_SIZE,
 
     // Given file URL is malformed.
-    MALFORMED_URL(3),
+    MALFORMED_URL,
 
     // File with the same name but different hash is already present on the device.
-    FILE_HASH_MISMATCH(4),
+    FILE_HASH_MISMATCH,
 
     // Firmware file cannot be handled on the device due to a file system error.
-    FILE_SYSTEM_ERROR(5),
+    FILE_SYSTEM_ERROR,
 
     // A device has failed to recover from error 3 times in a row during upload/download.
-    RETRY_COUNT_EXCEEDED(10);
-
-    // Error code value as int
-    private final int code;
-
-    FileTransferError(int code) {
-        this.code = code;
-    }
+    RETRY_COUNT_EXCEEDED;
 }

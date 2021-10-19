@@ -21,6 +21,10 @@ package com.wolkabout.wolk.filemanagement.model;
  */
 public enum FileTransferStatus {
 
+    // The platform initiated the upload but the device hasn’t responded yet.
+    // Not included since it should not be sent by device
+    // AWAITING_DEVICE,
+
     // Transfer still in progress
     FILE_TRANSFER,
 

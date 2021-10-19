@@ -16,39 +16,23 @@
  */
 package com.wolkabout.wolk.protocol.handler;
 
-import com.wolkabout.wolk.Wolk;
 import com.wolkabout.wolk.model.Feed;
 
-import java.lang.ref.WeakReference;
 import java.util.Collection;
 
 public abstract class FeedHandler {
 
-    private WeakReference<Wolk> wolk;
-
-    protected Wolk getWolk() {
-        return wolk.get();
-    }
-
-    public void setWolk(Wolk wolk) {
-        if (this.wolk != null) {
-            throw new IllegalStateException("Wolk instance already set.");
-        }
-
-        this.wolk = new WeakReference<>(wolk);
-    }
-
     /**
-     * Called when configuration is received.
+     * Called when feeds are received.
      *
-     * @param configuration Collection of key-value pair of references and values.
+     * @param feeds Collection of key-value pair of references and values.
      */
     public abstract void onFeedsReceived(Collection<Feed> feeds);
 
     /**
-     * Called when configuration is requested by server.
+     * Called when feed is requested by server.
      *
-     * @return Collection of key-value pairs of references and values.
+     * @return Feed reference.
      */
     public abstract Feed getFeedValue(String reference);
 }

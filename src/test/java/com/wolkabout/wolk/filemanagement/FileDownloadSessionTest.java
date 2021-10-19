@@ -189,7 +189,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
@@ -215,7 +215,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
     }
 
@@ -249,7 +249,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
@@ -276,7 +276,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
     }
 
@@ -296,7 +296,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
 
         // Expect an exception to be thrown for data
@@ -318,7 +318,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
 
         // Expect an exception to be thrown for data
         exceptionRule.expect(IllegalArgumentException.class);
@@ -339,7 +339,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(100);
 
         // Verify that the mock was called
-        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(1)).sendRequest("test-file.jar", 0);
 
         // Expect an exception to be thrown for data
         exceptionRule.expect(IllegalArgumentException.class);
@@ -358,7 +358,7 @@ public class FileDownloadSessionTest {
             if (session != null)
                 session.receiveBytes(bytes);
             return null;
-        }).when(callbackMock).sendRequest(testMessage.getFileName(), 0, testFileSize + CHUNK_EXTRA);
+        }).when(callbackMock).sendRequest(testMessage.getFileName(), 0);
 
         // Create the session
         session = new FileDownloadSession(testMessage, callbackMock);
@@ -370,7 +370,7 @@ public class FileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify that the mock was called
-        verify(callbackMock, times(4)).sendRequest("test-file.jar", 0, testFileSize + CHUNK_EXTRA);
+        verify(callbackMock, times(4)).sendRequest("test-file.jar", 0);
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.RETRY_COUNT_EXCEEDED);
     }
 
@@ -391,7 +391,7 @@ public class FileDownloadSessionTest {
         doAnswer(invocation -> {
             session.receiveBytes(payload);
             return null;
-        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+        }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Setup the session
         session = new FileDownloadSession(initialMessage, callbackMock);
@@ -399,7 +399,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(1000);
 
         // Check that we received the expected output
-        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.RETRY_COUNT_EXCEEDED);
     }
 
@@ -440,7 +440,7 @@ public class FileDownloadSessionTest {
         doAnswer(invocation -> {
             session.receiveBytes(Objects.requireNonNull(queue.poll()));
             return null;
-        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+        }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Trigger the calls
         session = new FileDownloadSession(message, callbackMock);
@@ -453,7 +453,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(1000);
 
         // Verify everything was called, and the status was returned successfully.
-        verify(callbackMock, times(5)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(5)).sendRequest(anyString(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
@@ -492,7 +492,7 @@ public class FileDownloadSessionTest {
         doAnswer(invocation -> {
             session.receiveBytes(Objects.requireNonNull(queue.poll()));
             return null;
-        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+        }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Prepare the session and run everything
         session = new FileDownloadSession(initialMessage, callbackMock);
@@ -501,7 +501,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(1000);
 
         // Verify all the calls
-        verify(callbackMock, times(3)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(3)).sendRequest(anyString(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 
@@ -543,7 +543,7 @@ public class FileDownloadSessionTest {
         doAnswer(invocation -> {
             session.receiveBytes(Objects.requireNonNull(queue.poll()));
             return null;
-        }).when(callbackMock).sendRequest(anyString(), anyInt(), anyInt());
+        }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Prepare the session and run everything
         session = new FileDownloadSession(initialMessage, callbackMock);
@@ -552,7 +552,7 @@ public class FileDownloadSessionTest {
         Thread.sleep(1000);
 
         // Verify all the calls
-        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt(), anyInt());
+        verify(callbackMock, times(4)).sendRequest(anyString(), anyInt());
         verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
     }
 }
