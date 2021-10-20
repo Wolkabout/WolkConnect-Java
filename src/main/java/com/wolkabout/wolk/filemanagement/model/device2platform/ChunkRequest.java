@@ -16,26 +16,31 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the device to the platform
  * to the `d2p/file_binary_request/d/` endpoint to receive binary file data.
  */
 public class ChunkRequest {
 
-    private String name;
+    @JsonProperty("name")
+    private String fileName;
+
+    @JsonProperty("chunkIndex")
     private int chunkIndex;
 
     public ChunkRequest(String fileName, int chunkIndex) {
-        this.name = fileName;
+        this.fileName = fileName;
         this.chunkIndex = chunkIndex;
     }
 
     public String getFileName() {
-        return name;
+        return fileName;
     }
 
     public void setFileName(String fileName) {
-        this.name = fileName;
+        this.fileName = fileName;
     }
 
     public int getChunkIndex() {
@@ -49,7 +54,7 @@ public class ChunkRequest {
     @Override
     public String toString() {
         return "ChunkRequest{" +
-                "name='" + name + '\'' +
+                "name='" + fileName + '\'' +
                 ", chunkIndex=" + chunkIndex +
                 '}';
     }

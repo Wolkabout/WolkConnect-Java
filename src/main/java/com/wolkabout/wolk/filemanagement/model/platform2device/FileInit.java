@@ -16,45 +16,53 @@
  */
 package com.wolkabout.wolk.filemanagement.model.platform2device;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the platform to the device
  * to the `file_upload_initiate` endpoint to receive a new uploaded file.
  */
 public class FileInit {
-    private String name;
-    private long size;
-    private String hash;
+
+    @JsonProperty("name")
+    private String fileName;
+
+    @JsonProperty("size")
+    private long fileSize;
+
+    @JsonProperty("hash")
+    private String fileHash;
 
     public String getFileName() {
-        return name;
+        return fileName;
     }
 
     public long getFileSize() {
-        return size;
+        return fileSize;
     }
 
     public String getFileHash() {
-        return hash;
+        return fileHash;
     }
 
     public void setFileName(String name) {
-        this.name = name;
+        this.fileName = name;
     }
 
     public void setFileSize(long size) {
-        this.size = size;
+        this.fileSize = size;
     }
 
     public void setFileHash(String hash) {
-        this.hash = hash;
+        this.fileHash = hash;
     }
 
     @Override
     public String toString() {
         return "FileInit{" +
-                "name='" + name + '\'' +
-                ", size=" + size +
-                ", hash='" + hash + '\'' +
+                "name='" + fileName + '\'' +
+                ", size=" + fileSize +
+                ", hash='" + fileHash + '\'' +
                 '}';
     }
 }

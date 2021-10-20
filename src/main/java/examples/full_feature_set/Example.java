@@ -130,7 +130,7 @@ class InOutFeeds {
     boolean switchValue = false;
 
     final String heartbeatReference = new String("HB");
-    long heartbeatValue = 0;
+    long heartbeatValue = 120;
 
     public String getSwitchReference() {
         return switchReference;

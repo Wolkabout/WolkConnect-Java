@@ -90,8 +90,14 @@ public class FileSystemManagement {
                     InputStream is = Files.newInputStream(file.toPath());
                     DigestInputStream dis = new DigestInputStream(is, md);
 
+                    byte[] buf = new byte[20480];
+                    while (dis.read(buf) != -1) {
+                        ; //digest is updating
+                    }
+
                     byte[] digest = md.digest();
-                    String hash = DatatypeConverter.printHexBinary(digest).toUpperCase();
+
+                    String hash = DatatypeConverter.printHexBinary(digest);
 
                     files.add(new FileInformation(file.getName(), size, hash));
                 }

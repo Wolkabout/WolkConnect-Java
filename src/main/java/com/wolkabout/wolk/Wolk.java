@@ -110,7 +110,6 @@ public class Wolk {
 
                 if (firmwareUpdateProtocol != null) {
                     firmwareUpdateProtocol.checkFirmwareVersion();
-                    publishFirmwareVersion(firmwareVersion);
                 }
             }
         }
@@ -299,24 +298,6 @@ public class Wolk {
         }
     }
 
-    /**
-     * Publishes the new version of the firmware.
-     *
-     * @param version current firmware version.
-     */
-    public void publishFirmwareVersion(String version) {
-        if (fileManagementProtocol == null) {
-            this.firmwareVersion = version;
-            throw new IllegalStateException("Firmware update protocol is not configured.");
-        }
-
-        try {
-            firmwareUpdateProtocol.publishFirmwareVersion(version);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware version", e);
-        }
-    }
-
     public void pullFeeds() {
         protocol.pullFeeds();
     }
@@ -449,6 +430,8 @@ public class Wolk {
         private Persistence persistence = new InMemoryPersistence();
 
         private boolean fileManagementEnabled = false;
+
+        private boolean defaultUrlFileDownloaderEnabled = true;
 
         private String fileManagementLocation = null;
 
@@ -623,7 +606,7 @@ public class Wolk {
                     if (this.urlFileDownloader == null) {
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
-                        wolk.fileTransferUrlEnabled = false;
+                        wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
                     } else {
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);

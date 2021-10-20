@@ -16,25 +16,33 @@
  */
 package com.wolkabout.wolk.filemanagement.model.platform2device;
 
+import java.util.List;
+
 /**
  * This class represents the payload sent by the platform to the device
  * to the `p2d/file_delete/d/` endpoint to receive a new uploaded file.
  */
 public class FileDelete {
 
-    private String fileName;
+    private List<String> fileNames;
 
-    public String getFileName() {
-        return fileName;
+    public FileDelete() {}
+
+    public FileDelete(List<String> fileNames) {
+        this.fileNames = fileNames;
     }
 
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
+    public List<String> getFileNames() {
+        return fileNames;
+    }
+
+    public void setFileNames(List<String> fileNames) {
+        this.fileNames = fileNames;
     }
 
     @Override
     public String toString() {
         return "FileDelete{" +
-                "fileName='" + fileName + '\'' + '}';
+                "fileNames='" + fileNames + '\'' + '}';
     }
 }

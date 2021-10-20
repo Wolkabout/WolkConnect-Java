@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -172,7 +173,7 @@ public class FileManagementProtocol {
         // If there was an error creating the management, report a `FILE_SYSTEM_ERROR`.
         if (this.management == null) {
             LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
-            publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
                     FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             return;
         }
@@ -183,12 +184,12 @@ public class FileManagementProtocol {
             if (matching != null) {
                 if (matching) {
                     LOG.info("File '" + initMessage.getFileName() + "' hashes match, returning 'FILE_READY'.");
-                    publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                    publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
                             FileTransferStatus.FILE_READY));
                 } else {
                     LOG.info("File '" +
                             initMessage.getFileName() + "' hashes do not match, returning 'FILE_HASH_MISMATCH'.");
-                    publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+                    publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
                             FileTransferStatus.ERROR, FileTransferError.FILE_HASH_MISMATCH));
                 }
                 return;
@@ -196,7 +197,7 @@ public class FileManagementProtocol {
         } catch (IOException exception) {
             LOG.error("Error occurred during reading of the existing file, returning '" +
                     FileTransferError.FILE_SYSTEM_ERROR + "'.");
-            publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
                     FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             return;
         }
@@ -216,7 +217,7 @@ public class FileManagementProtocol {
         });
 
         // Send the transferring message
-        publish(FILE_UPLOAD_STATUS + client.getClientId(), new FileStatus(initMessage.getFileName(),
+        publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
                 FileTransferStatus.FILE_TRANSFER));
     }
 
@@ -225,9 +226,9 @@ public class FileManagementProtocol {
         if ((file = management.getFile(fileName)) != null) {
             LOG.info("File '" + file.getName() + "' already exists.");
             byte[] fileBytes = Files.readAllBytes(file.toPath());
-            byte[] existingFileHash = FileDownloadSession.calculateHashForBytes(fileBytes);
+            byte[] existingFileHash = FileDownloadSession.calculateMD5HashForBytes(fileBytes);
 
-            return fileHash.equals(DatatypeConverter.printHexBinary(existingFileHash).toUpperCase());
+            return fileHash.equalsIgnoreCase(DatatypeConverter.printHexBinary(existingFileHash));
         }
         return null;
     }
@@ -241,8 +242,9 @@ public class FileManagementProtocol {
         }
 
         // Parse the payload and check its validity
-        FileAbort abortMessage = JsonUtil.deserialize(message, FileAbort.class);
-        if (!abortMessage.getFileName().equals(fileDownloadSession.getInitMessage().getFileName())) {
+        String fileName = JsonUtil.deserialize(message, String.class);
+
+        if (!fileName.equals(fileDownloadSession.getInitMessage().getFileName())) {
             LOG.warn("Received file transfer abort message with non-matching file name.");
             return;
         }
@@ -260,14 +262,18 @@ public class FileManagementProtocol {
             return;
         }
 
-        // Pass on the payload
-        fileDownloadSession.receiveBytes(message.getPayload());
+        try {
+            // Pass on the payload
+            fileDownloadSession.receiveBytes(message.getPayload());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            LOG.error("Failed to handle bytes: " + e.getLocalizedMessage());
+        }
     }
 
     void handleFileTransferRequest(String fileName, int chunkIndex) {
         // Create a message to request the data and send it
         ChunkRequest chunkRequest = new ChunkRequest(fileName, chunkIndex);
-        publish(FILE_BINARY_REQUEST + client.getClientId(), chunkRequest);
+        publish(OUT_DIRECTION + client.getClientId() + FILE_BINARY_REQUEST, chunkRequest);
     }
 
     void handleFileTransferFinish(FileDownloadSession session, FileTransferStatus status,
@@ -285,7 +291,7 @@ public class FileManagementProtocol {
             FileStatus statusMessage = new FileStatus(session.getInitMessage().getFileName(), status, error);
             LOG.info("Reporting file transfer as '" + status + "'" +
                     (error != null ? " with error '" + error + "'" : "") + ".");
-            publish(FILE_UPLOAD_STATUS + client.getClientId(), statusMessage);
+            publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, statusMessage);
             return;
         }
 
@@ -294,13 +300,13 @@ public class FileManagementProtocol {
             management.createFile(session.getBytes(), session.getInitMessage().getFileName());
 
             // Announce the status for good status, and save the data from file, and publish the file list.
-            publish(FILE_UPLOAD_STATUS + client.getClientId(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS,
                     new FileStatus(session.getInitMessage().getFileName(), status));
             LOG.info("Reporting file transfer as successful. Downloaded file '" +
                     session.getInitMessage().getFileName() + "'.");
         } catch (IOException exception) {
             // Announce a file system error has occurred
-            publish(FILE_UPLOAD_STATUS + client.getClientId(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS,
                     new FileStatus(session.getInitMessage().getFileName(),
                             FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             LOG.info("Reporting file transfer as '" + FileTransferStatus.ERROR +
@@ -323,19 +329,23 @@ public class FileManagementProtocol {
         }
 
         // Parse the initialization message
-        UrlInfo urlInit = JsonUtil.deserialize(message, UrlInfo.class);
+        String fileUrl = JsonUtil.deserialize(message, String.class);
+
+        UrlInfo urlInit = new UrlInfo();
+        urlInit.setFileUrl(fileUrl);
+
         LOG.info("Received URL file download session, with URL '" + urlInit.getFileUrl() + "'.");
 
         // If there is no management, return FILE_SYSTEM_ERROR immediately.
         if (this.management == null) {
             LOG.error("File management is not running, returning '" + FileTransferError.FILE_SYSTEM_ERROR + "'.");
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), new UrlStatus(urlInit.getFileUrl(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS, new UrlStatus(urlInit.getFileUrl(),
                     FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             return;
         }
 
         // Give the transfer message
-        publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
+        publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS,
                 new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
 
         // Create the session
@@ -364,8 +374,8 @@ public class FileManagementProtocol {
         }
 
         // Parse the payload, and check its validity
-        UrlAbort abortMessage = JsonUtil.deserialize(message, UrlAbort.class);
-        if (!abortMessage.getFileUrl().equals(urlFileDownloadSession.getInitMessage().getFileUrl())) {
+        String fileUrl = JsonUtil.deserialize(message, String.class);
+        if (!fileUrl.equals(urlFileDownloadSession.getInitMessage().getFileUrl())) {
             LOG.warn("Received URL download abort for non-matching URL paths.");
             return;
         }
@@ -393,7 +403,7 @@ public class FileManagementProtocol {
             LOG.info("Reporting URL file download as '" + status + "'" +
                     (error != null ? " with error '" + error + "'" : "") + ".");
             UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), status, error);
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
+            publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS, statusMessage);
             return;
         }
 
@@ -403,11 +413,11 @@ public class FileManagementProtocol {
 
             // Announce the status for good status, and save the data from file, and publish the file list now.
             UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY);
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(), statusMessage);
+            publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS, statusMessage);
             LOG.info("Reporting URL file download as successful. Downloaded file '" + session.getFileName() + "'.");
         } catch (IOException exception) {
             // Announce a file system error has occurred
-            publish(FILE_URL_DOWNLOAD_STATUS + client.getClientId(),
+            publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS,
                     new FileStatus(session.getInitMessage().getFileUrl(),
                             FileTransferStatus.ERROR, FileTransferError.FILE_SYSTEM_ERROR));
             LOG.info("Reporting URL file download as '" + FileTransferStatus.ERROR +
@@ -428,9 +438,14 @@ public class FileManagementProtocol {
             return;
         }
 
-        FileDelete fileDelete = JsonUtil.deserialize(message, FileDelete.class);
-        LOG.info("Received request to delete file '" + fileDelete.getFileName() + "'. Deleting...");
-        management.deleteFile(fileDelete.getFileName());
+        List<String> files = JsonUtil.deserialize(message, List.class);
+        FileDelete fileDelete = new FileDelete(files);
+
+        LOG.info("Received request to delete files '" + fileDelete.getFileNames() + "'. Deleting...");
+
+        for (String file : fileDelete.getFileNames()) {
+            management.deleteFile(file);
+        }
 
         publishFileList();
     }
@@ -513,7 +528,7 @@ public class FileManagementProtocol {
      */
     private void publish(String topic, Object payload) {
         try {
-            LOG.debug("Publishing to '" + topic + "' payload: " + payload);
+            LOG.debug("Publishing to '" + topic + "' payload: " + new String(JsonUtil.serialize(payload), StandardCharsets.UTF_8));
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (MqttException e) {
             final String message = "MQTT error occurred while publishing a message to topic : '" +

@@ -125,13 +125,7 @@ public class WolkaboutProtocol extends Protocol {
 
     @Override
     public void registerAttributes(Collection<Attribute> attributes) {
-        final HashMap<String, Map.Entry<String, String>> payload = new HashMap<>();
-
-        for (Attribute attribute : attributes) {
-            payload.put(attribute.getName(), new AbstractMap.SimpleImmutableEntry<String, String>(attribute.getDataType().name(), attribute.getValue()));
-        }
-
-        publish(OUT_DIRECTION + client.getClientId() + ATTRIBUTE_REGISTER, payload);
+        publish(OUT_DIRECTION + client.getClientId() + ATTRIBUTE_REGISTER, attributes);
     }
 
     @Override

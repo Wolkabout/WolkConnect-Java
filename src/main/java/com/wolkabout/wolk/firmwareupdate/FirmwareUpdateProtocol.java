@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,11 +41,14 @@ public class FirmwareUpdateProtocol {
 
     protected static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocol.class);
     protected static final int QOS = 2;
+
+    private static final String OUT_DIRECTION = "d2p/";
+    private static final String IN_DIRECTION = "p2d/";
+
     // Listing all the topics
-    protected static final String FIRMWARE_INSTALL_INITIALIZE = "p2d/firmware_update_install/d/";
-    protected static final String FIRMWARE_INSTALL_ABORT = "p2d/firmware_update_abort/d/";
-    protected static final String FIRMWARE_INSTALL_STATUS = "d2p/firmware_update_status/d/";
-    protected static final String FIRMWARE_INSTALL_VERSION = "d2p/firmware_version_update/d/";
+    protected static final String FIRMWARE_INSTALL_INITIALIZE = "/firmware_update_install";
+    protected static final String FIRMWARE_INSTALL_ABORT = "/firmware_update_abort";
+    protected static final String FIRMWARE_INSTALL_STATUS = "/firmware_update_status";
     // The main executor
     protected final ExecutorService executor;
     // Given feature classes
@@ -125,12 +129,12 @@ public class FirmwareUpdateProtocol {
     public void subscribe() {
         try {
             // Initialization subscription
-            LOG.debug("Subscribing to topic '" + FIRMWARE_INSTALL_INITIALIZE + client.getClientId() + "'.");
-            client.subscribe(FIRMWARE_INSTALL_INITIALIZE + client.getClientId(), QOS,
+            LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_INITIALIZE + "'.");
+            client.subscribe(IN_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_INITIALIZE, QOS,
                     (topic, message) -> executor.execute(() -> handleFirmwareUpdateInitiation(topic, message)));
             // Abort subscription
-            LOG.debug("Subscribing to topic '" + FIRMWARE_INSTALL_ABORT + client.getClientId() + "'.");
-            client.subscribe(FIRMWARE_INSTALL_ABORT + client.getClientId(), QOS,
+            LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_ABORT + "'.");
+            client.subscribe(IN_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_ABORT, QOS,
                     (topic, message) -> executor.execute(() -> handleFirmwareUpdateAbort(topic, message)));
         } catch (MqttException exception) {
             LOG.error(exception.getMessage());
@@ -186,24 +190,12 @@ public class FirmwareUpdateProtocol {
 
     public void sendStatusMessage(FirmwareUpdateStatus status) {
         lastSentStatus = status;
-        publish(FIRMWARE_INSTALL_STATUS + client.getClientId(), new UpdateStatus(status));
+        publish(OUT_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_STATUS, new UpdateStatus(status));
     }
 
     public void sendErrorMessage(FirmwareUpdateError error) {
         lastSentStatus = FirmwareUpdateStatus.ERROR;
-        publish(FIRMWARE_INSTALL_STATUS + client.getClientId(), new UpdateStatus(error));
-    }
-
-    public void publishFirmwareVersion(String version) {
-        String topic = FIRMWARE_INSTALL_VERSION + client.getClientId();
-
-        try {
-            LOG.debug("Publishing to '" + topic + "' payload: '" + version + "'");
-            client.publish(topic, version.getBytes(), QOS, false);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Could not publish message to: " +
-                    topic + " with payload: '" + version + "'", e);
-        }
+        publish(OUT_DIRECTION + client.getClientId() + FIRMWARE_INSTALL_STATUS, new UpdateStatus(error));
     }
 
     /**
@@ -221,7 +213,7 @@ public class FirmwareUpdateProtocol {
      */
     private void publish(String topic, Object payload) {
         try {
-            LOG.debug("Publishing to '" + topic + "' payload: " + payload);
+            LOG.debug("Publishing to '" + topic + "' payload: " + new String(JsonUtil.serialize(payload), StandardCharsets.UTF_8));
             client.publish(topic, JsonUtil.serialize(payload), QOS, false);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not publish message to: " + topic + " with payload: " + payload, e);

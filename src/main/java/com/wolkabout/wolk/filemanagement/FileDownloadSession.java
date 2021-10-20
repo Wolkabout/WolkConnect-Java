@@ -19,15 +19,14 @@ package com.wolkabout.wolk.filemanagement;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -123,12 +122,12 @@ public class FileDownloadSession {
      * @param data Input bytes to be calculated a MD5 hash from.
      * @return The MD5 hash of input data as byte array.
      */
-    public static byte[] calculateHashForBytes(List<Byte> data) {
+    public static byte[] calculateMD5HashForBytes(List<Byte> data) {
         byte[] bytes = new byte[data.size()];
         for (int i = 0; i < data.size(); i++) {
             bytes[i] = data.get(i);
         }
-        return calculateHashForBytes(bytes);
+        return calculateMD5HashForBytes(bytes);
     }
 
     /**
@@ -137,16 +136,39 @@ public class FileDownloadSession {
      * @param data Input bytes to be calculated a MD5 hash from.
      * @return The MD5 hash of input data as byte array.
      */
-    public static byte[] calculateHashForBytes(byte[] data) {
+    public static byte[] calculateMD5HashForBytes(byte[] data) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
             InputStream is = new ByteArrayInputStream(data);
             DigestInputStream dis = new DigestInputStream(is, md);
 
+            byte[] buf = new byte[20480];
+            while (dis.read(buf) != -1) {
+                ; //digest is updating
+            }
+
             return md.digest();
-        } catch (NoSuchAlgorithmException exception) {
+        } catch (NoSuchAlgorithmException | IOException exception) {
             return null;
         }
+    }
+
+    public static byte[] calculateSha256HashForBytes(List<Byte> data) {
+        byte[] bytes = new byte[data.size()];
+        for (int i = 0; i < data.size(); i++) {
+            bytes[i] = data.get(i);
+        }
+        return calculateSha256HashForBytes(bytes);
+    }
+
+    /**
+     * This is an internal method used to define how a chunk of bytes is hashed.
+     *
+     * @param data Input bytes to be calculated a SHA256 hash from.
+     * @return The SHA256 hash of input data as byte array.
+     */
+    public static byte[] calculateSha256HashForBytes(byte[] data) {
+        return DigestUtils.sha256(data);
     }
 
     public FileInit getInitMessage() {
@@ -213,7 +235,7 @@ public class FileDownloadSession {
      * it decides that is something it wants to do, because it may be over the limits, and will want to report
      * an error, since it had retried too many times.
      */
-    public synchronized boolean receiveBytes(byte[] receivedBytes) {
+    public synchronized boolean receiveBytes(byte[] receivedBytes) throws IllegalStateException, IllegalArgumentException {
         LOG.trace("Received chunk of bytes. Size of chunk: " + receivedBytes.length + ", " +
                 "current chunk count: " + currentChunk + ".");
 
@@ -256,7 +278,7 @@ public class FileDownloadSession {
         }
 
         // Calculate the hash for current data and check it
-        byte[] calculatedHash = calculateHashForBytes(chunkData);
+        byte[] calculatedHash = calculateSha256HashForBytes(chunkData);
         if (!Arrays.equals(calculatedHash, currentHash)) {
             LOG.warn("Hash of the current chunk calculated does not match the sent hash.");
             return requestChunkAgain(initMessage.getFileName(), currentChunk);
@@ -271,8 +293,8 @@ public class FileDownloadSession {
 
         // Check if the file is fully here now.
         if (++currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
-            // If the entire file hash is invalid, restart the entire process
-            if (!Arrays.equals(calculateHashForBytes(bytes), Base64.decodeBase64(initMessage.getFileHash()))) {
+            // If the entire file hash is invalid, restart the entire proces
+            if (!Arrays.equals(calculateMD5HashForBytes(bytes), DatatypeConverter.parseHexBinary(initMessage.getFileHash()))) {
                 return restartDataObtain();
             }
 

@@ -16,51 +16,58 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the device to the platform
  * used in arrays to be send to 'd2p/file_list_response/d/' or 'd2p/file_list_update/d/'.
  */
 public class FileInformation {
-    private String name;
-    private long size;
-    private String hash;
+    @JsonProperty("name")
+    private String fileName;
 
-    public FileInformation(String name, long size, String hash) {
-        this.name = name;
-        this.size = size;
-        this.hash = hash;
+    @JsonProperty("size")
+    private long fileSize;
+
+    @JsonProperty("hash")
+    private String fileHash;
+
+    public FileInformation(String fileName, long fileSize, String fileHash) {
+        this.fileName = fileName;
+        this.fileSize = fileSize;
+        this.fileHash = fileHash;
     }
 
     public String getFileName() {
-        return name;
+        return fileName;
     }
 
     public void setFileName(String fileName) {
-        this.name = fileName;
+        this.fileName = fileName;
     }
 
     public long getSize() {
-        return size;
+        return fileSize;
     }
 
     public void setSize(long size) {
-        this.size = size;
+        this.fileSize = size;
     }
 
     public String getHash() {
-        return hash;
+        return fileHash;
     }
 
     public void setHash(String hash) {
-        this.hash = hash;
+        this.fileHash = hash;
     }
 
     @Override
     public String toString() {
         return "FileInformation={" +
-                "name='" + name + '\'' +
-                ", size=" + size +
-                ", hash='" + hash + '\'' +
+                "name='" + fileName + '\'' +
+                ", size=" + fileSize +
+                ", hash='" + fileHash + '\'' +
                 '}';
     }
 }

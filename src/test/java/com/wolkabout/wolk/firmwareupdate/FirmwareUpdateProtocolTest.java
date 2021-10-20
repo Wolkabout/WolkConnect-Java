@@ -217,34 +217,4 @@ public class FirmwareUpdateProtocolTest {
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
     }
-
-    @Test
-    public void publishFirmwareVersionHappyFlow() throws MqttException {
-        // Setup the protocol
-        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
-
-        // Send the firmware version
-        protocol.publishFirmwareVersion("Firmware 1.0.0");
-
-        // Verify all the mock calls
-        verify(clientMock, times(1)).getClientId();
-        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishFirmwareVersionPublishThrows() throws MqttException {
-        // Setup the throwing method
-        doThrow(new MqttException(new Exception("Test MQTT exception."))).when(clientMock)
-                .publish(anyString(), any(), anyInt(), anyBoolean());
-
-        // Setup the protocol
-        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
-
-        // Send the firmware version
-        exceptionRule.expect(IllegalArgumentException.class);
-        protocol.publishFirmwareVersion("Firmware 1.0.0");
-
-        // Verify all the mock calls
-        verify(clientMock, times(1)).getClientId();
-    }
 }

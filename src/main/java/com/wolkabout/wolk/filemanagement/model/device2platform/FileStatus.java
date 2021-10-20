@@ -17,6 +17,7 @@
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 
@@ -26,9 +27,13 @@ import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
  */
 public class FileStatus {
 
-    private String name;
+    @JsonProperty("name")
+    private String fileName;
+
+    @JsonProperty("status")
     private FileTransferStatus status;
 
+    @JsonProperty("error")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private FileTransferError error;
 
@@ -37,7 +42,7 @@ public class FileStatus {
             throw new IllegalArgumentException("FileTransferStatus can not be null.");
         }
 
-        this.name = fileName;
+        this.fileName = fileName;
         this.status = status;
     }
 
@@ -46,17 +51,17 @@ public class FileStatus {
             throw new IllegalArgumentException("FileTransferStatus can not be null.");
         }
 
-        this.name = fileName;
+        this.fileName = fileName;
         this.status = status;
         this.error = error;
     }
 
     public String getFileName() {
-        return name;
+        return fileName;
     }
 
     public void setFileName(String fileName) {
-        this.name = fileName;
+        this.fileName = fileName;
     }
 
     public FileTransferStatus getStatus() {
@@ -78,7 +83,7 @@ public class FileStatus {
     @Override
     public String toString() {
         return "FileStatus={" +
-                "name='" + name + '\'' +
+                "name='" + fileName + '\'' +
                 ", status='" + status.name() + '\'' +
                 (error != null ? (", error='" + error.name() + '\'') : "") + '}';
     }

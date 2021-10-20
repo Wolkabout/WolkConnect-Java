@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -266,7 +267,7 @@ public class FileManagementProtocolTest {
         doReturn("test-bogus-file").when(fileMock).getName();
         doReturn(Paths.get("./test-bogus-file")).when(fileMock).toPath();
 
-        final byte[] hash = FileDownloadSession.calculateHashForBytes(new byte[]{100, 100, 100, 100, 100});
+        final byte[] hash = FileDownloadSession.calculateMD5HashForBytes(new byte[]{100, 100, 100, 100, 100});
 
         // Setup the mock calls
         when(managementMock.getFile(anyString()))
@@ -798,7 +799,7 @@ public class FileManagementProtocolTest {
 
         // Create the test message
         FileDelete delete = new FileDelete();
-        delete.setFileName("test-file");
+        delete.setFileNames(Collections.singletonList("test-file"));
 
         // Call the method
         protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
@@ -888,7 +889,7 @@ public class FileManagementProtocolTest {
 
         // Create the test message
         FileDelete delete = new FileDelete();
-        delete.setFileName("test-file");
+        delete.setFileNames(Collections.singletonList("test-file"));
 
         // Call the method
         protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
