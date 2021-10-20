@@ -82,6 +82,7 @@ public class Wolk {
      * Persistence mechanism for storing and retrieving data.
      */
     private Persistence persistence;
+    private int maxMessageSize;
     private final Runnable publishTask = this::publish;
 
     private boolean firstConnect = true;
@@ -392,6 +393,8 @@ public class Wolk {
             parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareVersion));
         }
 
+        parameters.add(new Parameter(Parameter.Name.MAXIMUM_MESSAGE_SIZE.name(), maxMessageSize));
+
         protocol.updateParameters(parameters);
     }
 
@@ -401,7 +404,8 @@ public class Wolk {
         private final MqttBuilder mqttBuilder = new MqttBuilder(this);
         private OutboundDataMode mode;
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
-        private Collection<String> actuatorReferences = new ArrayList<>();
+
+        private int maxMessageSize = 0;
 
         private FeedHandler feedHandler = new FeedHandler() {
             @Override
@@ -557,12 +561,27 @@ public class Wolk {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
+            this.fileManagementEnabled = true;
             this.fileManagementLocation = fileManagementLocation;
             this.urlFileDownloader = urlFileDownloader;
-            firmwareUpdateEnabled = true;
+            this.firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
             this.firmwareVersion = firmwareVersion;
+            return this;
+        }
+
+        /**
+         * Maximum size of message that can be received in killobytes
+         * This also applies to maximum chunk size of file
+         * @param maxMessageSize
+         * @return
+         */
+        public Builder maxMessageKilloBytes(int maxMessageSize) {
+            if (maxMessageSize < 0) {
+                throw new IllegalArgumentException("Max message size must be a non negative number");
+            }
+
+            this.maxMessageSize = maxMessageSize;
             return this;
         }
 
@@ -596,6 +615,7 @@ public class Wolk {
                 wolk.options = mqttBuilder.options();
                 wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
+                wolk.maxMessageSize = maxMessageSize;
 
                 if (fileManagementEnabled) {
                     // Create the file system management
@@ -604,14 +624,16 @@ public class Wolk {
 
                     // Create the file management protocol
                     if (this.urlFileDownloader == null) {
+                        wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
-                        wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
                     } else {
                         wolk.fileManagementProtocol =
                                 new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
                         wolk.fileTransferUrlEnabled = true;
                     }
+
+                    wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
 
                     // Create the firmware update if that is something the user wants
                     if (firmwareUpdateEnabled) {

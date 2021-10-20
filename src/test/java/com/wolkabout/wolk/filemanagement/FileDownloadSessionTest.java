@@ -68,20 +68,20 @@ public class FileDownloadSessionTest {
     public void nullCheckInitMessage() {
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The initial message object can not be null.");
-        new FileDownloadSession(null, callbackMock);
+        new FileDownloadSession(null, callbackMock, 0);
     }
 
     @Test
     public void nullCheckCallback() {
         exceptionRule.expect(IllegalArgumentException.class);
         exceptionRule.expectMessage("The callback object can not be null.");
-        new FileDownloadSession(new FileInit(), null);
+        new FileDownloadSession(new FileInit(), null, 0);
     }
 
     @Test
     public void checkInitialMessageIntegrity() {
         // Make the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, 0);
 
         // Check everything
         assertEquals(testMessage.getFileName(), session.getInitMessage().getFileName());
@@ -111,7 +111,7 @@ public class FileDownloadSessionTest {
             message.setFileSize(i);
 
             // Make the session
-            session = new FileDownloadSession(message, callbackMock);
+            session = new FileDownloadSession(message, callbackMock, MAX_CHUNK_SIZE);
 
             // Check the values
             List<Integer> chunkSizes = (List<Integer>) chunkSizesField.get(session);
@@ -141,7 +141,7 @@ public class FileDownloadSessionTest {
             message.setFileSize(i);
 
             // Make the session
-            session = new FileDownloadSession(message, callbackMock);
+            session = new FileDownloadSession(message, callbackMock, MAX_CHUNK_SIZE);
 
             // Check the values
             List<Integer> chunkSizes = (List<Integer>) chunkSizesField.get(session);
@@ -159,7 +159,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkReceiveAll() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that it is reporting that it is running
         assertEquals(FileTransferStatus.FILE_TRANSFER, session.getStatus());
@@ -196,7 +196,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkSimpleAbort() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that the status is FILE_TRANSFER
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -222,7 +222,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkAbortAfterSuccess() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Form the payload
         byte[] payload = new byte[testFileSize + CHUNK_EXTRA];
@@ -256,7 +256,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkAbortAfterAbort() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that the status is FILE_TRANSFER
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -283,7 +283,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkReceiveDataAfterAbort() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that the status is FILE_TRANSFER
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -308,7 +308,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkNotEnoughBytes() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that the status is FILE_TRANSFER
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -329,7 +329,7 @@ public class FileDownloadSessionTest {
     @Test
     public void singleChunkWrongBytes() throws InterruptedException {
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that the status is FILE_TRANSFER
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -361,7 +361,7 @@ public class FileDownloadSessionTest {
         }).when(callbackMock).sendRequest(testMessage.getFileName(), 0);
 
         // Create the session
-        session = new FileDownloadSession(testMessage, callbackMock);
+        session = new FileDownloadSession(testMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Sleep a tad bit for the mocks to be called
         Thread.sleep(100);
@@ -394,7 +394,7 @@ public class FileDownloadSessionTest {
         }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Setup the session
-        session = new FileDownloadSession(initialMessage, callbackMock);
+        session = new FileDownloadSession(initialMessage, callbackMock, MAX_CHUNK_SIZE);
         // Sleep for a bit
         Thread.sleep(1000);
 
@@ -443,7 +443,7 @@ public class FileDownloadSessionTest {
         }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Trigger the calls
-        session = new FileDownloadSession(message, callbackMock);
+        session = new FileDownloadSession(message, callbackMock, MAX_CHUNK_SIZE);
 
         // Check that it is running
         assertEquals(session.getStatus(), FileTransferStatus.FILE_TRANSFER);
@@ -495,7 +495,7 @@ public class FileDownloadSessionTest {
         }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Prepare the session and run everything
-        session = new FileDownloadSession(initialMessage, callbackMock);
+        session = new FileDownloadSession(initialMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Sleep for a bit
         Thread.sleep(1000);
@@ -546,7 +546,7 @@ public class FileDownloadSessionTest {
         }).when(callbackMock).sendRequest(anyString(), anyInt());
 
         // Prepare the session and run everything
-        session = new FileDownloadSession(initialMessage, callbackMock);
+        session = new FileDownloadSession(initialMessage, callbackMock, MAX_CHUNK_SIZE);
 
         // Sleep for a bit
         Thread.sleep(1000);

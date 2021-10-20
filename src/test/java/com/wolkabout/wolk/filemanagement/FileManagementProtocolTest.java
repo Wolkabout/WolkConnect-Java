@@ -219,7 +219,7 @@ public class FileManagementProtocolTest {
             public void onFinish(FileTransferStatus status, FileTransferError error) {
 
             }
-        }));
+        }, protocol.maxChunkSize));
 
         // Create the mqtt message, and call the initialization
         MqttMessage testMessage = new MqttMessage(JsonUtil.serialize(testInitMessage));
@@ -479,7 +479,7 @@ public class FileManagementProtocolTest {
                     public void onFinish(FileTransferStatus status, FileTransferError error) {
 
                     }
-                }), null, null);
+                }, protocol.maxChunkSize), null, null);
     }
 
     @Test

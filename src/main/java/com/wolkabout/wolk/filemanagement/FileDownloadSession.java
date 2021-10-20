@@ -51,7 +51,6 @@ public class FileDownloadSession {
     private static final int MINIMUM_PACKET_SIZE = 65;
     private static final int PREVIOUS_HASH_SIZE = 32;
     private static final int CURRENT_HASH_SIZE = 32;
-    private static final int CHUNK_SIZE = 250000;
     private static final int MAX_RETRY = 3;
     private static final int MAX_RESTART = 3;
     // The executor
@@ -60,7 +59,7 @@ public class FileDownloadSession {
     private final FileInit initMessage;
     private final Callback callback;
     // The collected data
-    private final List<Integer> chunkSizes;
+    private final List<Long> chunkSizes;
     private final List<Byte> bytes;
     private final List<byte[]> hashes;
     // The main indicators of state
@@ -80,7 +79,7 @@ public class FileDownloadSession {
      * @param callback    The object containing external calls for requesting data and notifying of finish.
      * @throws IllegalArgumentException If any of the arguments is given null, the exception will be thrown.
      */
-    public FileDownloadSession(FileInit initMessage, Callback callback) throws IllegalArgumentException {
+    public FileDownloadSession(FileInit initMessage, Callback callback, int chunkSize) throws IllegalArgumentException {
         if (initMessage == null) {
             throw new IllegalArgumentException("The initial message object can not be null.");
         }
@@ -95,17 +94,22 @@ public class FileDownloadSession {
         this.hashes = new ArrayList<>();
         this.chunkSizes = new ArrayList<>();
 
+        // killobytes
+        chunkSize = chunkSize * 1024 - (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE);
+
         // Calculate the chunk count, and each of their sizes
-        long fullSizedChunks = initMessage.getFileSize() / CHUNK_SIZE;
-        long leftoverSizedChunk = initMessage.getFileSize() % CHUNK_SIZE;
+        long fullSizedChunks = chunkSize > 0 ? initMessage.getFileSize() / chunkSize : 1;
+        long leftoverSizedChunk = chunkSize > 0 ? initMessage.getFileSize() % chunkSize : 0;
 
         // Append them all into the list
         for (int i = 0; i < fullSizedChunks; i++) {
-            chunkSizes.add(CHUNK_SIZE + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
+            long expectedChunkSize = chunkSize > 0 ? chunkSize : initMessage.getFileSize();
+
+            chunkSizes.add(expectedChunkSize + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
         }
 
         if (leftoverSizedChunk > 0) {
-            chunkSizes.add((int) (leftoverSizedChunk + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE)));
+            chunkSizes.add(leftoverSizedChunk + (PREVIOUS_HASH_SIZE + CURRENT_HASH_SIZE));
         }
         LOG.trace("Calculated chunk count for this file: " + chunkSizes.size());
 

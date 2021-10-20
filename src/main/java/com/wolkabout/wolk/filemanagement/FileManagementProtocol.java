@@ -72,6 +72,7 @@ public class FileManagementProtocol {
     protected FileDownloadSession fileDownloadSession;
     protected UrlFileDownloadSession urlFileDownloadSession;
     private final UrlFileDownloader urlFileDownloader;
+    protected int maxChunkSize = 0;
 
     /**
      * This is the constructor for the FileManagement feature.
@@ -157,6 +158,10 @@ public class FileManagementProtocol {
         }
     }
 
+    public void setMaxChunkSize(int maxChunkSize) {
+        this.maxChunkSize = maxChunkSize;
+    }
+
     void handleFileTransferInitiation(String topic, MqttMessage message) {
         logReceivedMqttMessage(topic, message);
 
@@ -214,7 +219,7 @@ public class FileManagementProtocol {
                 handleFileTransferFinish(fileDownloadSession, status, error);
                 fileDownloadSession = null;
             }
-        });
+        }, maxChunkSize);
 
         // Send the transferring message
         publish(OUT_DIRECTION + client.getClientId() + FILE_UPLOAD_STATUS, new FileStatus(initMessage.getFileName(),
