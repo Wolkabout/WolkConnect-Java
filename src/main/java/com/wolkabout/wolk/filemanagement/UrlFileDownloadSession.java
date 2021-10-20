@@ -169,7 +169,7 @@ public class UrlFileDownloadSession {
                 error = null;
 
                 // Call the callback
-                executor.execute(new UrlFileDownloadSession.FinishRunnable(status, null));
+                executor.execute(new UrlFileDownloadSession.FinishRunnable(status, fileName, null));
 
                 return true;
             default:
@@ -196,7 +196,7 @@ public class UrlFileDownloadSession {
         status = pair.getKey();
         error = pair.getValue();
         // Call the returns with appropriate values
-        executor.execute(new FinishRunnable(status, error));
+        executor.execute(new FinishRunnable(status, fileName, error));
         return status == FileTransferStatus.FILE_READY;
     }
 
@@ -237,7 +237,7 @@ public class UrlFileDownloadSession {
      * announcing the external of status.
      */
     public interface Callback {
-        void onFinish(FileTransferStatus status, FileTransferError error);
+        void onFinish(FileTransferStatus status, String fileName, FileTransferError error);
     }
 
     /**
@@ -267,16 +267,18 @@ public class UrlFileDownloadSession {
     private class FinishRunnable implements Runnable {
 
         private final FileTransferStatus status;
+        private final String fileName;
         private final FileTransferError error;
 
-        public FinishRunnable(FileTransferStatus status, FileTransferError error) {
+        public FinishRunnable(FileTransferStatus status, String fileName, FileTransferError error) {
             this.status = status;
+            this.fileName = fileName;
             this.error = error;
         }
 
         @Override
         public void run() {
-            callback.onFinish(status, error);
+            callback.onFinish(status, fileName, error);
         }
     }
 }

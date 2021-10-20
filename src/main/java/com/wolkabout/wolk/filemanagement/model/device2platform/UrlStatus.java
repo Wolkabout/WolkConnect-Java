@@ -42,6 +42,7 @@ public class UrlStatus {
 
         this.status = status;
         this.fileUrl = fileUrl;
+        this.fileName = "";
     }
 
     public UrlStatus(String fileUrl, String fileName, FileTransferStatus status) {
@@ -62,6 +63,18 @@ public class UrlStatus {
         this.status = status;
         this.error = error;
         this.fileUrl = fileUrl;
+        this.fileName = "";
+    }
+
+    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName, FileTransferError error) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
+        this.status = status;
+        this.error = error;
+        this.fileUrl = fileUrl;
+        this.fileName = fileName;
     }
 
     public FileTransferStatus getStatus() {

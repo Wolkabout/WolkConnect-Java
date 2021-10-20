@@ -350,13 +350,13 @@ public class FileManagementProtocol {
 
         // Create the session
         if (this.urlFileDownloader == null) {
-            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
-                handleUrlSessionFinish(urlFileDownloadSession, status, error);
+            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, fileName, error) -> {
+                handleUrlSessionFinish(urlFileDownloadSession, status, fileName, error);
                 urlFileDownloadSession = null;
             });
         } else {
-            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, error) -> {
-                handleUrlSessionFinish(urlFileDownloadSession, status, error);
+            urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, fileName, error) -> {
+                handleUrlSessionFinish(urlFileDownloadSession, status, fileName, error);
                 urlFileDownloadSession = null;
             }, urlFileDownloader);
         }
@@ -389,7 +389,7 @@ public class FileManagementProtocol {
      * This is the callback method for the URL Download session to handle the result of the session.
      */
     void handleUrlSessionFinish(UrlFileDownloadSession session, FileTransferStatus status,
-                                FileTransferError error) {
+                                String fileName, FileTransferError error) {
         // Null check what needs to be null checked
         if (session == null) {
             throw new IllegalStateException("Handle URL session finish is called with a null session.");
@@ -402,7 +402,7 @@ public class FileManagementProtocol {
         if (status != FileTransferStatus.FILE_READY) {
             LOG.info("Reporting URL file download as '" + status + "'" +
                     (error != null ? " with error '" + error + "'" : "") + ".");
-            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), status, error);
+            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), status, fileName, error);
             publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS, statusMessage);
             return;
         }

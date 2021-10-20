@@ -90,7 +90,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.MALFORMED_URL);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.MALFORMED_URL);
     }
 
     @Test
@@ -112,7 +112,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNKNOWN);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.UNKNOWN);
     }
 
     @Test
@@ -134,7 +134,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.FILE_READY, session.getStatus());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "", null);
     }
 
     @Test
@@ -155,7 +155,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.ABORTED, session.getStatus());
 
         // Verify the mock call
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, "", null);
     }
 
     @Test
@@ -180,7 +180,7 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "", null);
     }
 
     @Test
@@ -204,7 +204,7 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify the mock call
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, "", null);
     }
 
     @Test
@@ -229,6 +229,6 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNKNOWN);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.UNKNOWN);
     }
 }

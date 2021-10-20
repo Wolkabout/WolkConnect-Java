@@ -821,7 +821,7 @@ public class FileManagementProtocolTest {
 
         // Call the finish
         exceptionRule.expect(IllegalStateException.class);
-        protocol.handleUrlSessionFinish(null, FileTransferStatus.FILE_READY, null);
+        protocol.handleUrlSessionFinish(null, FileTransferStatus.FILE_READY, "", null);
     }
 
     @Test
@@ -831,7 +831,7 @@ public class FileManagementProtocolTest {
 
         // Call the finish
         exceptionRule.expect(IllegalStateException.class);
-        protocol.handleUrlSessionFinish(urlFileDownloadSessionMock, null, null);
+        protocol.handleUrlSessionFinish(urlFileDownloadSessionMock, null, "", null);
     }
 
     @Test
