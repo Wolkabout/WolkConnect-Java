@@ -42,8 +42,8 @@ public class FirmwareUpdateProtocol {
     protected static final Logger LOG = LoggerFactory.getLogger(FirmwareUpdateProtocol.class);
     protected static final int QOS = 2;
 
-    private static final String OUT_DIRECTION = "d2p/";
-    private static final String IN_DIRECTION = "p2d/";
+    protected static final String OUT_DIRECTION = "d2p/";
+    protected static final String IN_DIRECTION = "p2d/";
 
     // Listing all the topics
     protected static final String FIRMWARE_INSTALL_INITIALIZE = "/firmware_update_install";

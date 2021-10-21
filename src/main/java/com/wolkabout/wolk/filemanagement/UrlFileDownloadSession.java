@@ -52,7 +52,7 @@ public class UrlFileDownloadSession {
     private final UrlFileDownloader urlFileDownloader;
     // The end result data
     private byte[] fileData;
-    private String fileName;
+    private String fileName = "";
     // The end status variables
     private FileTransferStatus status;
     private FileTransferError error;

@@ -43,6 +43,9 @@ public class WolkaboutProtocolTest {
 
     @Test
     public void publishReading() throws MqttException {
+        when(clientMock.getClientId())
+                .thenReturn("some_key");
+
         Feed feed = new Feed("reference", "value");
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock);
         wolkaboutProtocol.publishFeed(feed);

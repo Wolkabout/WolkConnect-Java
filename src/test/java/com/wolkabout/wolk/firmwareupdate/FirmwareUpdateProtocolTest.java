@@ -106,7 +106,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Do the call
         protocol.handleFirmwareUpdateInitiation(
-                FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE + clientMock.getClientId(),
+                FirmwareUpdateProtocol.IN_DIRECTION + clientMock.getClientId() + FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE,
                 new MqttMessage(JsonUtil.serialize(initMessage)));
 
         // Sleep a tad bit
@@ -114,7 +114,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Check all the mock calls
         verify(managementMock, times(1)).fileExists(anyString());
-        verify(clientMock, times(3)).getClientId();
+        verify(clientMock, times(2)).getClientId();
         verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
     }
 
@@ -132,7 +132,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Do the call
         protocol.handleFirmwareUpdateInitiation(
-                FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE + clientMock.getClientId(),
+                FirmwareUpdateProtocol.IN_DIRECTION + clientMock.getClientId() + FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE,
                 new MqttMessage(JsonUtil.serialize(initMessage)));
 
         // Sleep a tad bit
@@ -140,7 +140,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Check all the mock calls
         verify(managementMock, times(1)).fileExists(anyString());
-        verify(clientMock, times(4)).getClientId();
+        verify(clientMock, times(3)).getClientId();
         verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
         verify(installerMock, times(1))
                 .onInstallCommandReceived(eq("whatever-file"));

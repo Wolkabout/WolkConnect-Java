@@ -27,28 +27,25 @@ import java.util.stream.Collectors;
 
 public class Feed {
 
-    @JsonIgnore
     private final String reference;
 
-    @JsonProperty("data")
-    @JsonSerialize(using = JsonMultivalueSerializer.class)
-    private final List<String> values;
+    private final List<Object> values;
 
     private final long utc;
 
-    public Feed(String reference, String value) {
+    public Feed(String reference, Object value) {
         this(reference, Collections.singletonList(value), System.currentTimeMillis());
     }
 
-    public Feed(String reference, String value, long utc) {
+    public Feed(String reference, Object value, long utc) {
         this(reference, Collections.singletonList(value), utc);
     }
 
-    public Feed(String reference, List<String> values) {
+    public Feed(String reference, List<Object> values) {
         this(reference, values, System.currentTimeMillis());
     }
 
-    public Feed(String reference, List<String> values, long utc) {
+    public Feed(String reference, List<Object> values, long utc) {
         this.reference = reference;
         this.values = values;
         this.utc = utc;
@@ -59,31 +56,47 @@ public class Feed {
     }
 
     public List<String> getValues() {
-        return values;
+        return values.stream().map(Object::toString).collect(Collectors.toList());
     }
 
     public String getValue() {
-        return values.get(0);
+        return values.get(0).toString();
     }
 
     public List<Double> getNumericValues() {
-        return values.stream().map(Double::parseDouble).collect(Collectors.toList());
+        return values.stream().map(this::toDouble).collect(Collectors.toList());
     }
 
     public Double getNumericValue() {
-        return Double.parseDouble(values.get(0));
+        return toDouble(values.get(0));
     }
 
     public List<Boolean> getBooleanValues() {
-        return values.stream().map(Boolean::parseBoolean).collect(Collectors.toList());
+        return values.stream().map(this::toBool).collect(Collectors.toList());
     }
 
     public Boolean getBooleanValue() {
-        return Boolean.parseBoolean(values.get(0));
+        return toBool(values.get(0));
     }
 
     public long getUtc() {
         return utc;
+    }
+
+    private Double toDouble(Object obj) {
+        try {
+            return (Double) obj;
+        } catch (ClassCastException e) {
+            return Double.parseDouble(obj.toString());
+        }
+    }
+
+    private Boolean toBool(Object obj) {
+        try {
+            return (Boolean) obj;
+        } catch (ClassCastException e) {
+            return Boolean.parseBoolean(obj.toString());
+        }
     }
 
     @Override

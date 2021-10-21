@@ -134,7 +134,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.FILE_READY, session.getStatus());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "", null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "get.docker.com", null);
     }
 
     @Test
@@ -180,7 +180,7 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "", null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "get.docker.com", null);
     }
 
     @Test

@@ -65,7 +65,11 @@ public class WolkaboutProtocol extends Protocol {
 
     @Override
     public void publishFeed(Feed feed) {
-        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, feed);
+        final Map<String, Object> feedMap = new HashMap<>();
+        feedMap.put(feed.getReference(), feed.getValues().size() > 1 ? feed.getValues() : feed.getValue());
+        feedMap.put("utc", feed.getUtc());
+
+        publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, feedMap);
     }
 
     @Override
@@ -79,12 +83,13 @@ public class WolkaboutProtocol extends Protocol {
             if (payloadByTime.containsKey(feed.getUtc())) {
                 final Map<String, Object> readingMap = payloadByTime.get(feed.getUtc());
                 if (!readingMap.containsKey(feed.getReference())) {
-                    readingMap.put(feed.getReference(), JsonMultivalueSerializer.valuesToString(feed.getValues()));
+                    readingMap.put(feed.getReference(), feed.getValues().size() > 1 ? feed.getValues() : feed.getValue());
                 }
             } else {
                 final HashMap<String, Object> readingMap = new HashMap<>();
                 readingMap.put("utc", feed.getUtc());
-                readingMap.put(feed.getReference(), JsonMultivalueSerializer.valuesToString(feed.getValues()));
+
+                readingMap.put(feed.getReference(), feed.getValues().size() > 1 ? feed.getValues() : feed.getValue());
                 payloadByTime.put(feed.getUtc(), readingMap);
             }
         }
