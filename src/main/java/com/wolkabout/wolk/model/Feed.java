@@ -55,11 +55,19 @@ public class Feed {
         return reference;
     }
 
-    public List<String> getValues() {
+    public List<Object> getValues() {
+        return values;
+    }
+
+    public Object getValue() {
+        return values.get(0);
+    }
+
+    public List<String> getStringValues() {
         return values.stream().map(Object::toString).collect(Collectors.toList());
     }
 
-    public String getValue() {
+    public String getStringValue() {
         return values.get(0).toString();
     }
 

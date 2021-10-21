@@ -190,12 +190,12 @@ public class Wolk {
      * @param value     Value obtained by the reading
      */
     public void addFeed(String reference, boolean value) {
-        final Feed feed = new Feed(reference, Boolean.toString(value));
+        final Feed feed = new Feed(reference, value);
         addFeed(feed);
     }
 
     public void addFeed(String reference, boolean value, long timestamp) {
-        final Feed feed = new Feed(reference, Boolean.toString(value), timestamp);
+        final Feed feed = new Feed(reference, value, timestamp);
         addFeed(feed);
     }
 
@@ -210,12 +210,12 @@ public class Wolk {
     }
 
     public void addFeed(String reference, double value) {
-        final Feed feed = new Feed(reference, Double.toString(value));
+        final Feed feed = new Feed(reference, value);
         addFeed(feed);
     }
 
     public void addFeed(String reference, double value, long timestamp) {
-        final Feed feed = new Feed(reference, Double.toString(value), timestamp);
+        final Feed feed = new Feed(reference, value, timestamp);
         addFeed(feed);
     }
 
@@ -237,12 +237,12 @@ public class Wolk {
      * @param values    Values obtained by the reading
      */
     public void addFeed(String reference, List<Object> values) {
-        final Feed feed = new Feed(reference, values.stream().map(Object::toString).collect(Collectors.toList()));
+        final Feed feed = new Feed(reference, values);
         addFeed(feed);
     }
 
     public void addFeed(String reference, List<Object> values, long timestamp) {
-        final Feed feed = new Feed(reference, values.stream().map(Object::toString).collect(Collectors.toList()), timestamp);
+        final Feed feed = new Feed(reference, values, timestamp);
         addFeed(feed);
     }
 
