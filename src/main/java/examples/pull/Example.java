@@ -12,10 +12,10 @@ public class Example {
     public static void main(String[] args) {
         final Wolk wolk = Wolk.builder(OutboundDataMode.PULL)
                 .mqtt()
-                .host("ssl://integration5.wolkabout.com:8883")
-                .sslCertification("ca.crt")
-                .deviceKey("54507ee6-8437-487e-bbd9-4f7b948b528f")
-                .password("6BBIJG1GA8")
+                .host(Wolk.WOLK_DEMO_URL)
+                .sslCertification(Wolk.WOLK_DEMO_CA)
+                .deviceKey("device-key")
+                .password("device-password")
                 .build()
                 .feed(new Handler())
                 .build();

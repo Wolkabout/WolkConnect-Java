@@ -40,8 +40,8 @@ public class Example {
 
         final Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host("ssl://api-demo.wolkabout.com:8883")
-                .sslCertification("ca.crt")
+                .host(Wolk.WOLK_DEMO_URL)
+                .sslCertification(Wolk.WOLK_DEMO_CA)
                 .deviceKey("device-key")
                 .password("device-password")
                 .build()
