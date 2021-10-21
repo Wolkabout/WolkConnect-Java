@@ -23,7 +23,6 @@ import com.wolkabout.wolk.model.Parameter;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.protocol.handler.ParameterHandler;
 import com.wolkabout.wolk.protocol.handler.TimeHandler;
-import com.wolkabout.wolk.util.JsonMultivalueSerializer;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -155,9 +154,7 @@ public class WolkaboutProtocol extends Protocol {
                     long utc = (long) feed.get(TIMESTAMP);
 
                     feeds.add(new Feed(reference, value.toString(), utc));
-                }
-                else
-                {
+                } else {
                     feeds.add(new Feed(reference, value.toString()));
                 }
             }

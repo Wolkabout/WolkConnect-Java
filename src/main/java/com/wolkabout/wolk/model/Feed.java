@@ -16,11 +16,6 @@
  */
 package com.wolkabout.wolk.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.wolkabout.wolk.util.JsonMultivalueSerializer;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;

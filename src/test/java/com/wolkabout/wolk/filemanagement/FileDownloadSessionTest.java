@@ -20,7 +20,6 @@ import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.eclipse.paho.client.mqttv3.internal.websocket.Base64;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

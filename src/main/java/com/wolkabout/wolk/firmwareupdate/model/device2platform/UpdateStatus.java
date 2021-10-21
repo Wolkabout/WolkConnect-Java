@@ -16,7 +16,6 @@
  */
 package com.wolkabout.wolk.firmwareupdate.model.device2platform;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;

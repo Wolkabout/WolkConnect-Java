@@ -16,8 +16,6 @@
  */
 package com.wolkabout.wolk.firmwareupdate.model.platform2device;
 
-import java.util.Arrays;
-
 /**
  * This class represents the payload sent by the platform to the device
  * to the `p2d/firmware_update_install/d/` endpoint to start a firmware install.

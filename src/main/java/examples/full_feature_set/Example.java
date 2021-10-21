@@ -19,7 +19,6 @@ package examples.full_feature_set;
 import com.wolkabout.wolk.Wolk;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.model.*;
-
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +51,7 @@ public class Example {
                         for (Feed feed : receivedFeeds) {
                             if (feed.getReference().equals(feeds.getHeartbeatReference())) {
                                 feeds.setHeartbeatValue(feed.getNumericValue().longValue());
-                            }
-                            else if (feed.getReference().equals(feeds.getSwitchReference())) {
+                            } else if (feed.getReference().equals(feeds.getSwitchReference())) {
                                 feeds.setSwitchValue(feed.getBooleanValue());
                             }
                         }
@@ -63,8 +61,7 @@ public class Example {
                     public Feed getFeedValue(String reference) {
                         if (reference.equals(feeds.getHeartbeatReference())) {
                             return new Feed(feeds.heartbeatReference, String.valueOf(feeds.heartbeatValue));
-                        }
-                        else if (reference.equals(feeds.getSwitchReference())) {
+                        } else if (reference.equals(feeds.getSwitchReference())) {
                             return new Feed(feeds.getSwitchReference(), String.valueOf(feeds.switchValue));
                         }
 

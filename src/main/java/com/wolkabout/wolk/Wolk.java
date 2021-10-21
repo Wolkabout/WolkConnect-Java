@@ -42,7 +42,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -337,6 +336,7 @@ public class Wolk {
 
     /**
      * Register new attribute or update an existing one
+     *
      * @param name
      * @param type
      * @param value
@@ -347,6 +347,7 @@ public class Wolk {
 
     /**
      * Register new attribute or update an existing one
+     *
      * @param attribute
      */
     public void registerAttribute(Attribute attribute) {
@@ -355,6 +356,7 @@ public class Wolk {
 
     /**
      * Register new attributes or update the existing ones
+     *
      * @param attributes
      */
     public void registerAttributes(Collection<Attribute> attributes) {
@@ -414,7 +416,9 @@ public class Wolk {
             }
 
             @Override
-            public Feed getFeedValue(String reference) { return null; }
+            public Feed getFeedValue(String reference) {
+                return null;
+            }
         };
 
         private TimeHandler timeHandler = new TimeHandler() {
@@ -573,6 +577,7 @@ public class Wolk {
         /**
          * Maximum size of message that can be received in killobytes
          * This also applies to maximum chunk size of file
+         *
          * @param maxMessageSize
          * @return
          */

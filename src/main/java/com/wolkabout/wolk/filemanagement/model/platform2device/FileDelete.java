@@ -26,7 +26,8 @@ public class FileDelete {
 
     private List<String> fileNames;
 
-    public FileDelete() {}
+    public FileDelete() {
+    }
 
     public FileDelete(List<String> fileNames) {
         this.fileNames = fileNames;

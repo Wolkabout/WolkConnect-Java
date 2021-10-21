@@ -1,7 +1,5 @@
 package com.wolkabout.wolk.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 public class FeedTemplate {
 
     private final String name;

@@ -18,7 +18,10 @@ package com.wolkabout.wolk.filemanagement;
 
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.platform2device.*;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileAbort;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileDelete;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
