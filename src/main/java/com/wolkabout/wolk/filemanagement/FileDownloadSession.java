@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,7 +79,7 @@ public class FileDownloadSession {
      * @param callback    The object containing external calls for requesting data and notifying of finish.
      * @throws IllegalArgumentException If any of the arguments is given null, the exception will be thrown.
      */
-    public FileDownloadSession(FileInit initMessage, Callback callback, int chunkSize) throws IllegalArgumentException {
+    public FileDownloadSession(FileInit initMessage, Callback callback, long chunkSize) throws IllegalArgumentException {
         if (initMessage == null) {
             throw new IllegalArgumentException("The initial message object can not be null.");
         }
@@ -297,7 +297,7 @@ public class FileDownloadSession {
 
         // Check if the file is fully here now.
         if (++currentChunk == chunkSizes.size() && initMessage.getFileSize() == bytes.size()) {
-            // If the entire file hash is invalid, restart the entire proces
+            // If the entire file hash is invalid, restart the entire process
             if (!Arrays.equals(calculateMD5HashForBytes(bytes), DatatypeConverter.parseHexBinary(initMessage.getFileHash()))) {
                 return restartDataObtain();
             }
