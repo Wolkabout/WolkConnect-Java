@@ -141,10 +141,17 @@ public class FileDownloadSession {
      * @return The MD5 hash of input data as byte array.
      */
     public static byte[] calculateMD5HashForBytes(byte[] data) {
+        MessageDigest md;
+
         try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            InputStream is = new ByteArrayInputStream(data);
-            DigestInputStream dis = new DigestInputStream(is, md);
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException exception) {
+            LOG.error(exception.getLocalizedMessage());
+            return null;
+        }
+
+        try (InputStream is = new ByteArrayInputStream(data);
+             DigestInputStream dis = new DigestInputStream(is, md);) {
 
             byte[] buf = new byte[20480];
             while (dis.read(buf) != -1) {
@@ -152,7 +159,8 @@ public class FileDownloadSession {
             }
 
             return md.digest();
-        } catch (NoSuchAlgorithmException | IOException exception) {
+        } catch (IOException exception) {
+            LOG.error(exception.getLocalizedMessage());
             return null;
         }
     }

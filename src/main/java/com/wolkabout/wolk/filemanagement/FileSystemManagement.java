@@ -87,22 +87,27 @@ public class FileSystemManagement {
                     long size = file.length();
 
                     MessageDigest md = MessageDigest.getInstance("MD5");
-                    InputStream is = Files.newInputStream(file.toPath());
-                    DigestInputStream dis = new DigestInputStream(is, md);
+                    ;
 
-                    byte[] buf = new byte[20480];
-                    while (dis.read(buf) != -1) {
-                        ; //digest is updating
+                    try (InputStream is = Files.newInputStream(file.toPath());
+                         DigestInputStream dis = new DigestInputStream(is, md)) {
+
+
+                        byte[] buf = new byte[20480];
+                        while (dis.read(buf) != -1) {
+                            ; //digest is updating
+                        }
+
+                        byte[] digest = md.digest();
+
+                        String hash = DatatypeConverter.printHexBinary(digest);
+
+                        files.add(new FileInformation(file.getName(), size, hash));
                     }
-
-                    byte[] digest = md.digest();
-
-                    String hash = DatatypeConverter.printHexBinary(digest);
-
-                    files.add(new FileInformation(file.getName(), size, hash));
                 }
             }
         } catch (NullPointerException | NoSuchAlgorithmException exception) {
+            LOG.error(exception.getLocalizedMessage());
             throw new IOException("Could not read folder contents.");
         }
 
