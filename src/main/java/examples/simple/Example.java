@@ -39,7 +39,7 @@ public class Example {
             try {
                 double randomTemp = Math.random() * 100 - 20; // random number between -20 and 80
 
-                wolk.addFeed("T", Double.toString(randomTemp));
+                wolk.addFeed("T", randomTemp);
 
                 wolk.publish();
 

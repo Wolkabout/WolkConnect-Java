@@ -85,19 +85,12 @@ wolk.connect();
 This will establish the connection to platform and subscribe to channels
  used for actuation and configuration commands.
  
-### Publishing sensor readings:
+### Adding feed values:
 ```java
-wolk.addReading("T", "24.5");
+wolk.addFeed("T", 24.5);
 
 // Multi-value sensor reading
-wolk.addReading("ACL", Arrays.asList("0.4", "0.2", "0.0"));
-
-wolk.publish();
-```
-
-### Publishing alarm events:
-```java
-wolk.addAlarm("HH", true);
+wolk.addFeed("ACL", Arrays.asList(0.4, 0.2, 0.0));
 
 wolk.publish();
 ```
@@ -123,7 +116,7 @@ wolk.disconnect();
 WolkConnect-Java library has integrated additional features which can perform full WolkAbout IoT platform potential. See the full feature set example [HERE](https://github.com/Wolkabout/WolkConnect-Java-/blob/master/src/main/java/examples/full_feature_set/Example.java).
 
 ### Enabling device actuators:
-Provide an implementation of `onActuationReceived` and `getActuatorStatus`:
+Provide an implementation of `onFeedsReceived` and `getActuatorStatus`:
 ```java
 final Wolk wolk = Wolk.builder()
         .mqtt()
@@ -133,117 +126,30 @@ final Wolk wolk = Wolk.builder()
         .password("some_password")
         .build()
         .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
-        .actuator(Arrays.asList("SW", "SL"), new ActuatorHandler() {
+		.feed(new FeedHandler() {
             @Override
-            public void onActuationReceived(ActuatorCommand actuatorCommand) {
-                LOG.info("Actuation received " + actuatorCommand.getReference() + " " +
-                        actuatorCommand.getCommand() + " " + actuatorCommand.getValue());
-
-                if (actuatorCommand.getCommand() == ActuatorCommand.CommandType.SET) {
-                    if (actuatorCommand.getReference().equals("SL")) {
-                        ActuatorValues.sliderValue = Double.parseDouble(actuatorCommand.getValue());
-                    } else if (actuatorCommand.getReference().equals("SW")) {
-                        ActuatorValues.switchValue = Boolean.parseBoolean(actuatorCommand.getValue());
+            public void onFeedsReceived(Collection<Feed> receivedFeeds) {
+                LOG.info("Feeds received " + receivedFeeds);
+                for (Feed feed : receivedFeeds) {
+                    if (feed.getReference().equals(feeds.getHeartbeatReference())) {
+                        feeds.setHeartbeatValue(feed.getNumericValue().longValue());
+                    } else if (feed.getReference().equals(feeds.getSwitchReference())) {
+                        feeds.setSwitchValue(feed.getBooleanValue());
                     }
                 }
             }
 
             @Override
-            public ActuatorStatus getActuatorStatus(String ref) {
-                if (ref.equals("SL")) {
-                    return new ActuatorStatus(ActuatorStatus.Status.READY, String.valueOf(ActuatorValues.sliderValue), "SL");
-                } else if (ref.equals("SW")) {
-                    return new ActuatorStatus(ActuatorStatus.Status.READY, String.valueOf(ActuatorValues.switchValue), "SW");
+            public Feed getFeedValue(String reference) {
+                if (reference.equals(feeds.getHeartbeatReference())) {
+                    return new Feed(feeds.heartbeatReference, String.valueOf(feeds.heartbeatValue));
+                } else if (reference.equals(feeds.getSwitchReference())) {
+                    return new Feed(feeds.getSwitchReference(), String.valueOf(feeds.switchValue));
                 }
 
-                return new ActuatorStatus(ActuatorStatus.Status.ERROR, "", "");
+                return null;
             }
         })
-```
-
-Publish actuator status by calling:
-```java
-wolk.publishActuatorStatus("SW")
-```
-This will call `getActuatorStatus` and immediately try to publish to the Platform.
-
-### Enabling device configuration:
-Provide an implementation of `onConfigurationReceived` and `getConfigurations`:
-```java
-final Wolk wolk = Wolk.builder()
-        .mqtt()
-        .host("ssl://api-demo.wolkabout.com:8883")
-        .sslCertification("ca.crt")
-        .deviceKey("device_key")
-        .password("some_password")
-        .build()
-        .protocol(ProtocolType.WOLKABOUT_PROTOCOL)
-        .configuration(new ConfigurationHandler() {
-            @Override
-            public void onConfigurationReceived(Collection<Configuration> receivedConfigurations) {
-                LOG.info("Configuration received " + receivedConfigurations);
-                for (Configuration configuration : receivedConfigurations) {
-                    if (configuration.getReference().equals("HB")) {
-                        configurations.setHeartBeat(Integer.parseInt(configuration.getValue()));
-                        continue;
-                    }
-                    if (configuration.getReference().equals("LL")) {
-                        configurations.setLogLevel(configuration.getValue());
-                        continue;
-                    }
-                    if (configuration.getReference().equals("EF")) {
-                        configurations.setEnabledFeeds(new ArrayList<>(Arrays.asList(configuration.getValue().split(","))));
-                    }
-                }
-                try {
-                    objectMapper.writeValue(configurationFile, configurations);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println("Failed to save received configuration to file");
-                }
-            }
-
-            @Override
-            public Collection<Configuration> getConfigurations() {
-                Collection<Configuration> currentConfigurations = new ArrayList<>();
-                currentConfigurations.add(new Configuration("LL", configurations.getLogLevel()));
-                currentConfigurations.add(new Configuration("EF", configurations.getEnabledFeeds()));
-                currentConfigurations.add(new Configuration("HB", String.valueOf(configurations.getHeartBeat())));
-
-                return currentConfigurations;
-            }
-        })
-```
-
-
-Publish configurations by calling:
-```java
-wolk.publishConfiguration()
-```
-This will call `getConfigurations` and immediately try to publish to the Platform.
-
-### Ping keep-alive service
-
-By default, the library publishes a keep alive message every 60 seconds to the Platform, to update the device's last report for cases when the device doesn't publish data often.
-This service can be disabled to reduce bandwidth or battery usage:
-
-```java
-final Wolk wolk = Wolk.builder()
-        .mqtt()
-        .host("ssl://api-demo.wolkabout.com:8883")
-        .sslCertification("ca.crt")
-        .deviceKey("device_key")
-        .password("some_password")
-        .enableKeepAliveService(false)
-        .build();
-```
-
-Additionally, if this service is enabled and the device establishes connection to the Platform, then each keep alive message sent will be responded with the current UTC timestamp on the Platform.
-
-This timestamp will be saved and updated for each response, and can be accessed with:
-
-```java
-long platformTimestamp = wolk.getPlatformTimestamp();
 ```
 
 ### File management & firmware update
