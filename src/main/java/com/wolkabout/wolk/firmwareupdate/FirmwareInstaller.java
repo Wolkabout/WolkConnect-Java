@@ -22,4 +22,8 @@ public interface FirmwareInstaller {
     void onAbortCommandReceived();
 
     String onFirmwareVersion();
+
+    default String checkNewVersion() {
+        return null;
+    }
 }

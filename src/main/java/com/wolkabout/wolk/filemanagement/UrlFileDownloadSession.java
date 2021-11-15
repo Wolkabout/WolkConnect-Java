@@ -186,23 +186,22 @@ public class UrlFileDownloadSession {
      */
     public synchronized boolean downloadFile(String url) {
         // Obtain the status and do the operation
-        Map.Entry<FileTransferStatus, FileTransferError> pair = urlFileDownloader.downloadFile(url);
+        UrlFileDownloadResult result = urlFileDownloader.downloadFile(url);
         if (status == FileTransferStatus.ABORTED) {
             fileData = new byte[0];
             fileName = "";
             return false;
         }
         // Store the result
-        status = pair.getKey();
-        error = pair.getValue();
+        status = result.getStatus();
+        error = result.getError();
+        fileName = result.getFileName();
         // Call the returns with appropriate values
         executor.execute(new FinishRunnable(status, fileName, error));
         return status == FileTransferStatus.FILE_READY;
     }
 
-    public Map.Entry<FileTransferStatus, FileTransferError> defaultDownloadFile(String fileUrl) {
-        FileTransferStatus state = null;
-        FileTransferError error = null;
+    public UrlFileDownloadResult defaultDownloadFile(String fileUrl) {
         try {
             final URL remoteFile = new URL(fileUrl);
             final InputStream inputStream = remoteFile.openStream();
@@ -216,20 +215,15 @@ public class UrlFileDownloadSession {
             buffer.flush();
 
             final String[] urlParts = fileUrl.split("/");
-            fileName = urlParts[urlParts.length - 1];
+            String fileName = urlParts[urlParts.length - 1];
             fileData = buffer.toByteArray();
+
+            return new UrlFileDownloadResult(FileTransferStatus.FILE_READY, fileName);
         } catch (MalformedURLException exception) {
-            error = FileTransferError.MALFORMED_URL;
+            return new UrlFileDownloadResult(FileTransferError.MALFORMED_URL);
         } catch (Exception exception) {
-            error = FileTransferError.UNKNOWN;
-        } finally {
-            if (error == null) {
-                state = FileTransferStatus.FILE_READY;
-            } else {
-                state = FileTransferStatus.ERROR;
-            }
+            return new UrlFileDownloadResult(FileTransferError.UNKNOWN);
         }
-        return new AbstractMap.SimpleEntry<>(state, error);
     }
 
     /**
