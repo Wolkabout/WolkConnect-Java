@@ -148,6 +148,8 @@ public class FirmwareUpdateProtocol {
         // Parse the payload
         UpdateInit init = JsonUtil.deserialize(message, UpdateInit.class);
 
+        LOG.info("Received firmware update message for file '" + init.getFileName() + "'.");
+
         // Check that the file actually exists
         if (!management.fileExists(init.getFileName())) {
             LOG.error("Received firmware update init message for file that does not exist '" + init.getFileName() + "'.");
@@ -162,13 +164,17 @@ public class FirmwareUpdateProtocol {
             return;
         }
 
+        install(init.getFileName());
+    }
+
+    public void install(String fileName) {
         // Call the installer
-        LOG.info("Received firmware update message for file '" + init.getFileName() + "'.");
+        LOG.info("Installing firmware '" + fileName + "'.");
         sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
         final String version = installer.onFirmwareVersion();
         LOG.info("Firmware update installation ongoing. Saving version '" + version + "'.");
         saveVersionToFile(version);
-        if (!installer.onInstallCommandReceived(init.getFileName())
+        if (!installer.onInstallCommandReceived(fileName)
                 && lastSentStatus == FirmwareUpdateStatus.INSTALLING) {
             LOG.warn("Firmware update installation failed by user.");
             sendErrorMessage(FirmwareUpdateError.INSTALLATION_FAILED);

@@ -24,6 +24,12 @@ public class UrlInfo {
 
     private String fileUrl;
 
+    public UrlInfo() {}
+
+    public UrlInfo(String url) {
+        this.fileUrl = url;
+    }
+
     public String getFileUrl() {
         return fileUrl;
     }

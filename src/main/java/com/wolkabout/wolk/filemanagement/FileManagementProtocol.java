@@ -351,6 +351,11 @@ public class FileManagementProtocol {
             return;
         }
 
+        urlDownload(urlInit, null);
+    }
+
+    public void urlDownload(UrlInfo urlInit, UrlFileDownloadSession.Callback callback) {
+
         // Give the transfer message
         publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS,
                 new UrlStatus(urlInit.getFileUrl(), FileTransferStatus.FILE_TRANSFER));
@@ -359,6 +364,11 @@ public class FileManagementProtocol {
         if (this.urlFileDownloader == null) {
             urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, fileName, error) -> {
                 handleUrlSessionFinish(urlFileDownloadSession, status, fileName, error);
+
+                if (callback != null) {
+                    callback.onFinish(status, fileName, error);
+                }
+
                 urlFileDownloadSession = null;
             });
         } else {
