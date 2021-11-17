@@ -374,6 +374,11 @@ public class FileManagementProtocol {
         } else {
             urlFileDownloadSession = new UrlFileDownloadSession(urlInit, (status, fileName, error) -> {
                 handleUrlSessionFinish(urlFileDownloadSession, status, fileName, error);
+
+                if (callback != null) {
+                    callback.onFinish(status, fileName, error);
+                }
+
                 urlFileDownloadSession = null;
             }, urlFileDownloader);
         }

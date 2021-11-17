@@ -68,7 +68,8 @@ public class Example {
                         return null;
                     }
                 })
-                .enableFirmwareUpdate("files/", version, new FirmwareInstaller() {
+                .enableFileManagement("files/")
+                .enableFirmwareUpdate(new FirmwareInstaller() {
 
                     private boolean aborted = false;
 
@@ -91,7 +92,7 @@ public class Example {
                     }
 
                     @Override
-                    public String onFirmwareVersion() {
+                    public String getFirmwareVersion() {
                         return version;
                     }
                 })

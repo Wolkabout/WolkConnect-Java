@@ -15,20 +15,25 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class ScheduledUpdate {
+public class ScheduledFirmwareUpdate {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ScheduledUpdate.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ScheduledFirmwareUpdate.class);
 
     private final FirmwareInstaller installer;
     private final FirmwareUpdateProtocol firmwareProtocol;
     private final FileManagementProtocol fileProtocol;
 
     private LocalTime time;
+    private String repository;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private ScheduledFuture task;
 
-    public ScheduledUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, LocalTime time) {
+    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol) {
+        this(installer, firmwareProtocol, fileProtocol, null, null);
+    }
+
+    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, String repository, LocalTime time) {
         if (installer == null) {
             throw new IllegalArgumentException("The firmware installer cannot be null.");
         }
@@ -44,6 +49,7 @@ public class ScheduledUpdate {
         this.installer = installer;
         this.firmwareProtocol = firmwareProtocol;
         this.fileProtocol = fileProtocol;
+        this.repository = repository;
         this.time = time;
 
         schedule();
@@ -56,48 +62,58 @@ public class ScheduledUpdate {
         schedule();
     }
 
-    public void schedule() {
+    public void setRepository(String repository) {
+        LOG.info("Firmware update repository changed: " + repository);
+        this.repository = repository;
+    }
+
+    private void schedule() {
         if (task != null) {
             task.cancel(false);
         }
 
         if (time == null) {
-            LOG.info("Firmware update schedule stopped");
+            LOG.info("Firmware update not scheduled");
             return;
         }
 
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime nextRun = now.withHour(time.getHour()).withMinute(time.getMinute()).withSecond(time.getSecond());
-        if(now.compareTo(nextRun) > 0)
+        if (now.compareTo(nextRun) > 0)
             nextRun = nextRun.plusDays(1);
 
         Duration duration = Duration.between(now, nextRun);
         long delay = duration.getSeconds();
 
         task = scheduler.schedule(this::checkAndInstall, delay, TimeUnit.SECONDS);
+
+        LOG.info("Firmware update scheduled at: " + nextRun + " from repository: " + repository);
     }
 
     private void checkAndInstall() {
-
-        String newFirmwareUrl = checkVersion();
-
-        if (newFirmwareUrl == null || newFirmwareUrl.isEmpty()) {
+        if (repository == null || repository.isEmpty()) {
+            LOG.warn("Skipping update, repository not defined");
             return;
         }
 
-        LOG.info("New firmware version available.");
+        if (!shouldUpdate()) {
+            LOG.info("New firmware version not available");
+            return;
+        }
 
-        download(newFirmwareUrl);
+        LOG.info("New firmware version available");
+
+        download();
     }
 
-    private String checkVersion() {
-        LOG.info("Checking for new firmware version.");
+    private boolean shouldUpdate() {
+        LOG.info("Checking for new firmware version");
 
-        return installer.checkNewVersion();
+        return installer.versionsDifferent(repository);
     }
 
-    private void download(String url) {
-        fileProtocol.urlDownload(new UrlInfo(url), this::handleDownloadFinish);
+    private void download() {
+        fileProtocol.urlDownload(new UrlInfo(this.repository), this::handleDownloadFinish);
     }
 
     private void handleDownloadFinish(FileTransferStatus status, String fileName, FileTransferError error) {

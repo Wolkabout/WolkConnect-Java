@@ -21,6 +21,7 @@ import com.wolkabout.wolk.filemanagement.FileSystemManagement;
 import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.ScheduledFirmwareUpdate;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
@@ -34,14 +35,12 @@ import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -54,7 +53,6 @@ public class Wolk {
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private OutboundDataMode mode;
     private ScheduledFuture<?> runningPublishTask;
-    private ScheduledFuture<?> runningPublishKeepAliveTask;
     /**
      * MQTT client.
      */
@@ -74,9 +72,11 @@ public class Wolk {
     private boolean fileTransferUrlEnabled;
     private FileManagementProtocol fileManagementProtocol;
     private FileSystemManagement fileSystemManagement;
-    private String firmwareVersion;
+    private LocalTime firmwareUpdateTime;
+    private String firmwareUpdateRepository;
     private FirmwareUpdateProtocol firmwareUpdateProtocol;
     private FirmwareInstaller firmwareInstaller;
+    private ScheduledFirmwareUpdate scheduledFirmwareUpdate;
     /**
      * Persistence mechanism for storing and retrieving data.
      */
@@ -392,7 +392,10 @@ public class Wolk {
         parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_ENABLED.name(), firmwareEnabled));
 
         if (firmwareEnabled) {
-            parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareVersion));
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareInstaller.getFirmwareVersion()));
+            final int firmwareUpdateHour = firmwareUpdateTime != null ? firmwareUpdateTime.getHour() : -1;
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name(), firmwareUpdateHour));
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name(), firmwareUpdateRepository));
         }
 
         parameters.add(new Parameter(Parameter.Name.MAXIMUM_MESSAGE_SIZE.name(), maxMessageSize));
@@ -400,11 +403,52 @@ public class Wolk {
         protocol.updateParameters(parameters);
     }
 
+    private void onParameters(Collection<Parameter> parameters) {
+        LOG.debug("Parameters received " + parameters);
+
+        parameters.forEach(parameter -> {
+            if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.toString())) {
+                try {
+                    onFirmwareUpdateCheckTime((int) parameter.getValue());
+                } catch (Exception e) {
+                    LOG.error("Unable to parse " + parameter.getReference() + ":" + e.getMessage());
+                }
+            } else if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.toString())) {
+                onFirmwareUpdateRepository((String) parameter.getValue());
+            } else {
+                LOG.warn("Unable to handle parameter change: " + parameter);
+            }
+        });
+    }
+
+    private void onFirmwareUpdateCheckTime(int hour) {
+        if (scheduledFirmwareUpdate == null) {
+            return;
+        }
+
+        LocalTime time = null;
+
+        if (hour >= 0 && hour <= 60) {
+            final int minute = ThreadLocalRandom.current().nextInt(0, 60 + 1);
+            time = LocalTime.of(hour, minute);
+        }
+
+        scheduledFirmwareUpdate.setTime(time);
+    }
+
+    private void onFirmwareUpdateRepository(String repository) {
+        if (scheduledFirmwareUpdate == null) {
+            return;
+        }
+
+        scheduledFirmwareUpdate.setRepository(repository);
+    }
+
     public static class Builder {
 
         private static final String DEFAULT_FILE_LOCATION = "files/";
         private final MqttBuilder mqttBuilder = new MqttBuilder(this);
-        private OutboundDataMode mode;
+        private final OutboundDataMode mode;
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
 
         private int maxMessageSize = 0;
@@ -428,28 +472,17 @@ public class Wolk {
             }
         };
 
-        private ParameterHandler parameterHandler = new ParameterHandler() {
-            @Override
-            public void onParametersReceived(Collection<Parameter> parameters) {
-                LOG.trace("Parameters received: " + parameters);
-            }
-        };
-
         private Persistence persistence = new InMemoryPersistence();
 
         private boolean fileManagementEnabled = false;
-
         private boolean defaultUrlFileDownloaderEnabled = true;
-
-        private String fileManagementLocation = null;
-
-        private boolean firmwareUpdateEnabled = false;
-
-        private String firmwareVersion = "";
-
+        private String fileManagementLocation = "";
         private UrlFileDownloader urlFileDownloader = null;
 
+        private boolean firmwareUpdateEnabled = false;
         private FirmwareInstaller firmwareInstaller = null;
+        private LocalTime firmwareUpdateTime = null;
+        private String firmwareUpdateRepository = "";
 
         private Builder(OutboundDataMode mode) {
             this.mode = mode;
@@ -519,58 +552,26 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(String fileManagementLocation, String firmwareVersion,
-                                            FirmwareInstaller firmwareInstaller) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareUpdateRepository,
+                                            LocalTime firmwareUpdateTime) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
-            this.fileManagementLocation = fileManagementLocation;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
-            return this;
-        }
-
-        public Builder enableFirmwareUpdate(UrlFileDownloader urlFileDownloader, String firmwareVersion,
-                                            FirmwareInstaller firmwareInstaller) {
-            if (firmwareInstaller == null) {
-                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
-            }
-
-            fileManagementEnabled = true;
-            this.urlFileDownloader = urlFileDownloader;
-            firmwareUpdateEnabled = true;
-            this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
-            return this;
-        }
-
-        public Builder enableFirmwareUpdate(String fileManagementLocation, UrlFileDownloader urlFileDownloader,
-                                            String firmwareVersion, FirmwareInstaller firmwareInstaller) {
-            if (firmwareInstaller == null) {
-                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
-            }
-
-            this.fileManagementEnabled = true;
-            this.fileManagementLocation = fileManagementLocation;
-            this.urlFileDownloader = urlFileDownloader;
-            this.firmwareUpdateEnabled = true;
-            this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
+            this.firmwareUpdateTime = firmwareUpdateTime;
+            this.firmwareUpdateRepository = firmwareUpdateRepository;
             return this;
         }
 
@@ -618,36 +619,21 @@ public class Wolk {
                 });
 
                 wolk.options = mqttBuilder.options();
-                wolk.protocol = getProtocol(wolk.client);
+
+                ParameterHandler parameterHandler = new ParameterHandler() {
+                    @Override
+                    public void onParametersReceived(Collection<Parameter> parameters) {
+                        wolk.onParameters(parameters);
+                    }
+                };
+
+                wolk.protocol = getProtocol(wolk.client, parameterHandler);
                 wolk.persistence = persistence;
                 wolk.maxMessageSize = maxMessageSize;
 
-                if (fileManagementEnabled) {
-                    // Create the file system management
-                    wolk.fileSystemManagement = new FileSystemManagement(
-                            fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
-
-                    // Create the file management protocol
-                    if (this.urlFileDownloader == null) {
-                        wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
-                        wolk.fileManagementProtocol =
-                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
-                    } else {
-                        wolk.fileManagementProtocol =
-                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
-                        wolk.fileTransferUrlEnabled = true;
-                    }
-
-                    wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
-
-                    // Create the firmware update if that is something the user wants
-                    if (firmwareUpdateEnabled) {
-                        wolk.firmwareInstaller = firmwareInstaller;
-                        wolk.firmwareVersion = firmwareVersion;
-                        wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
-                                wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
-                    }
-                }
+                setupFileManagement(wolk);
+                setupFirmwareUpdate(wolk);
+                setupScheduledFirmwareUpdate(wolk);
 
                 return wolk;
             } catch (MqttException mqttException) {
@@ -655,7 +641,53 @@ public class Wolk {
             }
         }
 
-        private Protocol getProtocol(MqttClient client) {
+        void setupFileManagement(Wolk wolk) {
+            if (fileManagementEnabled) {
+                // Create the file system management
+                wolk.fileSystemManagement = new FileSystemManagement(
+                        fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
+
+                // Create the file management protocol
+                if (this.urlFileDownloader == null) {
+                    wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
+                    wolk.fileManagementProtocol =
+                            new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+                } else {
+                    wolk.fileManagementProtocol =
+                            new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                    wolk.fileTransferUrlEnabled = true;
+                }
+
+                wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
+            }
+        }
+
+        void setupFirmwareUpdate(Wolk wolk) {
+            if (firmwareUpdateEnabled) {
+                if (!fileManagementEnabled) {
+                    throw new IllegalArgumentException("FileManagement is required to enable firmware update");
+                }
+
+                wolk.firmwareInstaller = firmwareInstaller;
+                wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
+                        wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
+            }
+        }
+
+        void setupScheduledFirmwareUpdate(Wolk wolk) {
+            if (firmwareUpdateEnabled && wolk.fileTransferUrlEnabled) {
+                if (!fileManagementEnabled) {
+                    throw new IllegalArgumentException("FileManagement is required to enable scheduled firmware update");
+                }
+
+                wolk.firmwareUpdateTime = firmwareUpdateTime;
+                wolk.firmwareUpdateRepository = firmwareUpdateRepository;
+                wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol,
+                        wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
+            }
+        }
+
+        private Protocol getProtocol(MqttClient client, ParameterHandler parameterHandler) {
             if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
                 return new WolkaboutProtocol(client, feedHandler, timeHandler, parameterHandler);
             }
