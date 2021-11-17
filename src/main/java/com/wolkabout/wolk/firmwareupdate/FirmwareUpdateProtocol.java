@@ -167,7 +167,7 @@ public class FirmwareUpdateProtocol {
         install(init.getFileName());
     }
 
-    public void install(String fileName) {
+    public synchronized void install(String fileName) {
         // Call the installer
         LOG.info("Installing firmware '" + fileName + "'.");
         sendStatusMessage(FirmwareUpdateStatus.INSTALLING);

@@ -354,7 +354,7 @@ public class FileManagementProtocol {
         urlDownload(urlInit, null);
     }
 
-    public void urlDownload(UrlInfo urlInit, UrlFileDownloadSession.Callback callback) {
+    public synchronized void urlDownload(UrlInfo urlInit, UrlFileDownloadSession.Callback callback) {
 
         // Give the transfer message
         publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS,
@@ -434,7 +434,7 @@ public class FileManagementProtocol {
             management.createFile(session.getFileData(), session.getFileName());
 
             // Announce the status for good status, and save the data from file, and publish the file list now.
-            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), FileTransferStatus.FILE_READY);
+            UrlStatus statusMessage = new UrlStatus(session.getInitMessage().getFileUrl(), fileName, FileTransferStatus.FILE_READY);
             publish(OUT_DIRECTION + client.getClientId() + FILE_URL_DOWNLOAD_STATUS, statusMessage);
             LOG.info("Reporting URL file download as successful. Downloaded file '" + session.getFileName() + "'.");
         } catch (IOException exception) {
