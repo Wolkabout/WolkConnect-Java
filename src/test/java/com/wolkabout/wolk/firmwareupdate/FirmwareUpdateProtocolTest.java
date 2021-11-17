@@ -122,7 +122,7 @@ public class FirmwareUpdateProtocolTest {
     public void initializationHappyFlow() throws MqttException, InterruptedException {
         // Setup the return of the mock
         when(managementMock.fileExists("whatever-file")).thenReturn(true);
-        when(installerMock.onFirmwareVersion()).thenReturn("Version1");
+        when(installerMock.getFirmwareVersion()).thenReturn("Version1");
 
         // Setup the protocol
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);

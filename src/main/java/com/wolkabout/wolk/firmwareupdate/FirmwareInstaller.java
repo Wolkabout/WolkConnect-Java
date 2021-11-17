@@ -21,9 +21,19 @@ public interface FirmwareInstaller {
 
     void onAbortCommandReceived();
 
-    String onFirmwareVersion();
+    String getFirmwareVersion();
 
-    default String checkNewVersion() {
-        return null;
+    /**
+     * Checks whether current firmware version is different from the one located on provided url
+     *
+     * @param url
+     * @return
+     */
+    default boolean versionsDifferent(String url) {
+        if (url == null || url.isEmpty()) {
+            throw new IllegalArgumentException("Url cannot be empty");
+        }
+
+        return true;
     }
 }

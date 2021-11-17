@@ -89,7 +89,7 @@ public class FirmwareUpdateProtocol {
             LOG.debug("Detected a firmware version file.");
             String loadedVersion;
             if ((loadedVersion = loadVersionFromFile()) != null) {
-                if (!loadedVersion.equals(installer.onFirmwareVersion())) {
+                if (!loadedVersion.equals(installer.getFirmwareVersion())) {
                     LOG.debug("Detected firmware versions are different. Firmware installation was successful.");
                     sendStatusMessage(FirmwareUpdateStatus.SUCCESS);
                 } else {
@@ -171,7 +171,7 @@ public class FirmwareUpdateProtocol {
         // Call the installer
         LOG.info("Installing firmware '" + fileName + "'.");
         sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
-        final String version = installer.onFirmwareVersion();
+        final String version = installer.getFirmwareVersion();
         LOG.info("Firmware update installation ongoing. Saving version '" + version + "'.");
         saveVersionToFile(version);
         if (!installer.onInstallCommandReceived(fileName)
