@@ -17,7 +17,7 @@ public class UrlFileDownloadResult {
     public UrlFileDownloadResult(FileTransferError error) {
         this.status = FileTransferStatus.ERROR;
         this.error = error;
-        this.fileName = null;
+        this.fileName = "";
     }
 
     public FileTransferStatus getStatus() {
