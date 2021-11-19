@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -43,29 +42,18 @@ public class ScheduledFirmwareUpdate {
     private LocalTime time;
     private String repository;
 
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private ScheduledExecutorService scheduler;
     private ScheduledFuture task;
 
-    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol) {
-        this(installer, firmwareProtocol, fileProtocol, null, null);
+    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, ScheduledExecutorService scheduler) {
+        this(installer, firmwareProtocol, fileProtocol, scheduler, null, null);
     }
 
-    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, String repository, LocalTime time) {
-        if (installer == null) {
-            throw new IllegalArgumentException("The firmware installer cannot be null.");
-        }
-
-        if (firmwareProtocol == null) {
-            throw new IllegalArgumentException("The firmware update protocol cannot be null.");
-        }
-
-        if (fileProtocol == null) {
-            throw new IllegalArgumentException("The file management protocol cannot be null.");
-        }
-
+    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, ScheduledExecutorService scheduler, String repository, LocalTime time) {
         this.installer = installer;
         this.firmwareProtocol = firmwareProtocol;
         this.fileProtocol = fileProtocol;
+        this.scheduler = scheduler;
         this.repository = repository;
         this.time = time;
 

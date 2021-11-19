@@ -695,7 +695,7 @@ public class Wolk {
             wolk.firmwareUpdateTime = firmwareUpdateTime;
             wolk.firmwareUpdateRepository = firmwareUpdateRepository;
             wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol,
-                    wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
+                    Executors.newScheduledThreadPool(1), wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
         }
 
         private Protocol getProtocol(MqttClient client, ParameterHandler parameterHandler) {
