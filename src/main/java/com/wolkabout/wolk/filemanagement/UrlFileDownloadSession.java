@@ -213,7 +213,7 @@ public class UrlFileDownloadSession {
             buffer.flush();
 
             final String[] urlParts = fileUrl.split("/");
-            String fileName = urlParts[urlParts.length - 1];
+            final String fileName = urlParts[urlParts.length - 1];
             fileData = buffer.toByteArray();
 
             return new UrlFileDownloadResult(FileTransferStatus.FILE_READY, fileName);

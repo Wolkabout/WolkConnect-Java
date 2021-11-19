@@ -1,9 +1,26 @@
+/*
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.wolkabout.wolk.firmwareupdate;
 
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,43 +72,58 @@ public class ScheduledFirmwareUpdate {
         schedule();
     }
 
-
-    public void setTime(LocalTime time) {
-        this.time = time;
-
-        schedule();
-    }
-
     public void setRepository(String repository) {
         LOG.info("Firmware update repository changed: " + repository);
         this.repository = repository;
     }
 
-    private void schedule() {
-        if (task != null) {
-            task.cancel(false);
-        }
+    public void setTimeAndReschedule(LocalTime time) {
+        this.time = time;
+
+        reschedule();
+    }
+
+    void schedule() {
+        LOG.debug("Scheduling");
 
         if (time == null) {
-            LOG.info("Firmware update not scheduled");
+            LOG.info("Firmware update not scheduled, time is not set");
             return;
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime nextRun = now.withHour(time.getHour()).withMinute(time.getMinute()).withSecond(time.getSecond());
-        if (now.compareTo(nextRun) > 0)
-            nextRun = nextRun.plusDays(1);
+        long delay = computeExecutionDelay(LocalDateTime.now(), time);
+        task = scheduler.schedule(this::updateAndSchedule, delay, TimeUnit.SECONDS);
 
-        Duration duration = Duration.between(now, nextRun);
-        long delay = duration.getSeconds();
+        LOG.info("Firmware update scheduled at: " + LocalDateTime.now().plusSeconds(delay) + " from repository: " + repository);
+    }
 
-        task = scheduler.schedule(this::checkAndInstall, delay, TimeUnit.SECONDS);
+    void reschedule() {
+        if (task == null) {
+            LOG.debug("Task not set");
+            schedule();
+        } else if (task.getDelay(TimeUnit.NANOSECONDS) > 0) {
+            LOG.debug("Task not started, canceling");
+            task.cancel(false);
+            schedule();
+        } else {
+            LOG.debug("Task started, is will schedule automatically");
+        }
+    }
 
-        LOG.info("Firmware update scheduled at: " + nextRun + " from repository: " + repository);
+    void updateAndSchedule() {
+        LOG.debug("Running update task");
+
+        try {
+            checkAndInstall();
+        } catch (Exception e) {
+            LOG.error("Failed firmware update check: " + e.getMessage());
+        } finally {
+            schedule();
+        }
     }
 
     private void checkAndInstall() {
-        if (repository == null || repository.isEmpty()) {
+        if (StringUtils.isEmpty(repository)) {
             LOG.warn("Skipping update, repository not defined");
             return;
         }
@@ -109,14 +141,18 @@ public class ScheduledFirmwareUpdate {
     private boolean shouldUpdate() {
         LOG.info("Checking for new firmware version");
 
-        return installer.versionsDifferent(repository);
+        return installer.isNewVersionAvailable(repository);
     }
 
     private void download() {
+        LOG.debug("Downloading");
+
         fileProtocol.urlDownload(new UrlInfo(this.repository), this::handleDownloadFinish);
     }
 
     private void handleDownloadFinish(FileTransferStatus status, String fileName, FileTransferError error) {
+        LOG.debug("Download finished");
+
         if (status != FileTransferStatus.FILE_READY) {
             LOG.warn("Stopping firmware update, file not ready");
             return;
@@ -126,6 +162,19 @@ public class ScheduledFirmwareUpdate {
     }
 
     private void install(String fileName) {
+        LOG.debug("Installing");
+
         firmwareProtocol.install(fileName);
+    }
+
+    long computeExecutionDelay(LocalDateTime now, LocalTime executeTime) {
+        LocalDateTime nextRun = now.withHour(executeTime.getHour()).withMinute(executeTime.getMinute()).withSecond(executeTime.getSecond());
+        if (now.isAfter(nextRun)) {
+            nextRun = nextRun.plusDays(1);
+        }
+
+        Duration duration = Duration.between(now, nextRun);
+
+        return duration.getSeconds();
     }
 }

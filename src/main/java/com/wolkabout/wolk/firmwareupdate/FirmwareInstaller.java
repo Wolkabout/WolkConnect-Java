@@ -16,6 +16,8 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
+import org.apache.commons.lang3.StringUtils;
+
 public interface FirmwareInstaller {
     boolean onInstallCommandReceived(String fileName);
 
@@ -24,13 +26,13 @@ public interface FirmwareInstaller {
     String getFirmwareVersion();
 
     /**
-     * Checks whether current firmware version is different from the one located on provided url
+     * Checks if new firmware version exists at provided url
      *
      * @param url
      * @return
      */
-    default boolean versionsDifferent(String url) {
-        if (url == null || url.isEmpty()) {
+    default boolean isNewVersionAvailable(String url) {
+        if (StringUtils.isEmpty(url)) {
             throw new IllegalArgumentException("Url cannot be empty");
         }
 

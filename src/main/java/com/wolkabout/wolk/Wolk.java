@@ -407,13 +407,13 @@ public class Wolk {
         LOG.debug("Parameters received " + parameters);
 
         parameters.forEach(parameter -> {
-            if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.toString())) {
+            if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name())) {
                 try {
                     onFirmwareUpdateCheckTime((int) parameter.getValue());
                 } catch (Exception e) {
                     LOG.error("Unable to parse " + parameter.getReference() + ":" + e.getMessage());
                 }
-            } else if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.toString())) {
+            } else if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name())) {
                 onFirmwareUpdateRepository((String) parameter.getValue());
             } else {
                 LOG.warn("Unable to handle parameter change: " + parameter);
@@ -422,22 +422,26 @@ public class Wolk {
     }
 
     private void onFirmwareUpdateCheckTime(int hour) {
+        LOG.debug("Setting firmware update check time");
+
         if (scheduledFirmwareUpdate == null) {
+            LOG.debug("Skip setting firmware check time, scheduled firmware update not enabled");
             return;
         }
 
-        LocalTime time = null;
 
         if (hour >= 0 && hour <= 60) {
             final int minute = ThreadLocalRandom.current().nextInt(0, 60 + 1);
-            time = LocalTime.of(hour, minute);
+            scheduledFirmwareUpdate.setTimeAndReschedule(LocalTime.of(hour, minute));
+        } else {
+            LOG.debug("Firmware check time hour out of range");
+            scheduledFirmwareUpdate.setTimeAndReschedule(null);
         }
-
-        scheduledFirmwareUpdate.setTime(time);
     }
 
     private void onFirmwareUpdateRepository(String repository) {
         if (scheduledFirmwareUpdate == null) {
+            LOG.debug("Skip setting firmware update repository, scheduled firmware update not enabled");
             return;
         }
 
@@ -642,49 +646,56 @@ public class Wolk {
         }
 
         void setupFileManagement(Wolk wolk) {
-            if (fileManagementEnabled) {
-                // Create the file system management
-                wolk.fileSystemManagement = new FileSystemManagement(
-                        fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
-
-                // Create the file management protocol
-                if (this.urlFileDownloader == null) {
-                    wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
-                    wolk.fileManagementProtocol =
-                            new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
-                } else {
-                    wolk.fileManagementProtocol =
-                            new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
-                    wolk.fileTransferUrlEnabled = true;
-                }
-
-                wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
+            if (!fileManagementEnabled) {
+                LOG.debug("File management not enabled");
+                return;
             }
+
+            // Create the file system management
+            wolk.fileSystemManagement = new FileSystemManagement(
+                    fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
+
+            // Create the file management protocol
+            if (this.urlFileDownloader == null) {
+                LOG.debug("Using default url downloader");
+                wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
+                wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+            } else {
+                wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                wolk.fileTransferUrlEnabled = true;
+            }
+
+            wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
         }
 
         void setupFirmwareUpdate(Wolk wolk) {
-            if (firmwareUpdateEnabled) {
-                if (!fileManagementEnabled) {
-                    throw new IllegalArgumentException("FileManagement is required to enable firmware update");
-                }
-
-                wolk.firmwareInstaller = firmwareInstaller;
-                wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
-                        wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
+            if (!firmwareUpdateEnabled) {
+                LOG.debug("Firmware update not enabled");
+                return;
             }
+
+            if (!fileManagementEnabled) {
+                throw new IllegalArgumentException("FileManagement is required to enable firmware update");
+            }
+
+            wolk.firmwareInstaller = firmwareInstaller;
+            wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
         }
 
         void setupScheduledFirmwareUpdate(Wolk wolk) {
-            if (firmwareUpdateEnabled && wolk.fileTransferUrlEnabled) {
-                if (!fileManagementEnabled) {
-                    throw new IllegalArgumentException("FileManagement is required to enable scheduled firmware update");
-                }
-
-                wolk.firmwareUpdateTime = firmwareUpdateTime;
-                wolk.firmwareUpdateRepository = firmwareUpdateRepository;
-                wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol,
-                        wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
+            if (!firmwareUpdateEnabled || !wolk.fileTransferUrlEnabled) {
+                LOG.debug("Scheduled firmware update not enabled");
+                return;
             }
+
+            if (!fileManagementEnabled) {
+                throw new IllegalArgumentException("FileManagement is required to enable scheduled firmware update");
+            }
+
+            wolk.firmwareUpdateTime = firmwareUpdateTime;
+            wolk.firmwareUpdateRepository = firmwareUpdateRepository;
+            wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol,
+                    wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
         }
 
         private Protocol getProtocol(MqttClient client, ParameterHandler parameterHandler) {
