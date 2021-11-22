@@ -110,7 +110,7 @@ public class ScheduledFirmwareUpdate {
         }
     }
 
-    private void checkAndInstall() {
+    void checkAndInstall() {
         if (StringUtils.isEmpty(repository)) {
             LOG.warn("Skipping update, repository not defined");
             return;

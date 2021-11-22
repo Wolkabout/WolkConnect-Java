@@ -16,21 +16,44 @@
  */
 package com.wolkabout.wolk;
 
+import com.wolkabout.wolk.firmwareupdate.ScheduledFirmwareUpdate;
 import com.wolkabout.wolk.model.OutboundDataMode;
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.internal.util.reflection.FieldSetter;
+import org.mockito.junit.MockitoJUnitRunner;
 
+import java.time.LocalTime;
+
+import static com.wolkabout.wolk.Wolk.WOLK_DEMO_CA;
+import static com.wolkabout.wolk.Wolk.WOLK_DEMO_URL;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
+@RunWith(MockitoJUnitRunner.class)
 public class WolkTest {
 
-    @Test
-    public void connect() {
-        Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
+    @Mock
+    ScheduledFirmwareUpdate scheduledFirmwareUpdateMock;
+
+    Wolk wolk;
+
+    @Before
+    public void init() throws NoSuchFieldException {
+        wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host("ssl://api-demo.wolkabout.com:8883")
-                .sslCertification("ca.crt")
+                .host(WOLK_DEMO_URL)
+                .sslCertification(WOLK_DEMO_CA)
                 .deviceKey("device_key")
                 .password("password")
                 .build()
                 .build();
+
+        FieldSetter.setField(wolk, wolk.getClass().getDeclaredField("scheduledFirmwareUpdate"), scheduledFirmwareUpdateMock);
     }
 
     @Test
@@ -91,5 +114,31 @@ public class WolkTest {
 
     @Test
     public void builder() {
+    }
+
+    @Test
+    public void firmwareUpdateCheckTime() {
+
+        wolk.onFirmwareUpdateCheckTime(5);
+
+        ArgumentCaptor<LocalTime> argument = ArgumentCaptor.forClass(LocalTime.class);
+        verify(scheduledFirmwareUpdateMock, times(1)).setTimeAndReschedule(argument.capture());
+        assertEquals(argument.getValue().getHour(), 5);
+    }
+
+    @Test
+    public void firmwareUpdateCheckTimeUnderRange() {
+
+        wolk.onFirmwareUpdateCheckTime(-1);
+
+        verify(scheduledFirmwareUpdateMock, times(1)).setTimeAndReschedule(null);
+    }
+
+    @Test
+    public void firmwareUpdateCheckTimeOverRange() {
+
+        wolk.onFirmwareUpdateCheckTime(25);
+
+        verify(scheduledFirmwareUpdateMock, times(1)).setTimeAndReschedule(null);
     }
 }

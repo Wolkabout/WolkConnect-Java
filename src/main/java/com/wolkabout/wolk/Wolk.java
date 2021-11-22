@@ -421,7 +421,7 @@ public class Wolk {
         });
     }
 
-    private void onFirmwareUpdateCheckTime(int hour) {
+    void onFirmwareUpdateCheckTime(int hour) {
         LOG.debug("Setting firmware update check time");
 
         if (scheduledFirmwareUpdate == null) {
@@ -429,8 +429,11 @@ public class Wolk {
             return;
         }
 
+        if (firmwareUpdateTime != null && firmwareUpdateTime.getHour() == hour) {
+            return;
+        }
 
-        if (hour >= 0 && hour <= 60) {
+        if (hour >= 0 && hour <= 24) {
             final int minute = ThreadLocalRandom.current().nextInt(0, 60 + 1);
             scheduledFirmwareUpdate.setTimeAndReschedule(LocalTime.of(hour, minute));
         } else {
@@ -439,7 +442,7 @@ public class Wolk {
         }
     }
 
-    private void onFirmwareUpdateRepository(String repository) {
+    void onFirmwareUpdateRepository(String repository) {
         if (scheduledFirmwareUpdate == null) {
             LOG.debug("Skip setting firmware update repository, scheduled firmware update not enabled");
             return;
