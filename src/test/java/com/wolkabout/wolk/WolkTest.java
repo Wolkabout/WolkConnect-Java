@@ -16,6 +16,10 @@
  */
 package com.wolkabout.wolk;
 
+import com.cronutils.builder.CronBuilder;
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.wolkabout.wolk.firmwareupdate.ScheduledFirmwareUpdate;
 import com.wolkabout.wolk.model.OutboundDataMode;
 import org.junit.Before;
@@ -26,8 +30,7 @@ import org.mockito.Mock;
 import org.mockito.internal.util.reflection.FieldSetter;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import java.time.LocalTime;
-
+import static com.cronutils.model.field.expression.FieldExpressionFactory.*;
 import static com.wolkabout.wolk.Wolk.WOLK_DEMO_CA;
 import static com.wolkabout.wolk.Wolk.WOLK_DEMO_URL;
 import static org.junit.Assert.assertEquals;
@@ -119,11 +122,21 @@ public class WolkTest {
     @Test
     public void firmwareUpdateCheckTime() {
 
-        wolk.onFirmwareUpdateCheckTime(5);
+        Cron cron = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                .withYear(always())
+                .withDoM(always())
+                .withMonth(always())
+                .withDoW(questionMark())
+                .withHour(on(5))
+                .withMinute(on(0))
+                .withSecond(on(0))
+                .instance();
 
-        ArgumentCaptor<LocalTime> argument = ArgumentCaptor.forClass(LocalTime.class);
+        wolk.onFirmwareUpdateCheckTime(cron.asString());
+
+        ArgumentCaptor<Cron> argument = ArgumentCaptor.forClass(Cron.class);
         verify(scheduledFirmwareUpdateMock, times(1)).setTimeAndReschedule(argument.capture());
-        assertEquals(argument.getValue().getHour(), 5);
+        assertEquals(argument.getValue().asString(), cron.asString());
     }
 
     @Test
