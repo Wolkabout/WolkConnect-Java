@@ -45,7 +45,7 @@ public class WolkaboutProtocol extends Protocol {
     private static final String FEED_REMOVAL = "/feed_removal";
     private static final String PARAMETERS = "/parameters";
     private static final String PARAMETERS_PULL = "/pull_parameters";
-    private static final String PARAMETERS_SYNC = "/syncronize_parameters";
+    private static final String PARAMETERS_SYNC = "/synchronize_parameters";
     private static final String ATTRIBUTE_REGISTER = "/attribute_registration";
     private static final String TIME = "/time";
     private static final String ERROR = "/error";
@@ -58,12 +58,16 @@ public class WolkaboutProtocol extends Protocol {
 
     @Override
     public void subscribe() throws Exception {
+        LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + FEED_VALUES + "'.");
         client.subscribe(IN_DIRECTION + client.getClientId() + FEED_VALUES, QOS, this::handleFeedValues);
 
+        LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + PARAMETERS + "'.");
         client.subscribe(IN_DIRECTION + client.getClientId() + PARAMETERS, QOS, this::handleParameters);
 
+        LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + TIME + "'.");
         client.subscribe(IN_DIRECTION + client.getClientId() + TIME, QOS, this::handleTime);
 
+        LOG.debug("Subscribing to topic '" + IN_DIRECTION + client.getClientId() + ERROR + "'.");
         client.subscribe(IN_DIRECTION + client.getClientId() + ERROR, QOS, this::handleError);
     }
 
