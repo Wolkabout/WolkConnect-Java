@@ -16,17 +16,17 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
-import com.wolkabout.wolk.filemanagement.model.FileTransferError;
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
+import com.cronutils.model.Cron;
+import com.cronutils.model.time.ExecutionTime;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -35,27 +35,25 @@ public class ScheduledFirmwareUpdate {
 
     private static final Logger LOG = LoggerFactory.getLogger(ScheduledFirmwareUpdate.class);
 
-    private final FirmwareInstaller installer;
-    private final FirmwareUpdateProtocol firmwareProtocol;
-    private final FileManagementProtocol fileProtocol;
+    private final FirmwareManagement firmwareManagement;
 
-    private LocalTime time;
+    private Cron cron;
     private String repository;
 
-    private ScheduledExecutorService scheduler;
+    private final ScheduledExecutorService scheduler;
     private ScheduledFuture task;
 
-    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, ScheduledExecutorService scheduler) {
-        this(installer, firmwareProtocol, fileProtocol, scheduler, null, null);
+    private static final long RANDOMIZED_MAX_DELAY = TimeUnit.MINUTES.toSeconds(15);
+
+    public ScheduledFirmwareUpdate(FirmwareManagement firmwareManagement, ScheduledExecutorService scheduler) {
+        this(firmwareManagement, scheduler, null, null);
     }
 
-    public ScheduledFirmwareUpdate(FirmwareInstaller installer, FirmwareUpdateProtocol firmwareProtocol, FileManagementProtocol fileProtocol, ScheduledExecutorService scheduler, String repository, LocalTime time) {
-        this.installer = installer;
-        this.firmwareProtocol = firmwareProtocol;
-        this.fileProtocol = fileProtocol;
+    public ScheduledFirmwareUpdate(FirmwareManagement firmwareManagement, ScheduledExecutorService scheduler, String repository, Cron cron) {
+        this.firmwareManagement = firmwareManagement;
         this.scheduler = scheduler;
         this.repository = repository;
-        this.time = time;
+        this.cron = cron;
 
         schedule();
     }
@@ -65,8 +63,8 @@ public class ScheduledFirmwareUpdate {
         this.repository = repository;
     }
 
-    public void setTimeAndReschedule(LocalTime time) {
-        this.time = time;
+    public void setTimeAndReschedule(Cron cron) {
+        this.cron = cron;
 
         reschedule();
     }
@@ -74,15 +72,16 @@ public class ScheduledFirmwareUpdate {
     void schedule() {
         LOG.debug("Scheduling");
 
-        if (time == null) {
+        if (cron == null) {
             LOG.info("Firmware update not scheduled, time is not set");
             return;
         }
 
-        long delay = computeExecutionDelay(LocalDateTime.now(), time);
-        task = scheduler.schedule(this::updateAndSchedule, delay, TimeUnit.SECONDS);
+        long secondsUntilExecution = computeExecutionDelay(LocalDateTime.now(), cron);
 
-        LOG.info("Firmware update scheduled at: " + LocalDateTime.now().plusSeconds(delay) + " from repository: " + repository);
+        task = scheduler.schedule(this::updateAndSchedule, secondsUntilExecution, TimeUnit.SECONDS);
+
+        LOG.info("Firmware update scheduled at: " + LocalDateTime.now().plusSeconds(secondsUntilExecution) + " from repository: " + repository);
     }
 
     void reschedule() {
@@ -94,7 +93,7 @@ public class ScheduledFirmwareUpdate {
             task.cancel(false);
             schedule();
         } else {
-            LOG.debug("Task started, is will schedule automatically");
+            LOG.debug("Task started, it will schedule automatically");
         }
     }
 
@@ -116,53 +115,27 @@ public class ScheduledFirmwareUpdate {
             return;
         }
 
-        if (!shouldUpdate()) {
-            LOG.info("New firmware version not available");
-            return;
+        firmwareManagement.checkAndInstall(repository);
+    }
+
+    long computeExecutionDelay(LocalDateTime now, Cron cron) {
+
+        ExecutionTime executionTime = ExecutionTime.forCron(cron);
+
+        Optional<Duration> nextExecution = executionTime.timeToNextExecution(ZonedDateTime.from(now.atZone(ZoneId.systemDefault())));
+
+        if (nextExecution.isPresent()) {
+            return nextExecution.get().getSeconds() + randomDelay();
         }
 
-        LOG.info("New firmware version available");
+        LOG.warn("Unable to calculate next execution, using default value of 1 day");
 
-        download();
+        Optional<Duration> lastExecution = executionTime.timeFromLastExecution(ZonedDateTime.from(now));
+
+        return lastExecution.map(duration -> TimeUnit.DAYS.toSeconds(1) - duration.getSeconds()).orElseGet(() -> TimeUnit.DAYS.toSeconds(1)) + randomDelay();
     }
 
-    private boolean shouldUpdate() {
-        LOG.info("Checking for new firmware version");
-
-        return installer.isNewVersionAvailable(repository);
-    }
-
-    private void download() {
-        LOG.debug("Downloading");
-
-        fileProtocol.urlDownload(new UrlInfo(this.repository), this::handleDownloadFinish);
-    }
-
-    private void handleDownloadFinish(FileTransferStatus status, String fileName, FileTransferError error) {
-        LOG.debug("Download finished");
-
-        if (status != FileTransferStatus.FILE_READY) {
-            LOG.warn("Stopping firmware update, file not ready");
-            return;
-        }
-
-        install(fileName);
-    }
-
-    private void install(String fileName) {
-        LOG.debug("Installing");
-
-        firmwareProtocol.install(fileName);
-    }
-
-    long computeExecutionDelay(LocalDateTime now, LocalTime executeTime) {
-        LocalDateTime nextRun = now.withHour(executeTime.getHour()).withMinute(executeTime.getMinute()).withSecond(executeTime.getSecond());
-        if (now.isAfter(nextRun)) {
-            nextRun = nextRun.plusDays(1);
-        }
-
-        Duration duration = Duration.between(now, nextRun);
-
-        return duration.getSeconds();
+    long randomDelay() {
+        return (long) (Math.random() * RANDOMIZED_MAX_DELAY);
     }
 }

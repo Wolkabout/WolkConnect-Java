@@ -64,7 +64,7 @@ public class Example {
         }
     }
 
-    private static class Handler extends FeedHandler {
+    private static class Handler implements FeedHandler {
 
         @Override
         public void onFeedsReceived(Collection<Feed> feeds) {

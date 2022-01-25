@@ -16,10 +16,16 @@
  */
 package com.wolkabout.wolk;
 
+import com.cronutils.builder.CronBuilder;
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FileSystemManagement;
 import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.FirmwareManagement;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
 import com.wolkabout.wolk.firmwareupdate.ScheduledFirmwareUpdate;
 import com.wolkabout.wolk.model.*;
@@ -28,6 +34,7 @@ import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.Protocol;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.WolkaboutProtocol;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.protocol.handler.ParameterHandler;
 import com.wolkabout.wolk.protocol.handler.TimeHandler;
@@ -40,7 +47,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import static com.cronutils.model.CronType.QUARTZ;
+import static com.cronutils.model.field.expression.FieldExpressionFactory.*;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -72,11 +85,13 @@ public class Wolk {
     private boolean fileTransferUrlEnabled;
     private FileManagementProtocol fileManagementProtocol;
     private FileSystemManagement fileSystemManagement;
-    private LocalTime firmwareUpdateTime;
+    private Cron firmwareUpdateTime;
     private String firmwareUpdateRepository;
     private FirmwareUpdateProtocol firmwareUpdateProtocol;
     private FirmwareInstaller firmwareInstaller;
+    private FirmwareManagement firmwareManagement;
     private ScheduledFirmwareUpdate scheduledFirmwareUpdate;
+    private final CronParser cronParser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(QUARTZ));
     /**
      * Persistence mechanism for storing and retrieving data.
      */
@@ -306,6 +321,10 @@ public class Wolk {
         protocol.pullParameters();
     }
 
+    public void syncParameters(Collection<String> parameterNames) {
+        protocol.syncronizeParameters(parameterNames);
+    }
+
     public void pullTime() {
         protocol.pullTime();
     }
@@ -363,6 +382,18 @@ public class Wolk {
         protocol.registerAttributes(attributes);
     }
 
+    public void checkAndUpdateFirmware() {
+        checkAndUpdateFirmware(firmwareUpdateRepository);
+    }
+
+    public void checkAndUpdateFirmware(String repository) {
+        if (firmwareManagement == null) {
+            throw new IllegalStateException("Firmware update is not configured.");
+        }
+
+        firmwareManagement.checkAndInstall(repository);
+    }
+
     private void subscribe() {
         try {
             protocol.subscribe();
@@ -393,8 +424,7 @@ public class Wolk {
 
         if (firmwareEnabled) {
             parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareInstaller.getFirmwareVersion()));
-            final int firmwareUpdateHour = firmwareUpdateTime != null ? firmwareUpdateTime.getHour() : -1;
-            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name(), firmwareUpdateHour));
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name(), firmwareUpdateTime != null ? firmwareUpdateTime.asString() : ""));
             parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name(), firmwareUpdateRepository));
         }
 
@@ -408,11 +438,7 @@ public class Wolk {
 
         parameters.forEach(parameter -> {
             if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name())) {
-                try {
-                    onFirmwareUpdateCheckTime((int) parameter.getValue());
-                } catch (Exception e) {
-                    LOG.error("Unable to parse " + parameter.getReference() + ":" + e.getMessage());
-                }
+                onFirmwareUpdateCheckTime(parameter.getValue());
             } else if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name())) {
                 onFirmwareUpdateRepository((String) parameter.getValue());
             } else {
@@ -421,7 +447,7 @@ public class Wolk {
         });
     }
 
-    void onFirmwareUpdateCheckTime(int hour) {
+    void onFirmwareUpdateCheckTime(Object time) {
         LOG.debug("Setting firmware update check time");
 
         if (scheduledFirmwareUpdate == null) {
@@ -429,15 +455,23 @@ public class Wolk {
             return;
         }
 
-        if (firmwareUpdateTime != null && firmwareUpdateTime.getHour() == hour) {
-            return;
-        }
+        try {
+            final String cronStr = (String) time;
 
-        if (hour >= 0 && hour <= 24) {
-            final int minute = ThreadLocalRandom.current().nextInt(0, 60 + 1);
-            scheduledFirmwareUpdate.setTimeAndReschedule(LocalTime.of(hour, minute));
-        } else {
-            LOG.debug("Firmware check time hour out of range");
+            Cron cron = cronParser.parse(cronStr);
+
+            if (firmwareUpdateTime != null && firmwareUpdateTime.equivalent(cron)) {
+                LOG.debug("Firmware check time already has same value: " + time);
+                return;
+            }
+
+            firmwareUpdateTime = cron;
+
+            scheduledFirmwareUpdate.setTimeAndReschedule(firmwareUpdateTime);
+        } catch (Exception exception) {
+            LOG.error("Firmware check time has invalid cron value: " + time);
+
+            firmwareUpdateTime = null;
             scheduledFirmwareUpdate.setTimeAndReschedule(null);
         }
     }
@@ -463,7 +497,7 @@ public class Wolk {
         private FeedHandler feedHandler = new FeedHandler() {
             @Override
             public void onFeedsReceived(Collection<Feed> feeds) {
-                LOG.trace("Feeds received: " + feeds);
+                LOG.debug("Feeds received: " + feeds);
             }
 
             @Override
@@ -472,10 +506,19 @@ public class Wolk {
             }
         };
 
+        private ParameterHandler parameterHandler;
+
         private TimeHandler timeHandler = new TimeHandler() {
             @Override
             public void onTimeReceived(long timestamp) {
-                LOG.trace("Time received: " + timestamp);
+                LOG.debug("Time received: " + timestamp);
+            }
+        };
+
+        private ErrorHandler errorHandler = new ErrorHandler() {
+            @Override
+            public void onErrorReceived(String error) {
+                LOG.debug("Error received: " + error);
             }
         };
 
@@ -488,7 +531,7 @@ public class Wolk {
 
         private boolean firmwareUpdateEnabled = false;
         private FirmwareInstaller firmwareInstaller = null;
-        private LocalTime firmwareUpdateTime = null;
+        private Cron firmwareUpdateTime = null;
         private String firmwareUpdateRepository = "";
 
         private Builder(OutboundDataMode mode) {
@@ -514,6 +557,15 @@ public class Wolk {
             }
 
             this.feedHandler = feedHandler;
+            return this;
+        }
+
+        public Builder parameters(ParameterHandler parameterHandler) {
+            if (parameterHandler == null) {
+                throw new IllegalArgumentException("Parameter handler must be set.");
+            }
+
+            this.parameterHandler = parameterHandler;
             return this;
         }
 
@@ -570,26 +622,52 @@ public class Wolk {
         }
 
         public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareUpdateRepository,
-                                            LocalTime firmwareUpdateTime) {
+                                            LocalTime firmwareUpdateDailyTime) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareUpdateTime = firmwareUpdateTime;
             this.firmwareUpdateRepository = firmwareUpdateRepository;
+
+            this.firmwareUpdateTime = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                    .withYear(always())
+                    .withDoM(always())
+                    .withMonth(always())
+                    .withDoW(questionMark())
+                    .withHour(on(firmwareUpdateDailyTime.getHour()))
+                    .withMinute(on(firmwareUpdateDailyTime.getMinute()))
+                    .withSecond(on(firmwareUpdateDailyTime.getSecond()))
+                    .instance();
+
+            return this;
+        }
+
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareUpdateRepository,
+                                            String firmwareUpdateCron) {
+            if (firmwareInstaller == null) {
+                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+            }
+
+            firmwareUpdateEnabled = true;
+            this.firmwareInstaller = firmwareInstaller;
+            this.firmwareUpdateRepository = firmwareUpdateRepository;
+
+            CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
+            this.firmwareUpdateTime = parser.parse(firmwareUpdateCron);
+
             return this;
         }
 
         /**
-         * Maximum size of message that can be received in killobytes
+         * Maximum size of message that can be received in kilobytes
          * This also applies to maximum chunk size of file
          *
          * @param maxMessageSize
          * @return
          */
-        public Builder maxMessageKilloBytes(int maxMessageSize) {
+        public Builder maxMessageKiloBytes(int maxMessageSize) {
             if (maxMessageSize < 0) {
                 throw new IllegalArgumentException("Max message size must be a non negative number");
             }
@@ -627,20 +705,23 @@ public class Wolk {
 
                 wolk.options = mqttBuilder.options();
 
-                ParameterHandler parameterHandler = new ParameterHandler() {
-                    @Override
-                    public void onParametersReceived(Collection<Parameter> parameters) {
-                        wolk.onParameters(parameters);
-                    }
-                };
+                boolean internalParameterHandler = false;
 
-                wolk.protocol = getProtocol(wolk.client, parameterHandler);
+                if (parameterHandler == null) {
+                    parameterHandler = wolk::onParameters;
+                    internalParameterHandler = true;
+                }
+
+                wolk.protocol = getProtocol(wolk.client);
                 wolk.persistence = persistence;
                 wolk.maxMessageSize = maxMessageSize;
 
                 setupFileManagement(wolk);
                 setupFirmwareUpdate(wolk);
-                setupScheduledFirmwareUpdate(wolk);
+
+                if (internalParameterHandler) {
+                    setupScheduledFirmwareUpdate(wolk);
+                }
 
                 return wolk;
             } catch (MqttException mqttException) {
@@ -683,6 +764,7 @@ public class Wolk {
 
             wolk.firmwareInstaller = firmwareInstaller;
             wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
+            wolk.firmwareManagement = new FirmwareManagement(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol);
         }
 
         void setupScheduledFirmwareUpdate(Wolk wolk) {
@@ -697,13 +779,12 @@ public class Wolk {
 
             wolk.firmwareUpdateTime = firmwareUpdateTime;
             wolk.firmwareUpdateRepository = firmwareUpdateRepository;
-            wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol,
-                    Executors.newScheduledThreadPool(1), wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
+            wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareManagement, Executors.newScheduledThreadPool(1), wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
         }
 
-        private Protocol getProtocol(MqttClient client, ParameterHandler parameterHandler) {
+        private Protocol getProtocol(MqttClient client) {
             if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
-                return new WolkaboutProtocol(client, feedHandler, timeHandler, parameterHandler);
+                return new WolkaboutProtocol(client, feedHandler, timeHandler, parameterHandler, errorHandler);
             }
             throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
 

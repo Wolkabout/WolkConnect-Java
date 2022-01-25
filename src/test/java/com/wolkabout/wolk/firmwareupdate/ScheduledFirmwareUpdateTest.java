@@ -16,25 +16,24 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
-import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
-import com.wolkabout.wolk.filemanagement.UrlFileDownloadSession;
-import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
+import com.cronutils.builder.CronBuilder;
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.internal.util.reflection.FieldSetter;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static com.cronutils.model.field.expression.FieldExpressionFactory.*;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -43,11 +42,7 @@ import static org.mockito.Mockito.*;
 public class ScheduledFirmwareUpdateTest {
 
     @Mock
-    FirmwareInstaller firmwareInstallerMock;
-    @Mock
-    FirmwareUpdateProtocol firmwareUpdateProtocolMock;
-    @Mock
-    FileManagementProtocol fileManagementProtocolMock;
+    FirmwareManagement firmwareManagementMock;
     @Mock
     ScheduledExecutorService scheduledExecutorServiceMock;
 
@@ -56,11 +51,11 @@ public class ScheduledFirmwareUpdateTest {
 
     @Before
     public void init() throws NoSuchFieldException {
-        scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(firmwareInstallerMock, firmwareUpdateProtocolMock, fileManagementProtocolMock, scheduledExecutorServiceMock);
+        scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(firmwareManagementMock, scheduledExecutorServiceMock);
     }
 
-    void setupTime(LocalTime time) throws NoSuchFieldException {
-        FieldSetter.setField(scheduledFirmwareUpdate, scheduledFirmwareUpdate.getClass().getDeclaredField("time"), time);
+    void setupCron(Cron cron) throws NoSuchFieldException {
+        FieldSetter.setField(scheduledFirmwareUpdate, scheduledFirmwareUpdate.getClass().getDeclaredField("cron"), cron);
     }
 
     void setupRepository(String repository) throws NoSuchFieldException {
@@ -73,11 +68,22 @@ public class ScheduledFirmwareUpdateTest {
 
     @Test
     public void schedule() throws NoSuchFieldException {
-        setupTime(LocalTime.of(10, 50));
+
+        Cron cron = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                .withYear(always())
+                .withDoM(always())
+                .withMonth(always())
+                .withDoW(questionMark())
+                .withHour(on(10))
+                .withMinute(on(50))
+                .withSecond(on(0))
+                .instance();
+
+        setupCron(cron);
 
         ScheduledFirmwareUpdate mock = spy(scheduledFirmwareUpdate);
 
-        doReturn(100l).when(mock).computeExecutionDelay(any(LocalDateTime.class), any(LocalTime.class));
+        doReturn(100l).when(mock).computeExecutionDelay(any(LocalDateTime.class), any(Cron.class));
 
         mock.schedule();
 
@@ -86,7 +92,7 @@ public class ScheduledFirmwareUpdateTest {
 
     @Test
     public void scheduleNullTime() throws NoSuchFieldException {
-        setupTime(null);
+        setupCron(null);
 
         scheduledFirmwareUpdate.schedule();
 
@@ -94,47 +100,20 @@ public class ScheduledFirmwareUpdateTest {
     }
 
     @Test
-    public void checkAndInstallEmptyRepo() throws NoSuchFieldException {
-        setupRepository(null);
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        verify(firmwareInstallerMock, times(0)).isNewVersionAvailable(anyString());
-        verify(fileManagementProtocolMock, times(0)).urlDownload(any(UrlInfo.class), any(UrlFileDownloadSession.Callback.class));
-    }
-
-    @Test
-    public void checkAndInstallNoNewVersion() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(false).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        verify(firmwareInstallerMock, times(1)).isNewVersionAvailable("repo");
-        verify(fileManagementProtocolMock, times(0)).urlDownload(any(UrlInfo.class), any(UrlFileDownloadSession.Callback.class));
-    }
-
-    @Test
-    public void checkAndInstallNewVersion() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        verify(firmwareInstallerMock, times(1)).isNewVersionAvailable("repo");
-
-        ArgumentCaptor<UrlInfo> argument = ArgumentCaptor.forClass(UrlInfo.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(argument.capture(), any(UrlFileDownloadSession.Callback.class));
-        assertEquals(argument.getValue().getFileUrl(), "repo");
-    }
-
-    @Test
     public void setTime() {
         ScheduledFirmwareUpdate mock = spy(scheduledFirmwareUpdate);
 
-        mock.setTimeAndReschedule(LocalTime.of(5, 30));
+        Cron cron = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                .withYear(always())
+                .withDoM(always())
+                .withMonth(always())
+                .withDoW(questionMark())
+                .withHour(on(5))
+                .withMinute(on(30))
+                .withSecond(on(0))
+                .instance();
+
+        mock.setTimeAndReschedule(cron);
 
         verify(mock, times(1)).reschedule();
     }
@@ -214,103 +193,49 @@ public class ScheduledFirmwareUpdateTest {
     }
 
     @Test
-    public void downloadFinishedAborted() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        ArgumentCaptor<UrlFileDownloadSession.Callback> argument = ArgumentCaptor.forClass(UrlFileDownloadSession.Callback.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(any(UrlInfo.class), argument.capture());
-
-        argument.getValue().onFinish(FileTransferStatus.ABORTED, null, null);
-
-        verify(firmwareUpdateProtocolMock, times(0)).install(anyString());
-    }
-
-    @Test
-    public void downloadFinishedTransfer() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        ArgumentCaptor<UrlFileDownloadSession.Callback> argument = ArgumentCaptor.forClass(UrlFileDownloadSession.Callback.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(any(UrlInfo.class), argument.capture());
-
-        argument.getValue().onFinish(FileTransferStatus.FILE_TRANSFER, null, null);
-
-        verify(firmwareUpdateProtocolMock, times(0)).install(anyString());
-    }
-
-    @Test
-    public void downloadFinishedError() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        ArgumentCaptor<UrlFileDownloadSession.Callback> argument = ArgumentCaptor.forClass(UrlFileDownloadSession.Callback.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(any(UrlInfo.class), argument.capture());
-
-        argument.getValue().onFinish(FileTransferStatus.ERROR, null, null);
-
-        verify(firmwareUpdateProtocolMock, times(0)).install(anyString());
-    }
-
-    @Test
-    public void downloadFinishedUnknown() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        ArgumentCaptor<UrlFileDownloadSession.Callback> argument = ArgumentCaptor.forClass(UrlFileDownloadSession.Callback.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(any(UrlInfo.class), argument.capture());
-
-        argument.getValue().onFinish(FileTransferStatus.UNKNOWN, null, null);
-
-        verify(firmwareUpdateProtocolMock, times(0)).install(anyString());
-    }
-
-    @Test
-    public void downloadFinishedReady() throws NoSuchFieldException {
-        setupRepository("repo");
-
-        doReturn(true).when(firmwareInstallerMock).isNewVersionAvailable(anyString());
-
-        scheduledFirmwareUpdate.checkAndInstall();
-
-        ArgumentCaptor<UrlFileDownloadSession.Callback> argument = ArgumentCaptor.forClass(UrlFileDownloadSession.Callback.class);
-        verify(fileManagementProtocolMock, times(1)).urlDownload(any(UrlInfo.class), argument.capture());
-
-        argument.getValue().onFinish(FileTransferStatus.FILE_READY, "firmware", null);
-
-        verify(firmwareUpdateProtocolMock, times(1)).install("firmware");
-    }
-
-    @Test
     public void computeDelayToday() throws NoSuchFieldException {
         LocalDateTime now = LocalDateTime.now();
-        LocalTime schedule = LocalTime.of(now.getHour() + 1, now.getMinute(), now.getSecond());
 
-        long delay = scheduledFirmwareUpdate.computeExecutionDelay(now, schedule);
+        Cron cron = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                .withYear(always())
+                .withDoM(always())
+                .withMonth(always())
+                .withDoW(questionMark())
+                .withHour(on(now.getHour() + 1))
+                .withMinute(on(now.getMinute()))
+                .withSecond(on(now.getSecond()))
+                .instance();
 
-        assertEquals(delay, TimeUnit.HOURS.toSeconds(1));
+        ScheduledFirmwareUpdate mock = spy(scheduledFirmwareUpdate);
+
+        doReturn(0l).when(mock).randomDelay();
+
+        long delay = mock.computeExecutionDelay(now, cron);
+
+        assertEquals(delay, TimeUnit.HOURS.toSeconds(1) - 1);
     }
 
     @Test
     public void computeDelayTomorow() throws NoSuchFieldException {
         LocalDateTime now = LocalDateTime.now();
-        LocalTime schedule = LocalTime.of(now.getHour() - 1, now.getMinute(), now.getSecond());
 
-        long delay = scheduledFirmwareUpdate.computeExecutionDelay(now, schedule);
+        Cron cron = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                .withYear(always())
+                .withDoM(always())
+                .withMonth(always())
+                .withDoW(questionMark())
+                .withHour(on(now.getHour() - 1))
+                .withMinute(on(now.getMinute()))
+                .withSecond(on(now.getSecond()))
+                .instance();
 
-        assertEquals(delay, TimeUnit.HOURS.toSeconds(23));
+        ScheduledFirmwareUpdate mock = spy(scheduledFirmwareUpdate);
+
+        doReturn(0l).when(mock).randomDelay();
+
+        long delay = mock.computeExecutionDelay(now, cron);
+
+        assertEquals(delay, TimeUnit.HOURS.toSeconds(23) - 1);
     }
 
     @Test

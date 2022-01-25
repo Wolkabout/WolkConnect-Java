@@ -20,6 +20,7 @@ import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
 import com.wolkabout.wolk.model.FeedTemplate;
 import com.wolkabout.wolk.model.Parameter;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.protocol.handler.ParameterHandler;
 import com.wolkabout.wolk.protocol.handler.TimeHandler;
@@ -39,14 +40,16 @@ public abstract class Protocol {
     protected final FeedHandler feedHandler;
     protected final TimeHandler timeHandler;
     protected final ParameterHandler parameterHandler;
+    protected final ErrorHandler errorHandler;
 
     protected static final int QOS = 2;
 
-    public Protocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler) {
+    public Protocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler, ErrorHandler errorHandler) {
         this.client = client;
         this.feedHandler = feedHandler;
         this.timeHandler = timeHandler;
         this.parameterHandler = parameterHandler;
+        this.errorHandler = errorHandler;
     }
 
     public abstract void subscribe() throws Exception;
@@ -73,6 +76,8 @@ public abstract class Protocol {
     public abstract void updateParameters(Collection<Parameter> parameters);
 
     public abstract void pullParameters();
+
+    public abstract void syncronizeParameters(Collection<String> parameterNames);
 
     public abstract void registerAttributes(Collection<Attribute> attributes);
 

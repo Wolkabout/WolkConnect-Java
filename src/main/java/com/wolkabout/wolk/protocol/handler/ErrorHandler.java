@@ -16,23 +16,12 @@
  */
 package com.wolkabout.wolk.protocol.handler;
 
-import com.wolkabout.wolk.model.Feed;
-
-import java.util.Collection;
-
-public interface FeedHandler {
+public interface ErrorHandler {
 
     /**
-     * Called when feeds are received.
+     * Called when error is received
      *
-     * @param feeds Collection of key-value pair of references and values.
+     * @param error
      */
-    void onFeedsReceived(Collection<Feed> feeds);
-
-    /**
-     * Called when feed is requested by server.
-     *
-     * @return Feed reference.
-     */
-    Feed getFeedValue(String reference);
+    void onErrorReceived(String error);
 }

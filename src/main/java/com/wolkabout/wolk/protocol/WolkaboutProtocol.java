@@ -20,6 +20,7 @@ import com.wolkabout.wolk.model.Attribute;
 import com.wolkabout.wolk.model.Feed;
 import com.wolkabout.wolk.model.FeedTemplate;
 import com.wolkabout.wolk.model.Parameter;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
 import com.wolkabout.wolk.protocol.handler.ParameterHandler;
 import com.wolkabout.wolk.protocol.handler.TimeHandler;
@@ -44,13 +45,15 @@ public class WolkaboutProtocol extends Protocol {
     private static final String FEED_REMOVAL = "/feed_removal";
     private static final String PARAMETERS = "/parameters";
     private static final String PARAMETERS_PULL = "/pull_parameters";
+    private static final String PARAMETERS_SYNC = "/syncronize_parameters";
     private static final String ATTRIBUTE_REGISTER = "/attribute_registration";
     private static final String TIME = "/time";
+    private static final String ERROR = "/error";
 
     private static final String TIMESTAMP = "utc";
 
-    public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler) {
-        super(client, feedHandler, timeHandler, parameterHandler);
+    public WolkaboutProtocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler, ErrorHandler errorHandler) {
+        super(client, feedHandler, timeHandler, parameterHandler, errorHandler);
     }
 
     @Override
@@ -60,6 +63,8 @@ public class WolkaboutProtocol extends Protocol {
         client.subscribe(IN_DIRECTION + client.getClientId() + PARAMETERS, QOS, this::handleParameters);
 
         client.subscribe(IN_DIRECTION + client.getClientId() + TIME, QOS, this::handleTime);
+
+        client.subscribe(IN_DIRECTION + client.getClientId() + ERROR, QOS, this::handleError);
     }
 
     @Override
@@ -125,6 +130,11 @@ public class WolkaboutProtocol extends Protocol {
     @Override
     public void pullParameters() {
         publish(OUT_DIRECTION + client.getClientId() + PARAMETERS_PULL, "");
+    }
+
+    @Override
+    public void syncronizeParameters(Collection<String> parameterNames) {
+        publish(OUT_DIRECTION + client.getClientId() + PARAMETERS_SYNC, parameterNames);
     }
 
     @Override
@@ -205,5 +215,11 @@ public class WolkaboutProtocol extends Protocol {
         }
 
         timeHandler.onTimeReceived(timestamp);
+    }
+
+    private void handleError(String topic, MqttMessage message) {
+        LOG.debug("Received on '" + topic + "' payload: " + message.toString());
+
+        errorHandler.onErrorReceived(message.toString());
     }
 }
