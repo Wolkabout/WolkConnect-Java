@@ -16,6 +16,7 @@
  */
 package com.wolkabout.wolk.protocol;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.wolkabout.wolk.model.Feed;
 import com.wolkabout.wolk.protocol.handler.ErrorHandler;
 import com.wolkabout.wolk.protocol.handler.FeedHandler;
@@ -26,14 +27,49 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.*;
+
+class MessageMatcher implements ArgumentMatcher<byte[]> {
+
+    String regex;
+    String arg;
+
+    public MessageMatcher(String regex) {
+        this.regex = regex;
+    }
+
+    @Override
+    public boolean matches(byte[] right) {
+        String message = new String(right);
+
+        arg = message;
+
+        Pattern pattern = Pattern.compile(regex);
+
+        Matcher matcher = pattern.matcher(message);
+
+        return matcher.matches();
+    }
+
+    @Override
+    public String toString() {
+        return "MessageMatcher{" +
+                "regex='" + regex + '\'' +
+                ", arg='" + arg + '\'' +
+                '}';
+    }
+}
 
 public class WolkaboutProtocolTest {
     @Mock
@@ -69,7 +105,22 @@ public class WolkaboutProtocolTest {
         Feed feed = new Feed("reference", "value");
         WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
         wolkaboutProtocol.publishFeed(feed);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
+
+        String pattern = "\\{\"reference\":\"value\",\"utc\":\\d+\\}";
+        verify(clientMock, times(1)).publish(anyString(), argThat(new MessageMatcher(pattern)), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void publishMultivalueReading() throws MqttException, JsonProcessingException {
+        when(clientMock.getClientId())
+                .thenReturn("some_key");
+
+        Feed feed = new Feed("reference", Arrays.asList(1, 2, 3));
+        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
+        wolkaboutProtocol.publishFeed(feed);
+
+        String pattern = "\\{\"reference\":\"1,2,3\",\"utc\":\\d+\\}";
+        verify(clientMock, times(1)).publish(anyString(), argThat(new MessageMatcher(pattern)), anyInt(), anyBoolean());
     }
 
     @Test

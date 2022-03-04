@@ -71,10 +71,27 @@ public class WolkaboutProtocol extends Protocol {
         client.subscribe(IN_DIRECTION + client.getClientId() + ERROR, QOS, this::handleError);
     }
 
+    Object serializeValues(Feed feed) {
+        final int size = feed.getValues().size();
+
+        if (size > 1) {
+            StringBuilder multivalue = new StringBuilder("");
+            for (int i = 0; i < size - 1; ++i) {
+                multivalue.append(feed.getValues().get(i)).append(",");
+            }
+            multivalue.append(feed.getValues().get(size - 1));
+
+            return multivalue.toString();
+
+        } else {
+            return feed.getValue();
+        }
+    }
+
     @Override
     public void publishFeed(Feed feed) {
         final Map<String, Object> feedMap = new HashMap<>();
-        feedMap.put(feed.getReference(), feed.getValues().size() > 1 ? feed.getValues() : feed.getValue());
+        feedMap.put(feed.getReference(), serializeValues(feed));
         feedMap.put("utc", feed.getUtc());
 
         publish(OUT_DIRECTION + client.getClientId() + FEED_VALUES, feedMap);
