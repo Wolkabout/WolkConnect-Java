@@ -42,30 +42,25 @@ import static org.mockito.Mockito.*;
 
 class MessageMatcher implements ArgumentMatcher<byte[]> {
 
-    String regex;
+    Pattern pattern;
     String arg;
 
     public MessageMatcher(String regex) {
-        this.regex = regex;
+        pattern = Pattern.compile(regex);
     }
 
     @Override
     public boolean matches(byte[] right) {
-        String message = new String(right);
+        arg = new String(right);
 
-        arg = message;
-
-        Pattern pattern = Pattern.compile(regex);
-
-        Matcher matcher = pattern.matcher(message);
-
+        Matcher matcher = pattern.matcher(arg);
         return matcher.matches();
     }
 
     @Override
     public String toString() {
         return "MessageMatcher{" +
-                "regex='" + regex + '\'' +
+                "regex='" + pattern.pattern() + '\'' +
                 ", arg='" + arg + '\'' +
                 '}';
     }
