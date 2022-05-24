@@ -6,14 +6,6 @@ public class WolkTest {
 
     @Test
     public void connect() {
-        Wolk wolk = Wolk.builder()
-                .mqtt()
-                .host("ssl://insert_host:insert_port")
-                .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
-                .deviceKey("device_key")
-                .password("password")
-                .build()
-                .build();
     }
 
     @Test
