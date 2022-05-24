@@ -71,8 +71,8 @@ public class Example {
 
         final Wolk wolk = Wolk.builder()
                 .mqtt()
-                .host("ssl://api-demo.wolkabout.com:8883")
-                .sslCertification("ca.crt")
+                .host("ssl://insert_host:insert_port")
+                .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
                 .deviceKey("device-key")
                 .password("device-password")
                 .build()
