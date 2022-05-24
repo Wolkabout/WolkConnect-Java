@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,19 @@
  */
 package com.wolkabout.wolk.firmwareupdate.model.platform2device;
 
-import java.util.Arrays;
-
 /**
  * This class represents the payload sent by the platform to the device
  * to the `p2d/firmware_update_install/d/` endpoint to start a firmware install.
  */
 public class UpdateInit {
 
-    private String[] devices;
     private String fileName;
 
     public UpdateInit() {
     }
 
-    public UpdateInit(String[] devices, String fileName) {
-        this.devices = devices;
+    public UpdateInit(String fileName) {
         this.fileName = fileName;
-    }
-
-    public String[] getDevices() {
-        return devices;
-    }
-
-    public void setDevices(String[] devices) {
-        this.devices = devices;
     }
 
     public String getFileName() {
@@ -54,8 +42,7 @@ public class UpdateInit {
     @Override
     public String toString() {
         return "UpdateInit{" +
-                "devices=" + Arrays.toString(devices) +
-                ", fileName='" + fileName + '\'' +
+                "fileName='" + fileName + '\'' +
                 '}';
     }
 }

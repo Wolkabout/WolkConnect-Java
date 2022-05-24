@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,31 +16,44 @@
  */
 package com.wolkabout.wolk;
 
+import com.cronutils.builder.CronBuilder;
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
 import com.wolkabout.wolk.filemanagement.FileManagementProtocol;
 import com.wolkabout.wolk.filemanagement.FileSystemManagement;
 import com.wolkabout.wolk.filemanagement.UrlFileDownloader;
 import com.wolkabout.wolk.firmwareupdate.FirmwareInstaller;
+import com.wolkabout.wolk.firmwareupdate.FirmwareManagement;
 import com.wolkabout.wolk.firmwareupdate.FirmwareUpdateProtocol;
+import com.wolkabout.wolk.firmwareupdate.ScheduledFirmwareUpdate;
 import com.wolkabout.wolk.model.*;
 import com.wolkabout.wolk.persistence.InMemoryPersistence;
 import com.wolkabout.wolk.persistence.Persistence;
 import com.wolkabout.wolk.protocol.Protocol;
 import com.wolkabout.wolk.protocol.ProtocolType;
 import com.wolkabout.wolk.protocol.WolkaboutProtocol;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
+import static com.cronutils.model.CronType.QUARTZ;
+import static com.cronutils.model.field.expression.FieldExpressionFactory.*;
 
 /**
  * Handles the connection to the WolkAbout IoT Platform.
@@ -51,9 +64,8 @@ public class Wolk {
     public static final String WOLK_DEMO_CA = "/INSERT/PATH/TO/YOUR/CA.CRT/FILE";
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
-    private boolean keepAliveServiceEnabled = true;
+    private OutboundDataMode mode;
     private ScheduledFuture<?> runningPublishTask;
-    private ScheduledFuture<?> runningPublishKeepAliveTask;
     /**
      * MQTT client.
      */
@@ -66,49 +78,63 @@ public class Wolk {
      * Protocol for sending and receiving data.
      */
     private Protocol protocol;
-    private final Runnable publishKeepAlive = new Runnable() {
-        @Override
-        public void run() {
-            protocol.publishKeepAlive();
-        }
-    };
+
     /**
      * Everything regarding the File Management/Firmware Update.
      */
+    private boolean fileTransferUrlEnabled;
     private FileManagementProtocol fileManagementProtocol;
-    private FirmwareUpdateProtocol firmwareUpdateProtocol;
-    private String firmwareVersion;
     private FileSystemManagement fileSystemManagement;
+    private Cron firmwareUpdateTime;
+    private String firmwareUpdateRepository;
+    private FirmwareUpdateProtocol firmwareUpdateProtocol;
     private FirmwareInstaller firmwareInstaller;
+    private FirmwareManagement firmwareManagement;
+    private ScheduledFirmwareUpdate scheduledFirmwareUpdate;
+    private final CronParser cronParser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(QUARTZ));
     /**
      * Persistence mechanism for storing and retrieving data.
      */
     private Persistence persistence;
+    private int maxMessageSize;
     private final Runnable publishTask = this::publish;
 
-    public static Builder builder() {
-        return new Builder();
+    private boolean firstConnect = true;
+
+    public static Builder builder(OutboundDataMode mode) {
+        return new Builder(mode);
     }
 
-    public void connect() {
+    public boolean connect() {
         try {
             client.connect(options);
         } catch (Exception e) {
             LOG.info("Could not connect to MQTT broker.", e);
-            return;
+            return false;
         }
 
         subscribe();
-        startPublishingKeepAlive(60);
 
-        if (fileManagementProtocol != null) {
-            publishFileList();
+        if (firstConnect) {
+            publishParameters();
 
-            if (firmwareUpdateProtocol != null) {
-                firmwareUpdateProtocol.checkFirmwareVersion();
-                publishFirmwareVersion(firmwareVersion);
+            firstConnect = false;
+
+            if (fileManagementProtocol != null) {
+                publishFileList();
+
+                if (firmwareUpdateProtocol != null) {
+                    firmwareUpdateProtocol.checkFirmwareVersion();
+                }
             }
         }
+
+        if (mode == OutboundDataMode.PULL) {
+            pullParameters();
+            pullFeeds();
+        }
+
+        return true;
     }
 
     /**
@@ -117,17 +143,11 @@ public class Wolk {
     public void disconnect() {
         try {
             if (client.isConnected()) {
-                client.publish(options.getWillDestination(), options.getWillMessage().getPayload(), 2, false);
                 client.disconnect();
             }
-            stopPublishingKeepAlive();
         } catch (MqttException e) {
             LOG.trace("Could not disconnect from MQTT broker.", e);
         }
-    }
-
-    public long getPlatformTimestamp() {
-        return this.protocol.getPlatformTimestamp();
     }
 
     /**
@@ -161,34 +181,6 @@ public class Wolk {
     }
 
     /**
-     * Start automatic reading publishing keep alive messages.
-     * Messages are published every X seconds.
-     *
-     * @param seconds Time in seconds between 2 publishes.
-     */
-    public void startPublishingKeepAlive(int seconds) {
-        if (!keepAliveServiceEnabled) {
-            return;
-        }
-        if (runningPublishKeepAliveTask != null && !runningPublishKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningPublishKeepAliveTask = executor.scheduleAtFixedRate(publishKeepAlive, 0, seconds, TimeUnit.SECONDS);
-    }
-
-    /**
-     * Stop publishing keep alive messages.
-     */
-    public void stopPublishingKeepAlive() {
-        if (runningPublishKeepAliveTask == null || runningPublishKeepAliveTask.isDone()) {
-            return;
-        }
-
-        runningPublishKeepAliveTask.cancel(true);
-    }
-
-    /**
      * Manually publish stored readings.
      * Requires a persistence store.
      */
@@ -198,15 +190,9 @@ public class Wolk {
         }
 
         try {
-            protocol.publishReadings(persistence.getAll());
+            protocol.publishFeeds(persistence.getAll());
         } catch (Exception e) {
-            LOG.info("Could not publish readings", e);
-        }
-
-        try {
-            protocol.publishAlarms(persistence.getAllAlarms());
-        } catch (Exception e) {
-            LOG.info("Could not publish alarms", e);
+            LOG.info("Could not publish feeds", e);
         }
     }
 
@@ -217,44 +203,44 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param value     Value obtained by the reading
      */
-    public void addReading(String reference, boolean value) {
-        final Reading reading = new Reading(reference, Boolean.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, boolean value) {
+        final Feed feed = new Feed(reference, value);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, boolean value, long timestamp) {
-        final Reading reading = new Reading(reference, Boolean.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, boolean value, long timestamp) {
+        final Feed feed = new Feed(reference, value, timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, long value) {
-        final Reading reading = new Reading(reference, Long.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, long value) {
+        final Feed feed = new Feed(reference, Long.toString(value));
+        addFeed(feed);
     }
 
-    public void addReading(String reference, long value, long timestamp) {
-        final Reading reading = new Reading(reference, Long.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, long value, long timestamp) {
+        final Feed feed = new Feed(reference, Long.toString(value), timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, double value) {
-        final Reading reading = new Reading(reference, Double.toString(value));
-        addReading(reading);
+    public void addFeed(String reference, double value) {
+        final Feed feed = new Feed(reference, value);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, double value, long timestamp) {
-        final Reading reading = new Reading(reference, Double.toString(value), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, double value, long timestamp) {
+        final Feed feed = new Feed(reference, value, timestamp);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, String value) {
-        final Reading reading = new Reading(reference, value);
-        addReading(reading);
+    public void addFeed(String reference, String value) {
+        final Feed feed = new Feed(reference, value);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, String value, long timestamp) {
-        final Reading reading = new Reading(reference, value, timestamp);
-        addReading(reading);
+    public void addFeed(String reference, String value, long timestamp) {
+        final Feed feed = new Feed(reference, value, timestamp);
+        addFeed(feed);
     }
 
     /**
@@ -264,32 +250,32 @@ public class Wolk {
      * @param reference Reference of the sensor
      * @param values    Values obtained by the reading
      */
-    public void addReading(String reference, List<Object> values) {
-        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()));
-        addReading(reading);
+    public void addFeed(String reference, List<Object> values) {
+        final Feed feed = new Feed(reference, values);
+        addFeed(feed);
     }
 
-    public void addReading(String reference, List<Object> values, long timestamp) {
-        final Reading reading = new Reading(reference, values.stream().map(Object::toString).collect(Collectors.toList()), timestamp);
-        addReading(reading);
+    public void addFeed(String reference, List<Object> values, long timestamp) {
+        final Feed feed = new Feed(reference, values, timestamp);
+        addFeed(feed);
     }
 
     /**
      * Adds readings to be published.
      * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
      *
-     * @param reading {@link Reading}
+     * @param feed {@link Feed}
      */
-    public void addReading(Reading reading) {
+    public void addFeed(Feed feed) {
         if (persistence != null) {
-            persistence.addReading(reading);
+            persistence.addFeed(feed);
             return;
         }
 
         try {
-            protocol.publishReading(reading);
+            protocol.publishFeed(feed);
         } catch (Exception e) {
-            LOG.info("Could not publish reading: " + reading.getReference(), e);
+            LOG.info("Could not publish reading: " + feed.getReference(), e);
         }
     }
 
@@ -297,64 +283,18 @@ public class Wolk {
      * Adds a reading collection to be published.
      * If the persistence store is set, readings will be stored. Otherwise, they will be published immediately.
      *
-     * @param readings A collection of {@link Reading}
+     * @param feeds A collection of {@link Feed}
      */
-    public void addReadings(Collection<Reading> readings) {
+    public void addFeeds(Collection<Feed> feeds) {
         if (persistence != null) {
-            persistence.addReadings(readings);
+            persistence.addFeeds(feeds);
             return;
         }
 
         try {
-            protocol.publishReadings(readings);
+            protocol.publishFeeds(feeds);
         } catch (Exception e) {
-            LOG.info("Could not publish readings", e);
-        }
-    }
-
-    /**
-     * Adds alarm to be published.
-     * If the persistence store is set, the reading will be stored. Otherwise, it will be published immediately.
-     *
-     * @param reference Reference of the alarm
-     * @param active    Current state of the alarm
-     */
-    public void addAlarm(String reference, boolean active) {
-        final Alarm alarm = new Alarm(reference, active);
-
-        if (persistence != null) {
-            persistence.addAlarm(alarm);
-            return;
-        }
-
-        try {
-            protocol.publishAlarm(alarm);
-        } catch (Exception e) {
-            LOG.info("Could not publish alarm: " + reference, e);
-        }
-    }
-
-    /**
-     * Publishes current configuration.
-     */
-    public void publishConfiguration() {
-        try {
-            protocol.publishCurrentConfig();
-        } catch (Exception e) {
-            LOG.info("Could not publish configuration", e);
-        }
-    }
-
-    /**
-     * Publishes current actuator status for the given reference.
-     *
-     * @param ref actuator reference.
-     */
-    public void publishActuatorStatus(String ref) {
-        try {
-            protocol.publishActuatorStatus(ref);
-        } catch (Exception e) {
-            LOG.info("Could not publish actuator status for actuator: " + ref, e);
+            LOG.info("Could not publish feeds", e);
         }
     }
 
@@ -373,22 +313,85 @@ public class Wolk {
         }
     }
 
+    public void pullFeeds() {
+        protocol.pullFeeds();
+    }
+
+    public void pullParameters() {
+        protocol.pullParameters();
+    }
+
+    public void syncParameters(Collection<String> parameterNames) {
+        protocol.syncronizeParameters(parameterNames);
+    }
+
+    public void pullTime() {
+        protocol.pullTime();
+    }
+
+    public void registerFeed(String name, FeedType type, String unit, String reference) {
+        registerFeed(new FeedTemplate(name, type, unit, reference));
+    }
+
+    public void registerFeed(String name, FeedType type, Unit unit, String reference) {
+        registerFeed(new FeedTemplate(name, type, unit, reference));
+    }
+
+    public void registerFeed(FeedTemplate feed) {
+        registerFeeds(Collections.singletonList(feed));
+    }
+
+    public void registerFeeds(Collection<FeedTemplate> feeds) {
+        protocol.registerFeeds(feeds);
+    }
+
+    public void removeFeed(String feedReference) {
+        removeFeeds(Collections.singletonList(feedReference));
+    }
+
+    public void removeFeeds(Collection<String> feedReferences) {
+        protocol.removeFeeds(feedReferences);
+    }
+
     /**
-     * Publishes the new version of the firmware.
+     * Register new attribute or update an existing one
      *
-     * @param version current firmware version.
+     * @param name
+     * @param type
+     * @param value
      */
-    public void publishFirmwareVersion(String version) {
-        if (fileManagementProtocol == null) {
-            this.firmwareVersion = version;
-            throw new IllegalStateException("Firmware update protocol is not configured.");
+    public void registerAttribute(String name, DataType type, String value) {
+        registerAttribute(new Attribute(name, type, value));
+    }
+
+    /**
+     * Register new attribute or update an existing one
+     *
+     * @param attribute
+     */
+    public void registerAttribute(Attribute attribute) {
+        protocol.registerAttributes(Collections.singletonList(attribute));
+    }
+
+    /**
+     * Register new attributes or update the existing ones
+     *
+     * @param attributes
+     */
+    public void registerAttributes(Collection<Attribute> attributes) {
+        protocol.registerAttributes(attributes);
+    }
+
+    public void checkAndUpdateFirmware() {
+        checkAndUpdateFirmware(firmwareUpdateRepository);
+    }
+
+    public void checkAndUpdateFirmware(String repository) {
+        if (firmwareManagement == null) {
+            throw new IllegalStateException("Firmware update is not configured.");
         }
 
-        try {
-            firmwareUpdateProtocol.publishFirmwareVersion(version);
-        } catch (Exception e) {
-            LOG.info("Could not publish firmware version", e);
-        }
+        firmwareManagement.checkAndInstall(repository);
     }
 
     private void subscribe() {
@@ -407,54 +410,132 @@ public class Wolk {
         }
     }
 
+    private void publishParameters() {
+        List<Parameter> parameters = new ArrayList<>();
+
+        parameters.add(new Parameter(Parameter.Name.OUTBOUND_DATA_MODE.name(), mode));
+
+        final boolean fileEnabled = fileSystemManagement != null;
+        parameters.add(new Parameter(Parameter.Name.FILE_TRANSFER_PLATFORM_ENABLED.name(), fileEnabled));
+        parameters.add(new Parameter(Parameter.Name.FILE_TRANSFER_URL_ENABLED.name(), fileEnabled && fileTransferUrlEnabled));
+
+        final boolean firmwareEnabled = firmwareInstaller != null;
+        parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_ENABLED.name(), firmwareEnabled));
+
+        if (firmwareEnabled) {
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_VERSION.name(), firmwareInstaller.getFirmwareVersion()));
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name(), firmwareUpdateTime != null ? firmwareUpdateTime.asString() : ""));
+            parameters.add(new Parameter(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name(), firmwareUpdateRepository));
+        }
+
+        parameters.add(new Parameter(Parameter.Name.MAXIMUM_MESSAGE_SIZE.name(), maxMessageSize));
+
+        protocol.updateParameters(parameters);
+    }
+
+    private void onParameters(Collection<Parameter> parameters) {
+        LOG.debug("Parameters received " + parameters);
+
+        parameters.forEach(parameter -> {
+            if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_CHECK_TIME.name())) {
+                onFirmwareUpdateCheckTime(parameter.getValue());
+            } else if (parameter.getReference().equals(Parameter.Name.FIRMWARE_UPDATE_REPOSITORY.name())) {
+                onFirmwareUpdateRepository((String) parameter.getValue());
+            } else {
+                LOG.warn("Unable to handle parameter change: " + parameter);
+            }
+        });
+    }
+
+    void onFirmwareUpdateCheckTime(Object time) {
+        LOG.debug("Setting firmware update check time");
+
+        if (scheduledFirmwareUpdate == null) {
+            LOG.debug("Skip setting firmware check time, scheduled firmware update not enabled");
+            return;
+        }
+
+        try {
+            final String cronStr = (String) time;
+
+            Cron cron = cronParser.parse(cronStr);
+
+            if (firmwareUpdateTime != null && firmwareUpdateTime.equivalent(cron)) {
+                LOG.debug("Firmware check time already has same value: " + time);
+                return;
+            }
+
+            firmwareUpdateTime = cron;
+
+            scheduledFirmwareUpdate.setTimeAndReschedule(firmwareUpdateTime);
+        } catch (Exception exception) {
+            LOG.error("Firmware check time has invalid cron value: " + time);
+
+            firmwareUpdateTime = null;
+            scheduledFirmwareUpdate.setTimeAndReschedule(null);
+        }
+    }
+
+    void onFirmwareUpdateRepository(String repository) {
+        if (scheduledFirmwareUpdate == null) {
+            LOG.debug("Skip setting firmware update repository, scheduled firmware update not enabled");
+            return;
+        }
+
+        scheduledFirmwareUpdate.setRepository(repository);
+    }
+
     public static class Builder {
 
         private static final String DEFAULT_FILE_LOCATION = "files/";
         private final MqttBuilder mqttBuilder = new MqttBuilder(this);
+        private final OutboundDataMode mode;
         private ProtocolType protocolType = ProtocolType.WOLKABOUT_PROTOCOL;
-        private Collection<String> actuatorReferences = new ArrayList<>();
 
-        private ActuatorHandler actuatorHandler = new ActuatorHandler() {
+        private int maxMessageSize = 0;
+
+        private FeedHandler feedHandler = new FeedHandler() {
             @Override
-            public void onActuationReceived(ActuatorCommand actuatorCommand) {
-                LOG.trace("Actuation received: " + actuatorCommand);
+            public void onFeedsReceived(Collection<Feed> feeds) {
+                LOG.debug("Feeds received: " + feeds);
             }
 
             @Override
-            public ActuatorStatus getActuatorStatus(String ref) {
+            public Feed getFeedValue(String reference) {
                 return null;
             }
         };
 
-        private ConfigurationHandler configurationHandler = new ConfigurationHandler() {
-            @Override
-            public void onConfigurationReceived(Collection<Configuration> configuration) {
-                LOG.trace("Configuration received: " + configuration);
-            }
+        private ParameterHandler parameterHandler;
 
+        private TimeHandler timeHandler = new TimeHandler() {
             @Override
-            public Collection<Configuration> getConfigurations() {
-                return new ArrayList<>();
+            public void onTimeReceived(long timestamp) {
+                LOG.debug("Time received: " + timestamp);
+            }
+        };
+
+        private ErrorHandler errorHandler = new ErrorHandler() {
+            @Override
+            public void onErrorReceived(String error) {
+                LOG.debug("Error received: " + error);
             }
         };
 
         private Persistence persistence = new InMemoryPersistence();
 
         private boolean fileManagementEnabled = false;
-
-        private String fileManagementLocation = null;
-
-        private boolean firmwareUpdateEnabled = false;
-
-        private String firmwareVersion = "";
-
+        private boolean defaultUrlFileDownloaderEnabled = true;
+        private String fileManagementLocation = "";
         private UrlFileDownloader urlFileDownloader = null;
 
+        private boolean firmwareUpdateEnabled = false;
         private FirmwareInstaller firmwareInstaller = null;
+        private Cron firmwareUpdateTime = null;
+        private String firmwareUpdateRepository = "";
 
-        private boolean keepAliveServiceEnabled = true;
-
-        private Builder() {
+        private Builder(OutboundDataMode mode) {
+            this.mode = mode;
         }
 
         public MqttBuilder mqtt() {
@@ -470,26 +551,30 @@ public class Wolk {
             return this;
         }
 
-        public Builder actuator(Collection<String> actuatorReferences, ActuatorHandler actuatorHandler) {
-            if (actuatorReferences.isEmpty()) {
-                throw new IllegalArgumentException("Actuator references must be set.");
+        public Builder feed(FeedHandler feedHandler) {
+            if (feedHandler == null) {
+                throw new IllegalArgumentException("Feed handler must be set.");
             }
 
-            if (actuatorHandler == null) {
-                throw new IllegalArgumentException("Actuator handler must be set.");
-            }
-
-            this.actuatorReferences = actuatorReferences;
-            this.actuatorHandler = actuatorHandler;
+            this.feedHandler = feedHandler;
             return this;
         }
 
-        public Builder configuration(ConfigurationHandler configurationHandler) {
-            if (configurationHandler == null) {
-                throw new IllegalArgumentException("Configuration handler must be set.");
+        public Builder parameters(ParameterHandler parameterHandler) {
+            if (parameterHandler == null) {
+                throw new IllegalArgumentException("Parameter handler must be set.");
             }
 
-            this.configurationHandler = configurationHandler;
+            this.parameterHandler = parameterHandler;
+            return this;
+        }
+
+        public Builder time(TimeHandler timeHandler) {
+            if (timeHandler == null) {
+                throw new IllegalArgumentException("Time handler must be set.");
+            }
+
+            this.timeHandler = timeHandler;
             return this;
         }
 
@@ -526,63 +611,68 @@ public class Wolk {
             return this;
         }
 
-        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareVersion) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
             return this;
         }
 
-        public Builder enableFirmwareUpdate(String fileManagementLocation, String firmwareVersion,
-                                            FirmwareInstaller firmwareInstaller) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareUpdateRepository,
+                                            LocalTime firmwareUpdateDailyTime) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
-            this.fileManagementLocation = fileManagementLocation;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
+            this.firmwareUpdateRepository = firmwareUpdateRepository;
+
+            this.firmwareUpdateTime = CronBuilder.cron(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ))
+                    .withYear(always())
+                    .withDoM(always())
+                    .withMonth(always())
+                    .withDoW(questionMark())
+                    .withHour(on(firmwareUpdateDailyTime.getHour()))
+                    .withMinute(on(firmwareUpdateDailyTime.getMinute()))
+                    .withSecond(on(firmwareUpdateDailyTime.getSecond()))
+                    .instance();
+
             return this;
         }
 
-        public Builder enableFirmwareUpdate(UrlFileDownloader urlFileDownloader, String firmwareVersion,
-                                            FirmwareInstaller firmwareInstaller) {
+        public Builder enableFirmwareUpdate(FirmwareInstaller firmwareInstaller, String firmwareUpdateRepository,
+                                            String firmwareUpdateCron) {
             if (firmwareInstaller == null) {
                 throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
             }
 
-            fileManagementEnabled = true;
-            this.urlFileDownloader = urlFileDownloader;
             firmwareUpdateEnabled = true;
             this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
+            this.firmwareUpdateRepository = firmwareUpdateRepository;
+
+            CronParser parser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.QUARTZ));
+            this.firmwareUpdateTime = parser.parse(firmwareUpdateCron);
+
             return this;
         }
 
-        public Builder enableFirmwareUpdate(String fileManagementLocation, UrlFileDownloader urlFileDownloader,
-                                            String firmwareVersion, FirmwareInstaller firmwareInstaller) {
-            if (firmwareInstaller == null) {
-                throw new IllegalArgumentException("FirmwareInstaller is required to enable firmware updates.");
+        /**
+         * Maximum size of message that can be received in kilobytes
+         * This also applies to maximum chunk size of file
+         *
+         * @param maxMessageSize
+         * @return
+         */
+        public Builder maxMessageKiloBytes(int maxMessageSize) {
+            if (maxMessageSize < 0) {
+                throw new IllegalArgumentException("Max message size must be a non negative number");
             }
 
-            fileManagementEnabled = true;
-            this.fileManagementLocation = fileManagementLocation;
-            this.urlFileDownloader = urlFileDownloader;
-            firmwareUpdateEnabled = true;
-            this.firmwareInstaller = firmwareInstaller;
-            this.firmwareVersion = firmwareVersion;
-            return this;
-        }
-
-        public Builder enableKeepAliveService(boolean enable) {
-            this.keepAliveServiceEnabled = enable;
+            this.maxMessageSize = maxMessageSize;
             return this;
         }
 
@@ -590,6 +680,7 @@ public class Wolk {
 
             try {
                 final Wolk wolk = new Wolk();
+                wolk.mode = mode;
                 wolk.client = mqttBuilder.client();
                 wolk.client.setCallback(new MqttCallbackExtended() {
                     @Override
@@ -613,36 +704,24 @@ public class Wolk {
                 });
 
                 wolk.options = mqttBuilder.options();
-                wolk.protocol = getProtocol(wolk.client);
-                wolk.persistence = persistence;
 
-                if (fileManagementEnabled) {
-                    // Create the file system management
-                    wolk.fileSystemManagement = new FileSystemManagement(
-                            fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
+                boolean internalParameterHandler = false;
 
-                    // Create the file management protocol
-                    if (this.urlFileDownloader == null) {
-                        wolk.fileManagementProtocol =
-                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
-                    } else {
-                        wolk.fileManagementProtocol =
-                                new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
-                    }
-
-                    // Create the firmware update if that is something the user wants
-                    if (firmwareUpdateEnabled) {
-                        wolk.firmwareInstaller = firmwareInstaller;
-                        wolk.firmwareVersion = firmwareVersion;
-                        wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(
-                                wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
-                    }
+                if (parameterHandler == null) {
+                    parameterHandler = wolk::onParameters;
+                    internalParameterHandler = true;
                 }
 
-                actuatorHandler.setWolk(wolk);
-                configurationHandler.setWolk(wolk);
+                wolk.protocol = getProtocol(wolk.client);
+                wolk.persistence = persistence;
+                wolk.maxMessageSize = maxMessageSize;
 
-                wolk.keepAliveServiceEnabled = keepAliveServiceEnabled;
+                setupFileManagement(wolk);
+                setupFirmwareUpdate(wolk);
+
+                if (internalParameterHandler) {
+                    setupScheduledFirmwareUpdate(wolk);
+                }
 
                 return wolk;
             } catch (MqttException mqttException) {
@@ -650,9 +729,62 @@ public class Wolk {
             }
         }
 
+        void setupFileManagement(Wolk wolk) {
+            if (!fileManagementEnabled) {
+                LOG.debug("File management not enabled");
+                return;
+            }
+
+            // Create the file system management
+            wolk.fileSystemManagement = new FileSystemManagement(
+                    fileManagementLocation.isEmpty() ? DEFAULT_FILE_LOCATION : fileManagementLocation);
+
+            // Create the file management protocol
+            if (this.urlFileDownloader == null) {
+                LOG.debug("Using default url downloader");
+                wolk.fileTransferUrlEnabled = defaultUrlFileDownloaderEnabled;
+                wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement);
+            } else {
+                wolk.fileManagementProtocol = new FileManagementProtocol(wolk.client, wolk.fileSystemManagement, urlFileDownloader);
+                wolk.fileTransferUrlEnabled = true;
+            }
+
+            wolk.fileManagementProtocol.setMaxChunkSize(maxMessageSize);
+        }
+
+        void setupFirmwareUpdate(Wolk wolk) {
+            if (!firmwareUpdateEnabled) {
+                LOG.debug("Firmware update not enabled");
+                return;
+            }
+
+            if (!fileManagementEnabled) {
+                throw new IllegalArgumentException("FileManagement is required to enable firmware update");
+            }
+
+            wolk.firmwareInstaller = firmwareInstaller;
+            wolk.firmwareUpdateProtocol = new FirmwareUpdateProtocol(wolk.client, wolk.fileSystemManagement, wolk.firmwareInstaller);
+            wolk.firmwareManagement = new FirmwareManagement(wolk.firmwareInstaller, wolk.firmwareUpdateProtocol, wolk.fileManagementProtocol);
+        }
+
+        void setupScheduledFirmwareUpdate(Wolk wolk) {
+            if (!firmwareUpdateEnabled || !wolk.fileTransferUrlEnabled) {
+                LOG.debug("Scheduled firmware update not enabled");
+                return;
+            }
+
+            if (!fileManagementEnabled) {
+                throw new IllegalArgumentException("FileManagement is required to enable scheduled firmware update");
+            }
+
+            wolk.firmwareUpdateTime = firmwareUpdateTime;
+            wolk.firmwareUpdateRepository = firmwareUpdateRepository;
+            wolk.scheduledFirmwareUpdate = new ScheduledFirmwareUpdate(wolk.firmwareManagement, Executors.newScheduledThreadPool(1), wolk.firmwareUpdateRepository, wolk.firmwareUpdateTime);
+        }
+
         private Protocol getProtocol(MqttClient client) {
             if (protocolType == ProtocolType.WOLKABOUT_PROTOCOL) {
-                return new WolkaboutProtocol(client, actuatorHandler, configurationHandler);
+                return new WolkaboutProtocol(client, feedHandler, timeHandler, parameterHandler, errorHandler);
             }
             throw new IllegalArgumentException("Unknown protocol type: " + protocolType);
 

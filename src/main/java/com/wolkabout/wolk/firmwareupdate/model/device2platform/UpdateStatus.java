@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
  */
 package com.wolkabout.wolk.firmwareupdate.model.device2platform;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateError;
 import com.wolkabout.wolk.firmwareupdate.model.FirmwareUpdateStatus;
@@ -30,7 +29,6 @@ public class UpdateStatus {
     private FirmwareUpdateStatus status;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonFormat(shape = JsonFormat.Shape.NUMBER_INT)
     private FirmwareUpdateError error;
 
     public UpdateStatus() {

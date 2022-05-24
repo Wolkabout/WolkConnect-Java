@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,26 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the device to the platform
  * used in arrays to be send to 'd2p/file_list_response/d/' or 'd2p/file_list_update/d/'.
  */
 public class FileInformation {
+    @JsonProperty("name")
     private String fileName;
 
-    public FileInformation(String fileName) {
+    @JsonProperty("size")
+    private long fileSize;
+
+    @JsonProperty("hash")
+    private String fileHash;
+
+    public FileInformation(String fileName, long fileSize, String fileHash) {
         this.fileName = fileName;
+        this.fileSize = fileSize;
+        this.fileHash = fileHash;
     }
 
     public String getFileName() {
@@ -35,9 +46,28 @@ public class FileInformation {
         this.fileName = fileName;
     }
 
+    public long getSize() {
+        return fileSize;
+    }
+
+    public void setSize(long size) {
+        this.fileSize = size;
+    }
+
+    public String getHash() {
+        return fileHash;
+    }
+
+    public void setHash(String hash) {
+        this.fileHash = hash;
+    }
+
     @Override
     public String toString() {
         return "FileInformation={" +
-                "fileName='" + fileName + '\'' + '}';
+                "name='" + fileName + '\'' +
+                ", size=" + fileSize +
+                ", hash='" + fileHash + '\'' +
+                '}';
     }
 }

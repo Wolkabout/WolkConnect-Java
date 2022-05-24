@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,35 +16,23 @@
  */
 package com.wolkabout.wolk.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-/**
- * Contains the status of the Actuator.
- */
-public class ActuatorStatus {
-
-    public enum Status {
-        READY, BUSY, ERROR
-    }
-
-    @JsonIgnore
-    private final String reference;
-    private final Status status;
+public class Attribute {
+    private final String name;
+    private final DataType dataType;
     private final String value;
 
-    public ActuatorStatus(Status status, String value, String reference) {
-        this.status = status;
+    public Attribute(String name, DataType dataType, String value) {
+        this.name = name;
+        this.dataType = dataType;
         this.value = value;
-        this.reference = reference;
     }
 
-
-    public String getReference() {
-        return reference;
+    public String getName() {
+        return name;
     }
 
-    public Status getStatus() {
-        return status;
+    public DataType getDataType() {
+        return dataType;
     }
 
     public String getValue() {
@@ -53,10 +41,10 @@ public class ActuatorStatus {
 
     @Override
     public String toString() {
-        return "ActuatorStatus {" +
-                "reference='" + reference + '\'' +
-                ", status='" + status + '\'' +
-                ", value='" + value + '\'' +
+        return "Attribute{" +
+                "name='" + name + '\'' +
+                ", dataType=" + dataType +
+                ", value=" + value +
                 '}';
     }
 }

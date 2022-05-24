@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,14 @@
  */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Configuration;
-import com.wolkabout.wolk.model.Reading;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.wolkabout.wolk.model.Attribute;
+import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.model.FeedTemplate;
+import com.wolkabout.wolk.model.Parameter;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.slf4j.Logger;
@@ -35,21 +37,19 @@ public abstract class Protocol {
     private static final Logger LOG = LoggerFactory.getLogger(Protocol.class);
 
     protected final MqttClient client;
-    protected final ActuatorHandler actuatorHandler;
-    protected final ConfigurationHandler configurationHandler;
+    protected final FeedHandler feedHandler;
+    protected final TimeHandler timeHandler;
+    protected final ParameterHandler parameterHandler;
+    protected final ErrorHandler errorHandler;
 
-    protected long platformTimestamp;
+    protected static final int QOS = 2;
 
-    public abstract long getPlatformTimestamp();
-
-    public abstract void setPlatformTimestamp(long platformTimestamp);
-
-    protected static final int QOS = 0;
-
-    public Protocol(MqttClient client, ActuatorHandler actuatorHandler, ConfigurationHandler configurationHandler) {
+    public Protocol(MqttClient client, FeedHandler feedHandler, TimeHandler timeHandler, ParameterHandler parameterHandler, ErrorHandler errorHandler) {
         this.client = client;
-        this.actuatorHandler = actuatorHandler;
-        this.configurationHandler = configurationHandler;
+        this.feedHandler = feedHandler;
+        this.timeHandler = timeHandler;
+        this.parameterHandler = parameterHandler;
+        this.errorHandler = errorHandler;
     }
 
     public abstract void subscribe() throws Exception;
@@ -63,29 +63,23 @@ public abstract class Protocol {
         }
     }
 
-    public void publishCurrentConfig() {
-        final Collection<Configuration> configurations = configurationHandler.getConfigurations();
-        if (configurations.size() != 0) {
-            publishConfiguration(configurations);
-        }
-    }
+    public abstract void publishFeed(Feed feed);
 
-    public void publishActuatorStatus(String ref) {
-        final ActuatorStatus actuatorStatus = actuatorHandler.getActuatorStatus(ref);
-        publishActuatorStatus(actuatorStatus);
-    }
+    public abstract void publishFeeds(Collection<Feed> feeds);
 
-    public abstract void publishReading(Reading reading);
+    public abstract void registerFeeds(Collection<FeedTemplate> feeds);
 
-    public abstract void publishReadings(Collection<Reading> readings);
+    public abstract void removeFeeds(Collection<String> feedReferences);
 
-    public abstract void publishAlarm(Alarm alarm);
+    public abstract void pullFeeds();
 
-    public abstract void publishAlarms(Collection<Alarm> alarms);
+    public abstract void updateParameters(Collection<Parameter> parameters);
 
-    public abstract void publishConfiguration(Collection<Configuration> configurations);
+    public abstract void pullParameters();
 
-    public abstract void publishActuatorStatus(ActuatorStatus actuatorStatus);
+    public abstract void syncronizeParameters(Collection<String> parameterNames);
 
-    public abstract void publishKeepAlive();
+    public abstract void registerAttributes(Collection<Attribute> attributes);
+
+    public abstract void pullTime();
 }

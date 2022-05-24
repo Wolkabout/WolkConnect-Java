@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,27 +30,51 @@ public class UrlStatus {
 
     private FileTransferStatus status;
     private String fileUrl;
+    private String fileName;
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private FileTransferError error;
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private String fileName;
 
     public UrlStatus(String fileUrl, FileTransferStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
         this.status = status;
         this.fileUrl = fileUrl;
+        this.fileName = "";
+    }
+
+    public UrlStatus(String fileUrl, String fileName, FileTransferStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
+        this.status = status;
+        this.fileUrl = fileUrl;
+        this.fileName = fileName;
     }
 
     public UrlStatus(String fileUrl, FileTransferStatus status, FileTransferError error) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
         this.status = status;
         this.error = error;
         this.fileUrl = fileUrl;
+        this.fileName = "";
     }
 
-    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName) {
+    public UrlStatus(String fileUrl, FileTransferStatus status, String fileName, FileTransferError error) {
+        if (status == null) {
+            throw new IllegalArgumentException("FileTransferStatus can not be null.");
+        }
+
         this.status = status;
-        this.fileName = fileName;
+        this.error = error;
         this.fileUrl = fileUrl;
+        this.fileName = fileName;
     }
 
     public FileTransferStatus getStatus() {
@@ -90,8 +114,8 @@ public class UrlStatus {
         return "StatusResponse{" +
                 "status=" + status +
                 ", error=" + error +
-                ", fileName='" + fileName +
                 "', fileUrl='" + fileUrl +
+                "', fileName='" + fileName +
                 '}';
     }
 
@@ -101,7 +125,7 @@ public class UrlStatus {
         if (!(o instanceof UrlStatus)) return false;
         UrlStatus that = (UrlStatus) o;
         return error == that.error &&
-                status == that.status && fileName.equals(that.fileName) && fileUrl.equals(that.fileUrl);
+                status == that.status && fileUrl.equals(that.fileUrl);
     }
 
     @Override

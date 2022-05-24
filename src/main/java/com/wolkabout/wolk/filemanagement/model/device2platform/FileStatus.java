@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
 
@@ -27,11 +27,14 @@ import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
  */
 public class FileStatus {
 
+    @JsonProperty("name")
     private String fileName;
+
+    @JsonProperty("status")
     private FileTransferStatus status;
 
+    @JsonProperty("error")
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonFormat(shape = JsonFormat.Shape.NUMBER_INT)
     private FileTransferError error;
 
     public FileStatus(String fileName, FileTransferStatus status) {
@@ -80,7 +83,7 @@ public class FileStatus {
     @Override
     public String toString() {
         return "FileStatus={" +
-                "fileName='" + fileName + '\'' +
+                "name='" + fileName + '\'' +
                 ", status='" + status.name() + '\'' +
                 (error != null ? (", error='" + error.name() + '\'') : "") + '}';
     }

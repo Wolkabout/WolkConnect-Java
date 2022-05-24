@@ -1,97 +1,130 @@
+/*
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.wolkabout.wolk.protocol;
 
-import com.wolkabout.wolk.model.ActuatorStatus;
-import com.wolkabout.wolk.model.Alarm;
-import com.wolkabout.wolk.model.Configuration;
-import com.wolkabout.wolk.model.Reading;
-import com.wolkabout.wolk.protocol.WolkaboutProtocol;
-import com.wolkabout.wolk.protocol.handler.ActuatorHandler;
-import com.wolkabout.wolk.protocol.handler.ConfigurationHandler;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.wolkabout.wolk.model.Feed;
+import com.wolkabout.wolk.protocol.handler.ErrorHandler;
+import com.wolkabout.wolk.protocol.handler.FeedHandler;
+import com.wolkabout.wolk.protocol.handler.ParameterHandler;
+import com.wolkabout.wolk.protocol.handler.TimeHandler;
 import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.mockito.Mockito.*;
+
+class MessageMatcher implements ArgumentMatcher<byte[]> {
+
+    Pattern pattern;
+    String arg;
+
+    public MessageMatcher(String regex) {
+        pattern = Pattern.compile(regex);
+    }
+
+    @Override
+    public boolean matches(byte[] right) {
+        arg = new String(right);
+
+        Matcher matcher = pattern.matcher(arg);
+        return matcher.matches();
+    }
+
+    @Override
+    public String toString() {
+        return "MessageMatcher{" +
+                "regex='" + pattern.pattern() + '\'' +
+                ", arg='" + arg + '\'' +
+                '}';
+    }
+}
 
 public class WolkaboutProtocolTest {
     @Mock
     MqttClient clientMock;
 
     @Mock
-    ActuatorHandler actuatorHandlerMock;
+    FeedHandler feedHandlerMock;
 
     @Mock
-    ConfigurationHandler configurationHandlerMock;
+    TimeHandler timeHandlerMock;
+
+    @Mock
+    ParameterHandler parameterHandlerMock;
+
+    @Mock
+    ErrorHandler errorHandlerMock;
 
     @Rule
     public MockitoRule mockitoRule = MockitoJUnit.rule();
 
     @Test
     public void subscribe() throws Exception {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
+        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
         wolkaboutProtocol.subscribe();
-        verify(clientMock, times(3)).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
+        verify(clientMock, times(4)).subscribe(anyString(), anyInt(), any(IMqttMessageListener.class));
     }
 
     @Test
     public void publishReading() throws MqttException {
-        Reading reading = new Reading("reference", "value");
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        wolkaboutProtocol.publishReading(reading);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
+        when(clientMock.getClientId())
+                .thenReturn("some_key");
+
+        Feed feed = new Feed("reference", "value");
+        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
+        wolkaboutProtocol.publishFeed(feed);
+
+        String pattern = "\\{\"reference\":\"value\",\"utc\":\\d+\\}";
+        verify(clientMock, times(1)).publish(anyString(), argThat(new MessageMatcher(pattern)), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void publishMultivalueReading() throws MqttException, JsonProcessingException {
+        when(clientMock.getClientId())
+                .thenReturn("some_key");
+
+        Feed feed = new Feed("reference", Arrays.asList(1, 2, 3));
+        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
+        wolkaboutProtocol.publishFeed(feed);
+
+        String pattern = "\\{\"reference\":\"1,2,3\",\"utc\":\\d+\\}";
+        verify(clientMock, times(1)).publish(anyString(), argThat(new MessageMatcher(pattern)), anyInt(), anyBoolean());
     }
 
     @Test
     public void publishReadings() throws MqttException {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        Reading reading = new Reading("reference", "value");
-        List<Reading> readings = new ArrayList<Reading>();
-        readings.add(reading);
-        wolkaboutProtocol.publishReadings(readings);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishAlarm() throws MqttException {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        Alarm alarm = new Alarm("reference", false);
-        wolkaboutProtocol.publishAlarm(alarm);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishAlarms() throws MqttException {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        Alarm alarm = new Alarm("reference", false);
-        List<Alarm> alarms = new ArrayList<Alarm>();
-        alarms.add(alarm);
-        wolkaboutProtocol.publishAlarms(alarms);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishConfiguration() throws MqttException {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        Configuration configuration = new Configuration("reference", "value");
-        List<Configuration> configurations = new ArrayList<Configuration>();
-        configurations.add(configuration);
-        wolkaboutProtocol.publishConfiguration(configurations);
-        verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishActuatorStatus() throws MqttException {
-        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, actuatorHandlerMock, configurationHandlerMock);
-        ActuatorStatus actuatorStatus = new ActuatorStatus(ActuatorStatus.Status.READY, "value", "reference");
-        wolkaboutProtocol.publishActuatorStatus(actuatorStatus);
+        WolkaboutProtocol wolkaboutProtocol = new WolkaboutProtocol(clientMock, feedHandlerMock, timeHandlerMock, parameterHandlerMock, errorHandlerMock);
+        Feed feed = new Feed("reference", "value");
+        List<Feed> feeds = new ArrayList<Feed>();
+        feeds.add(feed);
+        wolkaboutProtocol.publishFeeds(feeds);
         verify(clientMock, atMostOnce()).publish(anyString(), any(byte[].class), anyInt(), anyBoolean());
     }
 }

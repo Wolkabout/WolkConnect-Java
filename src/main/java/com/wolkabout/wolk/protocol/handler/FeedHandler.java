@@ -14,13 +14,25 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.protocol;
+package com.wolkabout.wolk.protocol.handler;
 
-public enum ProtocolType {
+import com.wolkabout.wolk.model.Feed;
+
+import java.util.Collection;
+
+public interface FeedHandler {
 
     /**
-     * New standard. Use this.
+     * Called when feeds are received.
+     *
+     * @param feeds Collection of key-value pair of references and values.
      */
-    WOLKABOUT_PROTOCOL
+    void onFeedsReceived(Collection<Feed> feeds);
 
+    /**
+     * Called when feed is requested by server.
+     *
+     * @return Feed reference.
+     */
+    Feed getFeedValue(String reference);
 }

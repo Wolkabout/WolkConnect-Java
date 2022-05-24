@@ -14,13 +14,14 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.protocol;
+package com.wolkabout.wolk.model;
 
-public enum ProtocolType {
-
-    /**
-     * New standard. Use this.
-     */
-    WOLKABOUT_PROTOCOL
-
+public enum DataType {
+    STRING,
+    NUMERIC,
+    BOOLEAN,
+    HEXADECIMAL,
+    LOCATION,
+    ENUM,
+    VECTOR
 }

@@ -14,32 +14,41 @@
  * limitations under the License.
  *
  */
-package examples.simple;
+package examples.register_feed_and_attributes;
 
 import com.wolkabout.wolk.Wolk;
+import com.wolkabout.wolk.model.DataType;
+import com.wolkabout.wolk.model.FeedType;
 import com.wolkabout.wolk.model.OutboundDataMode;
+import com.wolkabout.wolk.model.Unit;
 
 import java.util.concurrent.TimeUnit;
 
 public class Example {
     public static void main(String[] args) {
 
+        final String FEED_REF = new String("NF");
+
         final Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host("ssl://insert_host:insert_port")
-                .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
-                .deviceKey("device_key")
-                .password("some_password")
+                .host(Wolk.WOLK_DEMO_URL)
+                .sslCertification(Wolk.WOLK_DEMO_CA)
+                .deviceKey("device-key")
+                .password("device-password")
                 .build()
                 .build();
 
         wolk.connect();
 
+        wolk.registerFeed("New Feed", FeedType.IN, Unit.NUMERIC, FEED_REF);
+
+        wolk.registerAttribute("Device activation timestamp", DataType.NUMERIC, String.valueOf(System.currentTimeMillis()));
+
         while (true) {
             try {
-                double randomTemp = Math.random() * 100 - 20; // random number between -20 and 80
+                double randomValue = Math.random() * 100 - 20; // random number between -20 and 80
 
-                wolk.addFeed("T", randomTemp);
+                wolk.addFeed(FEED_REF, randomValue);
 
                 wolk.publish();
 

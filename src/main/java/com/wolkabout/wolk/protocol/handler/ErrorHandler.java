@@ -14,13 +14,14 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.protocol;
+package com.wolkabout.wolk.protocol.handler;
 
-public enum ProtocolType {
+public interface ErrorHandler {
 
     /**
-     * New standard. Use this.
+     * Called when error is received
+     *
+     * @param error
      */
-    WOLKABOUT_PROTOCOL
-
+    void onErrorReceived(String error);
 }

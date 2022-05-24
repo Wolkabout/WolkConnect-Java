@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,15 @@ package com.wolkabout.wolk.firmwareupdate.model;
  */
 public enum FirmwareUpdateStatus {
 
-    // Installation is still in progress
-    INSTALLATION,
+    // Command has been issued, but the device hasn’t accepted the command yet.
+    // Not included since it should not be sent by device
+    // AWAITING_DEVICE,
 
-    // File ready to be installed
-    COMPLETED,
+    // Installation is still in progress
+    INSTALLING,
+
+    //  The installation was completed successfully
+    SUCCESS,
 
     // Error occurred during installation
     ERROR,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,44 +16,40 @@
  */
 package com.wolkabout.wolk.model;
 
-import com.wolkabout.wolk.util.JsonMultivalueSerializer;
+public class Parameter {
 
-import java.util.List;
-
-public class Configuration {
-
-
-    private final String reference;
-    private final List<String> values;
-    private final String value;
-
-    public Configuration(String reference, String value) {
-        this.reference = reference;
-        this.value = value;
-        this.values = JsonMultivalueSerializer.valuesFromString(value);
+    public enum Name {
+        CONNECTIVITY_TYPE,
+        OUTBOUND_DATA_MODE,
+        OUTBOUND_DATA_RETENTION_TIME,
+        MAXIMUM_MESSAGE_SIZE,
+        FILE_TRANSFER_PLATFORM_ENABLED,
+        FILE_TRANSFER_URL_ENABLED,
+        FIRMWARE_UPDATE_ENABLED,
+        FIRMWARE_UPDATE_CHECK_TIME,
+        FIRMWARE_UPDATE_REPOSITORY,
+        FIRMWARE_VERSION
     }
 
-    public Configuration(String reference, List<String> values) {
+    private final String reference;
+    private final Object value;
+
+    public Parameter(String reference, Object value) {
         this.reference = reference;
-        this.value = JsonMultivalueSerializer.valuesToString(values);
-        this.values = values;
+        this.value = value;
     }
 
     public String getReference() {
         return reference;
     }
 
-    public List<String> getValues() {
-        return values;
-    }
-
-    public String getValue() {
+    public Object getValue() {
         return value;
     }
 
     @Override
     public String toString() {
-        return "Configuration{" +
+        return "Parameter{" +
                 "reference='" + reference + '\'' +
                 ", value='" + value + '\'' +
                 '}';

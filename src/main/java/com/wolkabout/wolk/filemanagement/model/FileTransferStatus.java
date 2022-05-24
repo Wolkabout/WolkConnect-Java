@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,10 @@ package com.wolkabout.wolk.filemanagement.model;
  * Possible statuses for file management.
  */
 public enum FileTransferStatus {
+
+    // The platform initiated the upload but the device hasn’t responded yet.
+    // Not included since it should not be sent by device
+    // AWAITING_DEVICE,
 
     // Transfer still in progress
     FILE_TRANSFER,

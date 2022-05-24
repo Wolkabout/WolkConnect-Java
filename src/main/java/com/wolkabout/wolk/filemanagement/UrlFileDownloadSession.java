@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.AbstractMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -52,7 +50,7 @@ public class UrlFileDownloadSession {
     private final UrlFileDownloader urlFileDownloader;
     // The end result data
     private byte[] fileData;
-    private String fileName;
+    private String fileName = "";
     // The end status variables
     private FileTransferStatus status;
     private FileTransferError error;
@@ -169,7 +167,7 @@ public class UrlFileDownloadSession {
                 error = null;
 
                 // Call the callback
-                executor.execute(new UrlFileDownloadSession.FinishRunnable(status, null));
+                executor.execute(new UrlFileDownloadSession.FinishRunnable(status, fileName, null));
 
                 return true;
             default:
@@ -186,23 +184,22 @@ public class UrlFileDownloadSession {
      */
     public synchronized boolean downloadFile(String url) {
         // Obtain the status and do the operation
-        Map.Entry<FileTransferStatus, FileTransferError> pair = urlFileDownloader.downloadFile(url);
+        UrlFileDownloadResult result = urlFileDownloader.downloadFile(url);
         if (status == FileTransferStatus.ABORTED) {
             fileData = new byte[0];
             fileName = "";
             return false;
         }
         // Store the result
-        status = pair.getKey();
-        error = pair.getValue();
+        status = result.getStatus();
+        error = result.getError();
+        fileName = result.getFileName();
         // Call the returns with appropriate values
-        executor.execute(new FinishRunnable(status, error));
+        executor.execute(new FinishRunnable(status, fileName, error));
         return status == FileTransferStatus.FILE_READY;
     }
 
-    public Map.Entry<FileTransferStatus, FileTransferError> defaultDownloadFile(String fileUrl) {
-        FileTransferStatus state = null;
-        FileTransferError error = null;
+    public UrlFileDownloadResult defaultDownloadFile(String fileUrl) {
         try {
             final URL remoteFile = new URL(fileUrl);
             final InputStream inputStream = remoteFile.openStream();
@@ -216,20 +213,15 @@ public class UrlFileDownloadSession {
             buffer.flush();
 
             final String[] urlParts = fileUrl.split("/");
-            fileName = urlParts[urlParts.length - 1];
+            final String fileName = urlParts[urlParts.length - 1];
             fileData = buffer.toByteArray();
+
+            return new UrlFileDownloadResult(FileTransferStatus.FILE_READY, fileName);
         } catch (MalformedURLException exception) {
-            error = FileTransferError.MALFORMED_URL;
+            return new UrlFileDownloadResult(FileTransferError.MALFORMED_URL);
         } catch (Exception exception) {
-            error = FileTransferError.UNSPECIFIED_ERROR;
-        } finally {
-            if (error == null) {
-                state = FileTransferStatus.FILE_READY;
-            } else {
-                state = FileTransferStatus.ERROR;
-            }
+            return new UrlFileDownloadResult(FileTransferError.UNKNOWN);
         }
-        return new AbstractMap.SimpleEntry<>(state, error);
     }
 
     /**
@@ -237,7 +229,7 @@ public class UrlFileDownloadSession {
      * announcing the external of status.
      */
     public interface Callback {
-        void onFinish(FileTransferStatus status, FileTransferError error);
+        void onFinish(FileTransferStatus status, String fileName, FileTransferError error);
     }
 
     /**
@@ -267,16 +259,18 @@ public class UrlFileDownloadSession {
     private class FinishRunnable implements Runnable {
 
         private final FileTransferStatus status;
+        private final String fileName;
         private final FileTransferError error;
 
-        public FinishRunnable(FileTransferStatus status, FileTransferError error) {
+        public FinishRunnable(FileTransferStatus status, String fileName, FileTransferError error) {
             this.status = status;
+            this.fileName = fileName;
             this.error = error;
         }
 
         @Override
         public void run() {
-            callback.onFinish(status, error);
+            callback.onFinish(status, fileName, error);
         }
     }
 }

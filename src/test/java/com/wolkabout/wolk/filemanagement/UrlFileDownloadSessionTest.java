@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)
 public class UrlFileDownloadSessionTest {
@@ -90,7 +91,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.MALFORMED_URL);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.MALFORMED_URL);
     }
 
     @Test
@@ -108,11 +109,11 @@ public class UrlFileDownloadSessionTest {
         // Check that there is no data
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
-        assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
+        assertEquals(session.getError(), FileTransferError.UNKNOWN);
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.UNKNOWN);
     }
 
     @Test
@@ -134,7 +135,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.FILE_READY, session.getStatus());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "get.docker.com", null);
     }
 
     @Test
@@ -155,7 +156,7 @@ public class UrlFileDownloadSessionTest {
         assertEquals(FileTransferStatus.ABORTED, session.getStatus());
 
         // Verify the mock call
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, "", null);
     }
 
     @Test
@@ -180,7 +181,7 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify that the mock was called with the proper result
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.FILE_READY, "get.docker.com", null);
     }
 
     @Test
@@ -204,7 +205,7 @@ public class UrlFileDownloadSessionTest {
         assertFalse(session.abort());
 
         // Verify the mock call
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, null);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ABORTED, "", null);
     }
 
     @Test
@@ -222,13 +223,13 @@ public class UrlFileDownloadSessionTest {
         // Check that there is no data
         assertEquals(session.getFileData().length, 0);
         assertEquals(session.getStatus(), FileTransferStatus.ERROR);
-        assertEquals(session.getError(), FileTransferError.UNSPECIFIED_ERROR);
+        assertEquals(session.getError(), FileTransferError.UNKNOWN);
         assertEquals(FileTransferStatus.ERROR, session.getStatus());
 
         // Attempt to abort again
         assertFalse(session.abort());
 
         // Check that the callback was called
-        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, FileTransferError.UNSPECIFIED_ERROR);
+        verify(callbackMock, times(1)).onFinish(FileTransferStatus.ERROR, "", FileTransferError.UNKNOWN);
     }
 }

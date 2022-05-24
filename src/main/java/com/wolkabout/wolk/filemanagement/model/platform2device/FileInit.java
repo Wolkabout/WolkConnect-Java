@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,46 +16,53 @@
  */
 package com.wolkabout.wolk.filemanagement.model.platform2device;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the platform to the device
- * to the `p2d/file_upload_initiate/d/` endpoint to receive a new uploaded file.
+ * to the `file_upload_initiate` endpoint to receive a new uploaded file.
  */
 public class FileInit {
 
+    @JsonProperty("name")
     private String fileName;
+
+    @JsonProperty("size")
     private long fileSize;
+
+    @JsonProperty("hash")
     private String fileHash;
 
     public String getFileName() {
         return fileName;
     }
 
-    public void setFileName(String fileName) {
-        this.fileName = fileName;
-    }
-
     public long getFileSize() {
         return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
     }
 
     public String getFileHash() {
         return fileHash;
     }
 
-    public void setFileHash(String fileHash) {
-        this.fileHash = fileHash;
+    public void setFileName(String name) {
+        this.fileName = name;
+    }
+
+    public void setFileSize(long size) {
+        this.fileSize = size;
+    }
+
+    public void setFileHash(String hash) {
+        this.fileHash = hash;
     }
 
     @Override
     public String toString() {
         return "FileInit{" +
-                "fileName='" + fileName + '\'' +
-                ", fileSize=" + fileSize +
-                ", fileHash='" + fileHash + '\'' +
+                "name='" + fileName + '\'' +
+                ", size=" + fileSize +
+                ", hash='" + fileHash + '\'' +
                 '}';
     }
 }

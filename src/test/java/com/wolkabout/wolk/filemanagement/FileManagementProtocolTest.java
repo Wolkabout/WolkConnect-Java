@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,10 @@ package com.wolkabout.wolk.filemanagement;
 
 import com.wolkabout.wolk.filemanagement.model.FileTransferError;
 import com.wolkabout.wolk.filemanagement.model.FileTransferStatus;
-import com.wolkabout.wolk.filemanagement.model.platform2device.*;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileAbort;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileDelete;
+import com.wolkabout.wolk.filemanagement.model.platform2device.FileInit;
+import com.wolkabout.wolk.filemanagement.model.platform2device.UrlInfo;
 import com.wolkabout.wolk.util.JsonUtil;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -34,12 +37,14 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -107,7 +112,7 @@ public class FileManagementProtocolTest {
         // In here, we must check that the protocol will subscribe to each and every topic
         String clientId = "test-client-id";
         doReturn(clientId).when(clientMock).getClientId();
-        final int requiredTopics = 9;
+        final int requiredTopics = 8;
 
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
@@ -131,7 +136,7 @@ public class FileManagementProtocolTest {
         protocol.publishFileList();
 
         // Verify all the mock calls
-        verify(clientMock, times(1)).getClientId();
+        verify(clientMock, times(0)).getClientId();
     }
 
     @Test
@@ -210,7 +215,7 @@ public class FileManagementProtocolTest {
         sessionField.setAccessible(true);
         sessionField.set(protocol, new FileDownloadSession(testInitMessage, new FileDownloadSession.Callback() {
             @Override
-            public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+            public void sendRequest(String fileName, int chunkIndex) {
 
             }
 
@@ -218,7 +223,7 @@ public class FileManagementProtocolTest {
             public void onFinish(FileTransferStatus status, FileTransferError error) {
 
             }
-        }));
+        }, protocol.maxChunkSize));
 
         // Create the mqtt message, and call the initialization
         MqttMessage testMessage = new MqttMessage(JsonUtil.serialize(testInitMessage));
@@ -266,7 +271,7 @@ public class FileManagementProtocolTest {
         doReturn("test-bogus-file").when(fileMock).getName();
         doReturn(Paths.get("./test-bogus-file")).when(fileMock).toPath();
 
-        final byte[] hash = FileDownloadSession.calculateHashForBytes(new byte[]{100, 100, 100, 100, 100});
+        final byte[] hash = FileDownloadSession.calculateMD5HashForBytes(new byte[]{100, 100, 100, 100, 100});
 
         // Setup the mock calls
         when(managementMock.getFile(anyString()))
@@ -390,12 +395,9 @@ public class FileManagementProtocolTest {
 
         // Do the call
         protocol.handleFileTransferInitiation(
-                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(), testMessage);
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_INITIATE, testMessage);
 
-        // Create the abort message
-        FileAbort testAbortMessage = new FileAbort();
-        testAbortMessage.setFileName("non-matching-name");
-        testMessage = new MqttMessage(JsonUtil.serialize(testAbortMessage));
+        testMessage = new MqttMessage(JsonUtil.serialize("non-matching-name"));
 
         // Do the abort
         protocol.handleFileTransferAbort(
@@ -424,16 +426,13 @@ public class FileManagementProtocolTest {
 
         // Do the call
         protocol.handleFileTransferInitiation(
-                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(), testMessage);
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_INITIATE, testMessage);
 
-        // Create the abort message
-        FileAbort testAbortMessage = new FileAbort();
-        testAbortMessage.setFileName("test-file-message");
-        testMessage = new MqttMessage(JsonUtil.serialize(testAbortMessage));
+        testMessage = new MqttMessage(JsonUtil.serialize("test-file-message"));
 
         // Do the abort
         protocol.handleFileTransferAbort(
-                FileManagementProtocol.FILE_UPLOAD_ABORT + clientMock.getClientId(), testMessage);
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_ABORT, testMessage);
 
         // Sleep just a tad bit
         Thread.sleep(1000);
@@ -470,7 +469,7 @@ public class FileManagementProtocolTest {
         protocol.handleFileTransferFinish(new FileDownloadSession(testInitMessage,
                 new FileDownloadSession.Callback() {
                     @Override
-                    public void sendRequest(String fileName, int chunkIndex, int chunkSize) {
+                    public void sendRequest(String fileName, int chunkIndex) {
 
                     }
 
@@ -478,7 +477,7 @@ public class FileManagementProtocolTest {
                     public void onFinish(FileTransferStatus status, FileTransferError error) {
 
                     }
-                }), null, null);
+                }, protocol.maxChunkSize), null, null);
     }
 
     @Test
@@ -487,7 +486,7 @@ public class FileManagementProtocolTest {
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
         // Call the handler
-        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT,
                 new MqttMessage(new byte[1001]));
 
         // Verify no publishes have been called
@@ -508,10 +507,10 @@ public class FileManagementProtocolTest {
 
         // Do the call
         protocol.handleFileTransferInitiation(
-                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(), testMessage);
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_INITIATE, testMessage);
 
         // Call the handler
-        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+        protocol.handleFileTransferBinaryResponse(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT,
                 new MqttMessage(new byte[1088]));
 
         // Sleep a tad bit
@@ -529,24 +528,26 @@ public class FileManagementProtocolTest {
 
         // Create the payload
         byte[] bytes = new byte[1088];
-        byte[] hash = DigestUtils.sha256(new byte[1024]);
-        for (int i = 0; i < hash.length; i++) {
-            bytes[bytes.length - hash.length + i] = hash[i];
+        byte[] actualBytes = new byte[1024];
+        byte[] hash = FileDownloadSession.calculateMD5HashForBytes(actualBytes);
+        byte[] byteHash = DigestUtils.sha256(actualBytes);
+        for (int i = 0; i < byteHash.length; i++) {
+            bytes[bytes.length - byteHash.length + i] = byteHash[i];
         }
 
         // Prepare the message
         FileInit testInitMessage = new FileInit();
         testInitMessage.setFileName("Test File");
         testInitMessage.setFileSize(1024);
-        testInitMessage.setFileHash(Base64.encodeBytes(hash));
+        testInitMessage.setFileHash(DatatypeConverter.printHexBinary(hash));
 
         // Do the calls
         protocol.handleFileTransferInitiation(
-                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(),
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_INITIATE,
                 new MqttMessage(JsonUtil.serialize(testInitMessage)));
 
         protocol.handleFileTransferBinaryResponse(
-                FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_BINARY_RESPONSE,
                 new MqttMessage(bytes));
 
         // Sleep a tad bit
@@ -568,24 +569,26 @@ public class FileManagementProtocolTest {
 
         // Create the payload
         byte[] bytes = new byte[1088];
-        byte[] hash = DigestUtils.sha256(new byte[1024]);
-        for (int i = 0; i < hash.length; i++) {
-            bytes[bytes.length - hash.length + i] = hash[i];
+        byte[] actualBytes = new byte[1024];
+        byte[] hash = FileDownloadSession.calculateMD5HashForBytes(actualBytes);
+        byte[] byteHash = DigestUtils.sha256(actualBytes);
+        for (int i = 0; i < byteHash.length; i++) {
+            bytes[bytes.length - byteHash.length + i] = byteHash[i];
         }
 
         // Prepare the message
         FileInit testInitMessage = new FileInit();
         testInitMessage.setFileName("Test File");
         testInitMessage.setFileSize(1024);
-        testInitMessage.setFileHash(Base64.encodeBytes(hash));
+        testInitMessage.setFileHash(DatatypeConverter.printHexBinary(hash));
 
         // Do the calls
         protocol.handleFileTransferInitiation(
-                FileManagementProtocol.FILE_UPLOAD_INITIATE + clientMock.getClientId(),
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_UPLOAD_INITIATE,
                 new MqttMessage(JsonUtil.serialize(testInitMessage)));
 
         protocol.handleFileTransferBinaryResponse(
-                FileManagementProtocol.FILE_BINARY_RESPONSE + clientMock.getClientId(),
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT,
                 new MqttMessage(bytes));
 
         // Sleep a tad bit
@@ -612,7 +615,7 @@ public class FileManagementProtocolTest {
 
         // Call the method
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
                 new MqttMessage(JsonUtil.serialize(urlInfo)));
 
         // Sleep for a tad bit
@@ -633,14 +636,10 @@ public class FileManagementProtocolTest {
         field.setAccessible(true);
         field.set(protocol, null);
 
-        // Prepare the test message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://test.url");
-
         // Call the method
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Sleep for a tad bit
         Thread.sleep(1000);
@@ -659,14 +658,10 @@ public class FileManagementProtocolTest {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Prepare the test message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://test.url");
-
         // Call the method
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Sleep for a tad bit
         Thread.sleep(1000);
@@ -681,14 +676,10 @@ public class FileManagementProtocolTest {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Prepare the test message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://test.url");
-
         // Call the method
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Sleep a tad bit
         Thread.sleep(1000);
@@ -708,14 +699,10 @@ public class FileManagementProtocolTest {
         field.setAccessible(true);
         field.set(protocol, null);
 
-        // Prepare the test message
-        UrlAbort urlAbort = new UrlAbort();
-        urlAbort.setFileUrl("https://test.url");
-
         // Call the method
         protocol.handleUrlDownloadAbort(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlAbort)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Sleep for a tad bit
         Thread.sleep(1000);
@@ -730,23 +717,15 @@ public class FileManagementProtocolTest {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Prepare the init message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://proper.test.url");
-
         // Call the init
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
-
-        // Prepare the test message
-        UrlAbort urlAbort = new UrlAbort();
-        urlAbort.setFileUrl("https://notproper.test.url");
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://proper.test.url")));
 
         // Call the method
         protocol.handleUrlDownloadAbort(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlAbort)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://notproper.test.url")));
 
         // Sleep for a tad bit
         Thread.sleep(1000);
@@ -761,22 +740,14 @@ public class FileManagementProtocolTest {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Prepare the init message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://test.url");
-
         // Call the init
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
-
-        // Prepare the abort message
-        UrlAbort urlAbort = new UrlAbort();
-        urlAbort.setFileUrl("https://test.url");
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Call the method
-        protocol.handleUrlDownloadAbort(FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlAbort)));
+        protocol.handleUrlDownloadAbort(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_ABORT,
+                new MqttMessage(JsonUtil.serialize("https://test.url")));
 
         // Sleep for a tad bit
         Thread.sleep(1000);
@@ -798,7 +769,7 @@ public class FileManagementProtocolTest {
 
         // Create the test message
         FileDelete delete = new FileDelete();
-        delete.setFileName("test-file");
+        delete.setFileNames(Collections.singletonList("test-file"));
 
         // Call the method
         protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
@@ -820,7 +791,7 @@ public class FileManagementProtocolTest {
 
         // Call the finish
         exceptionRule.expect(IllegalStateException.class);
-        protocol.handleUrlSessionFinish(null, FileTransferStatus.FILE_READY, null);
+        protocol.handleUrlSessionFinish(null, FileTransferStatus.FILE_READY, "", null);
     }
 
     @Test
@@ -830,7 +801,7 @@ public class FileManagementProtocolTest {
 
         // Call the finish
         exceptionRule.expect(IllegalStateException.class);
-        protocol.handleUrlSessionFinish(urlFileDownloadSessionMock, null, null);
+        protocol.handleUrlSessionFinish(urlFileDownloadSessionMock, null, "", null);
     }
 
     @Test
@@ -838,14 +809,10 @@ public class FileManagementProtocolTest {
         // Setup the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Setup the test initialize message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://get.docker.com");
-
         // Pass the initialize message
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://get.docker.com")));
 
         // Wait for the results to show up
         Thread.sleep(1000);
@@ -864,14 +831,10 @@ public class FileManagementProtocolTest {
         // Setup the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Setup the test initialize message
-        UrlInfo urlInfo = new UrlInfo();
-        urlInfo.setFileUrl("https://get.docker.com");
-
         // Pass the initialize message
         protocol.handleUrlDownloadInitiation(
-                FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(urlInfo)));
+                FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_URL_DOWNLOAD_INITIATE,
+                new MqttMessage(JsonUtil.serialize("https://get.docker.com")));
 
         // Wait for the results to show up
         Thread.sleep(1000);
@@ -886,13 +849,9 @@ public class FileManagementProtocolTest {
         // Create the protocol
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
-        // Create the test message
-        FileDelete delete = new FileDelete();
-        delete.setFileName("test-file");
-
         // Call the method
-        protocol.handleFileDeletion(FileManagementProtocol.FILE_DELETE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(delete)));
+        protocol.handleFileDeletion(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_DELETE,
+                new MqttMessage(JsonUtil.serialize(Collections.singletonList("test-file"))));
 
         // Sleep a tad bit
         Thread.sleep(1000);
@@ -950,7 +909,7 @@ public class FileManagementProtocolTest {
         protocol = new FileManagementProtocol(clientMock, managementMock);
 
         // Call the method
-        protocol.handleFileListRequest(FileManagementProtocol.FILE_LIST_REQUEST + clientMock.getClientId(),
+        protocol.handleFileListRequest(FileManagementProtocol.IN_DIRECTION + clientMock.getClientId() + FileManagementProtocol.FILE_LIST,
                 new MqttMessage());
 
         // Verify the mocks have been called

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,11 +102,37 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Setup the test init message
-        UpdateInit initMessage = new UpdateInit(new String[]{clientMock.getClientId()}, "whatever-file");
+        UpdateInit initMessage = new UpdateInit("whatever-file");
 
         // Do the call
         protocol.handleFirmwareUpdateInitiation(
-                FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE + clientMock.getClientId(),
+                FirmwareUpdateProtocol.IN_DIRECTION + clientMock.getClientId() + FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE,
+                new MqttMessage(JsonUtil.serialize(initMessage)));
+
+        // Sleep a tad bit
+        Thread.sleep(1000);
+
+        // Check all the mock calls
+        verify(managementMock, times(1)).fileExists(anyString());
+        verify(clientMock, times(2)).getClientId();
+        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void initializationHappyFlow() throws MqttException, InterruptedException {
+        // Setup the return of the mock
+        when(managementMock.fileExists("whatever-file")).thenReturn(true);
+        when(installerMock.getFirmwareVersion()).thenReturn("Version1");
+
+        // Setup the protocol
+        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
+
+        // Setup the test init message
+        UpdateInit initMessage = new UpdateInit("whatever-file");
+
+        // Do the call
+        protocol.handleFirmwareUpdateInitiation(
+                FirmwareUpdateProtocol.IN_DIRECTION + clientMock.getClientId() + FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE,
                 new MqttMessage(JsonUtil.serialize(initMessage)));
 
         // Sleep a tad bit
@@ -115,32 +141,6 @@ public class FirmwareUpdateProtocolTest {
         // Check all the mock calls
         verify(managementMock, times(1)).fileExists(anyString());
         verify(clientMock, times(3)).getClientId();
-        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void initializationHappyFlow() throws MqttException, InterruptedException {
-        // Setup the return of the mock
-        when(managementMock.fileExists("whatever-file")).thenReturn(true);
-        when(installerMock.onFirmwareVersion()).thenReturn("Version1");
-
-        // Setup the protocol
-        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
-
-        // Setup the test init message
-        UpdateInit initMessage = new UpdateInit(new String[]{clientMock.getClientId()}, "whatever-file");
-
-        // Do the call
-        protocol.handleFirmwareUpdateInitiation(
-                FirmwareUpdateProtocol.FIRMWARE_INSTALL_INITIALIZE + clientMock.getClientId(),
-                new MqttMessage(JsonUtil.serialize(initMessage)));
-
-        // Sleep a tad bit
-        Thread.sleep(1000);
-
-        // Check all the mock calls
-        verify(managementMock, times(1)).fileExists(anyString());
-        verify(clientMock, times(4)).getClientId();
         verify(clientMock, times(2)).publish(anyString(), any(), anyInt(), anyBoolean());
         verify(installerMock, times(1))
                 .onInstallCommandReceived(eq("whatever-file"));
@@ -164,7 +164,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Send the firmware version
-        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -182,7 +182,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Send the firmware version
         exceptionRule.expect(IllegalArgumentException.class);
-        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLATION);
+        protocol.sendStatusMessage(FirmwareUpdateStatus.INSTALLING);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -194,7 +194,7 @@ public class FirmwareUpdateProtocolTest {
         protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
 
         // Send the firmware version
-        protocol.sendErrorMessage(FirmwareUpdateError.UNSPECIFIED_ERROR);
+        protocol.sendErrorMessage(FirmwareUpdateError.UNKNOWN);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();
@@ -212,37 +212,7 @@ public class FirmwareUpdateProtocolTest {
 
         // Send the firmware version
         exceptionRule.expect(IllegalArgumentException.class);
-        protocol.sendErrorMessage(FirmwareUpdateError.UNSPECIFIED_ERROR);
-
-        // Verify all the mock calls
-        verify(clientMock, times(1)).getClientId();
-    }
-
-    @Test
-    public void publishFirmwareVersionHappyFlow() throws MqttException {
-        // Setup the protocol
-        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
-
-        // Send the firmware version
-        protocol.publishFirmwareVersion("Firmware 1.0.0");
-
-        // Verify all the mock calls
-        verify(clientMock, times(1)).getClientId();
-        verify(clientMock, times(1)).publish(anyString(), any(), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void publishFirmwareVersionPublishThrows() throws MqttException {
-        // Setup the throwing method
-        doThrow(new MqttException(new Exception("Test MQTT exception."))).when(clientMock)
-                .publish(anyString(), any(), anyInt(), anyBoolean());
-
-        // Setup the protocol
-        protocol = new FirmwareUpdateProtocol(clientMock, managementMock, installerMock);
-
-        // Send the firmware version
-        exceptionRule.expect(IllegalArgumentException.class);
-        protocol.publishFirmwareVersion("Firmware 1.0.0");
+        protocol.sendErrorMessage(FirmwareUpdateError.UNKNOWN);
 
         // Verify all the mock calls
         verify(clientMock, times(1)).getClientId();

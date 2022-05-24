@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,20 +16,23 @@
  */
 package com.wolkabout.wolk.filemanagement.model.device2platform;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * This class represents the payload sent by the device to the platform
  * to the `d2p/file_binary_request/d/` endpoint to receive binary file data.
  */
 public class ChunkRequest {
 
+    @JsonProperty("name")
     private String fileName;
-    private int chunkIndex;
-    private int chunkSize;
 
-    public ChunkRequest(String fileName, int chunkIndex, int chunkSize) {
+    @JsonProperty("chunkIndex")
+    private int chunkIndex;
+
+    public ChunkRequest(String fileName, int chunkIndex) {
         this.fileName = fileName;
         this.chunkIndex = chunkIndex;
-        this.chunkSize = chunkSize;
     }
 
     public String getFileName() {
@@ -48,20 +51,11 @@ public class ChunkRequest {
         this.chunkIndex = chunkIndex;
     }
 
-    public int getChunkSize() {
-        return chunkSize;
-    }
-
-    public void setChunkSize(int chunkSize) {
-        this.chunkSize = chunkSize;
-    }
-
     @Override
     public String toString() {
         return "ChunkRequest{" +
-                "fileName='" + fileName + '\'' +
+                "name='" + fileName + '\'' +
                 ", chunkIndex=" + chunkIndex +
-                ", chunkSize=" + chunkSize +
                 '}';
     }
 }

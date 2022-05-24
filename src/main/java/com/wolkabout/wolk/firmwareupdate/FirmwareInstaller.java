@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 WolkAbout Technology s.r.o.
+ * Copyright (c) 2021 WolkAbout Technology s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,26 @@
  */
 package com.wolkabout.wolk.firmwareupdate;
 
+import org.apache.commons.lang3.StringUtils;
+
 public interface FirmwareInstaller {
     boolean onInstallCommandReceived(String fileName);
 
     void onAbortCommandReceived();
 
-    String onFirmwareVersion();
+    String getFirmwareVersion();
+
+    /**
+     * Checks if new firmware version exists at provided url
+     *
+     * @param url
+     * @return
+     */
+    default boolean isNewVersionAvailable(String url) {
+        if (StringUtils.isEmpty(url)) {
+            throw new IllegalArgumentException("Url cannot be empty");
+        }
+
+        return true;
+    }
 }

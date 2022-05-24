@@ -14,13 +14,18 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.protocol;
+package com.wolkabout.wolk.protocol.handler;
 
-public enum ProtocolType {
+import com.wolkabout.wolk.model.Parameter;
+
+import java.util.Collection;
+
+public interface ParameterHandler {
 
     /**
-     * New standard. Use this.
+     * Called when parameters are received.
+     *
+     * @param parameters Collection of key-value pair of names and values.
      */
-    WOLKABOUT_PROTOCOL
-
+    void onParametersReceived(Collection<Parameter> parameters);
 }

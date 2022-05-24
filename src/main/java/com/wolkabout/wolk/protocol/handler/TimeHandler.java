@@ -14,13 +14,14 @@
  * limitations under the License.
  *
  */
-package com.wolkabout.wolk.protocol;
+package com.wolkabout.wolk.protocol.handler;
 
-public enum ProtocolType {
+public interface TimeHandler {
 
     /**
-     * New standard. Use this.
+     * Called when time is received.
+     *
+     * @param timestamp in milliseconds.
      */
-    WOLKABOUT_PROTOCOL
-
+    void onTimeReceived(long timestamp);
 }
