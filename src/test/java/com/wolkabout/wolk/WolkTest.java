@@ -49,14 +49,17 @@ public class WolkTest {
     public void init() throws NoSuchFieldException {
         wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host(WOLK_DEMO_URL)
-                .sslCertification(WOLK_DEMO_CA)
+                .host("ssl://insert_host:insert_port")
                 .deviceKey("device_key")
-                .password("password")
+                .password("some_password")
                 .build()
                 .build();
 
         FieldSetter.setField(wolk, wolk.getClass().getDeclaredField("scheduledFirmwareUpdate"), scheduledFirmwareUpdateMock);
+    }
+      
+    @Test
+    public void connect() {
     }
 
     @Test

@@ -18,9 +18,7 @@
 ```
 ----
 
-[![Build Status](https://travis-ci.com/Wolkabout/WolkConnect-Java.svg?branch=master)](https://travis-ci.com/Wolkabout/WolkConnect-Java)
-
-WolkAbout Java Connector for connecting devices to  [WolkAbout IoT Platform](https://demo.wolkabout.com/#/login).
+WolkAbout Java Connector for connecting devices to WolkAbout IoT Platform instance.
 
 Supported device communication protocols:
 * WolkAbout Protocol
@@ -72,8 +70,8 @@ After creating the device on the Platform, copy the provided credentials into `d
 ```java
 final Wolk wolk = Wolk.builder()
     .mqtt()
-        .host("ssl://api-demo.wolkabout.com:8883")
-        .sslCertification("ca.crt")
+        .host("ssl://insert_host:insert_port")
+        .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
         .deviceKey("devicekey")
         .password("password")
         .build()
@@ -120,8 +118,8 @@ Provide an implementation of `onFeedsReceived` and `getActuatorStatus`:
 ```java
 final Wolk wolk = Wolk.builder()
         .mqtt()
-        .host("ssl://api-demo.wolkabout.com:8883")
-        .sslCertification("ca.crt")
+        .host("ssl://insert_host:insert_port")
+        .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
         .deviceKey("device_key")
         .password("some_password")
         .build()
@@ -161,8 +159,8 @@ To enable these features, you need to invoke the methods in the builder.
 ```java
 final Wolk wolk = Wolk.builder()
     .mqtt()
-    .host("ssl://api-demo.wolkabout.com:8883")
-    .sslCertification("ca.crt")
+    .host("ssl://insert_host:insert_port")
+    .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
     .deviceKey("device_key")
     .password("some_password")
     .enableFileManagement()
@@ -197,8 +195,8 @@ String firmwareVersion = ...;
 
 final Wolk wolk = Wolk.builder()
     .mqtt()
-    .host("ssl://api-demo.wolkabout.com:8883")
-    .sslCertification("ca.crt")
+    .host("ssl://insert_host:insert_port")
+    .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
     .deviceKey("device_key")
     .password("some_password")
     .enableFirmwareUpdate(firmwareInstaller, firmwareVersion)

@@ -26,10 +26,10 @@ public class Example {
 
         final Wolk wolk = Wolk.builder(OutboundDataMode.PUSH)
                 .mqtt()
-                .host(Wolk.WOLK_DEMO_URL)
-                .sslCertification(Wolk.WOLK_DEMO_CA)
-                .deviceKey("device-key")
-                .password("device-password")
+                .host("ssl://insert_host:insert_port")
+                .sslCertification("/INSERT/PATH/TO/YOUR/CA.CRT/FILE")
+                .deviceKey("device_key")
+                .password("some_password")
                 .build()
                 .build();
 
