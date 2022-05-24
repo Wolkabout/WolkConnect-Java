@@ -47,8 +47,8 @@ import java.util.stream.Collectors;
  */
 public class Wolk {
 
-    public static final String WOLK_DEMO_URL = "ssl://api-demo.wolkabout.com:8883";
-    public static final String WOLK_DEMO_CA = "ca.crt";
+    public static final String WOLK_DEMO_URL = "ssl://insert_host:insert_port";
+    public static final String WOLK_DEMO_CA = "/INSERT/PATH/TO/YOUR/CA.CRT/FILE";
     private static final Logger LOG = LoggerFactory.getLogger(Wolk.class);
     private static final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2);
     private boolean keepAliveServiceEnabled = true;

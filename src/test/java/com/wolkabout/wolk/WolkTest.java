@@ -6,14 +6,6 @@ public class WolkTest {
 
     @Test
     public void connect() {
-        Wolk wolk = Wolk.builder()
-                .mqtt()
-                .host("ssl://api-demo.wolkabout.com:8883")
-                .sslCertification("ca.crt")
-                .deviceKey("device_key")
-                .password("password")
-                .build()
-                .build();
     }
 
     @Test
